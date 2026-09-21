@@ -7,6 +7,15 @@
 // Get latest version at https://github.com/ocornut/imgui
 
 #pragma once
+
+// IM_ARRAYSIZE в этом форке был объявлен только в ImGuiInternal.hpp, хотя это
+// публичный хелпер оригинального ImGui (imgui.h). Любой файл, который
+// подключает лишь ImGui.hpp, получал на IM_ARRAYSIZE ошибку C3861 (MSVC).
+// Определение продублировано под #ifndef — вместе с такой же защитой в
+// ImGuiInternal.hpp это не даёт ни C3861, ни предупреждения C4005.
+#ifndef IM_ARRAYSIZE
+#define IM_ARRAYSIZE(_ARR)      ((int)(sizeof(_ARR)/sizeof(*_ARR)))
+#endif
 #include <float.h>          // FLT_MAX
 #include <stdarg.h>         // va_list
 #include <stddef.h>         // ptrdiff_t, NULL

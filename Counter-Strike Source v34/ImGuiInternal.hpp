@@ -75,7 +75,9 @@ extern IMGUI_API ImGuiContext*  GImGui;     // current implicit ImGui context po
 											// Helpers
 											//-----------------------------------------------------------------------------
 
+#ifndef IM_ARRAYSIZE
 #define IM_ARRAYSIZE(_ARR)      ((int)(sizeof(_ARR)/sizeof(*_ARR)))
+#endif
 #define IM_PI                   3.14159265358979323846f
 
 											// Helpers: UTF-8 <> wchar

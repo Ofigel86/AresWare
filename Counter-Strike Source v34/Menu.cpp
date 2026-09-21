@@ -1156,10 +1156,13 @@ namespace Feature
 				// первого же нажатия. Чистим состояние.
 				ImGuiIO& io = ImGui::GetIO();
 
-				for( int i = 0; i < IM_ARRAYSIZE( io.KeysDown ); i++ )
+				// ARRAYSIZE (windows.h), а не IM_ARRAYSIZE: последний
+				// объявлен только в ImGuiInternal.hpp, который Menu.cpp не
+				// подключает (MSVC C3861). В файле и так везде ARRAYSIZE.
+				for( int i = 0; i < ( int )ARRAYSIZE( io.KeysDown ); i++ )
 					io.KeysDown[ i ] = false;
 
-				for( int i = 0; i < IM_ARRAYSIZE( io.MouseDown ); i++ )
+				for( int i = 0; i < ( int )ARRAYSIZE( io.MouseDown ); i++ )
 					io.MouseDown[ i ] = false;
 
 				AW::s_pKeyCap = nullptr;
