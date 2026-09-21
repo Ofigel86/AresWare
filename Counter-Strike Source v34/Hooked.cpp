@@ -443,6 +443,41 @@ void FakeLag(CUserCmd* cmd)
 	}
 }
 
+void DefensiveChoke(CUserCmd* cmd)
+{
+	static int s_iChokeLeft = 0;
+
+	if (Config::AntiAim->DefensiveTicks <= 0)
+		return;
+
+	C_CSPlayer* pLocal = C_CSPlayer::GetLocalPlayer();
+
+	if (!pLocal || pLocal->IsDormant() || !pLocal->IsAlive())
+	{
+		s_iChokeLeft = 0;
+		return;
+	}
+
+	C_BaseCombatWeapon* weapon = pLocal->GetActiveWeapon();
+
+	if (!weapon)
+		return;
+
+	// Выстрел ушёл (IN_ATTACK на тике готовности) — чокаем следующие N тиков,
+	// хитбоксы врага отстают от их прицела.
+	if ((cmd->buttons & IN_ATTACK) && weapon->IsFireTime())
+	{
+		s_iChokeLeft = Config::AntiAim->DefensiveTicks;
+		return;
+	}
+
+	if (s_iChokeLeft > 0)
+	{
+		s_iChokeLeft--;
+		bSendPacket = false;
+	}
+}
+
 void RotateMovement(CUserCmd* cmd, float rotation)
 {
 	rotation = ToRadians(rotation);
@@ -767,6 +802,27 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 	if ((cmd->buttons & IN_ATTACK) && weapon->IsFireTime())
 		return;
 
+	// Manual AA: боковой/задний доворот поверх выставленных углов.
+	// Жмём свой чок пополам, чтобы десинк не зависел от FakeLag.
+	static bool s_bManualChoke = false;
+
+	{
+		float flManual = 0.0f;
+
+		if (GetAsyncKeyState(Config::AntiAim->ManualLeftKey) & 0x8000) flManual = -90.0f;
+		else if (GetAsyncKeyState(Config::AntiAim->ManualRightKey) & 0x8000) flManual = 90.0f;
+		else if (GetAsyncKeyState(Config::AntiAim->ManualBackKey) & 0x8000) flManual = 180.0f;
+
+		if (flManual != 0.0f)
+		{
+			s_bManualChoke = !s_bManualChoke;
+
+			bSendPacket = s_bManualChoke;
+
+			cmd->viewangles.y = va.y + flManual;
+		}
+	}
+
 	if (Config::AntiAim->AtTargetEnabled)
 		AtTarget(cmd, player);
 	
@@ -838,6 +894,20 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 				cmd->viewangles.x = Config::AntiAim->MoveCustomAngleFakePitch;
 			else
 				cmd->viewangles.x = Config::AntiAim->MoveCustomAnglePitch;
+		}
+		else if (Config::AntiAim->PitchMove == 7) // Random
+		{
+			// Случайный питч на SEND-тиках: резолверу не за что зацепиться.
+			static unsigned int s_iPitchSeedM = 0xC0FFEEu;
+			static float s_flPitchM = 0.0f;
+
+			if (bSendPacket)
+			{
+				s_iPitchSeedM = s_iPitchSeedM * 1664525u + 1013904223u;
+				s_flPitchM = (float)((s_iPitchSeedM >> 8) % 178) - 89.0f;
+			}
+
+			cmd->viewangles.x = s_flPitchM;
 		}
 		if (Config::AntiAim->YawMove == 1) // Backward
 		{
@@ -1115,6 +1185,27 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 				cmd->viewangles.y += Config::AntiAim->MoveCustomAngleYaw;
 			}
 		}
+		else if (Config::AntiAim->YawMove == 15) // Back Jitter
+		{
+			static int choked_tick_count = 0;
+
+			if (choked_tick_count == 0)
+			{
+				choked_tick_count = Config::AntiAim->MoveChokedPackets;
+
+				bSendPacket = true;
+
+				cmd->viewangles.y += 180.f + 30.f * g_iAAHurtDir;
+			}
+			else
+			{
+				choked_tick_count--;
+
+				bSendPacket = false;
+
+				cmd->viewangles.y += 180.f - 30.f * g_iAAHurtDir;
+			}
+		}
 }
 	if (speed < 100.01)
 	{
@@ -1180,6 +1271,20 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 				cmd->viewangles.x = Config::AntiAim->StandCustomAngleFakePitch;
 			else
 				cmd->viewangles.x = Config::AntiAim->StandCustomAnglePitch;
+		}
+		else if (Config::AntiAim->PitchStand == 7) // Random
+		{
+			// Случайный питч на SEND-тиках: резолверу не за что зацепиться.
+			static unsigned int s_iPitchSeedS = 0xC0FFEEu;
+			static float s_flPitchS = 0.0f;
+
+			if (bSendPacket)
+			{
+				s_iPitchSeedS = s_iPitchSeedS * 1664525u + 1013904223u;
+				s_flPitchS = (float)((s_iPitchSeedS >> 8) % 178) - 89.0f;
+			}
+
+			cmd->viewangles.x = s_flPitchS;
 		}
 		if (Config::AntiAim->YawStand == 1) // Backward
 		{
@@ -1456,6 +1561,27 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 				bSendPacket = false;
 
 				cmd->viewangles.y += Config::AntiAim->StandCustomAngleYaw;
+			}
+		}
+		else if (Config::AntiAim->YawStand == 15) // Back Jitter
+		{
+			static int choked_tick_count = 0;
+
+			if (choked_tick_count == 0)
+			{
+				choked_tick_count = Config::AntiAim->StandChokedPackets;
+
+				bSendPacket = true;
+
+				cmd->viewangles.y += 180.f + 30.f * g_iAAHurtDir;
+			}
+			else
+			{
+				choked_tick_count--;
+
+				bSendPacket = false;
+
+				cmd->viewangles.y += 180.f - 30.f * g_iAAHurtDir;
 			}
 		}
 	}
@@ -1826,6 +1952,10 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 								AntiAim(cmd, player, weapon);
 							if (Config::AntiAim->BreakLC)
 								BreakLagComp(cmd, player);
+
+							// Defensive: после выстрела чокаем N тиков.
+							if (Config::AntiAim->DefensiveTicks)
+								DefensiveChoke(cmd);
 							if (Config::Misc->LagExploit)
 								Lag(cmd);
 

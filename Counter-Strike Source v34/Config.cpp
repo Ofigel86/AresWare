@@ -222,6 +222,9 @@ namespace Config
 		Main->Aimbot->AntiSpawnProtection = LoadBool(main, XorStr("aimbot.anti.spawn.protection"));
 		Main->Aimbot->NoSwitch			= LoadBool( main, XorStr( "aimbot.no.switch" ) );
 		Main->Aimbot->Spot				= LoadInt( main, XorStr( "aimbot.spot" ) );
+		Main->Aimbot->ForceBody		= LoadInt( main, XorStr( "aimbot.body.aim" ) );
+		Main->Aimbot->SafePoint		= LoadBool( main, XorStr( "aimbot.safe.point" ) );
+		Main->Aimbot->SafeFire			= LoadBool( main, XorStr( "aimbot.safe.fire" ) );
 		Main->Aimbot->SpotRandomize		= LoadBool( main, XorStr( "aimbot.spot.randomize" ) );
 		Main->Aimbot->TargetSelection	= LoadInt( main, XorStr( "aimbot.target.selection" ) );
 		Main->Aimbot->FieldOfView = LoadFloat(main, XorStr("aimbot.fov"));
@@ -547,6 +550,10 @@ namespace Config
 		AntiAim->MoveCustomAngleFakeYaw2 = LoadFloat(main, XorStr("antiaim.move.breaker.fake.second"));
 		AntiAim->HitReactive = LoadBool(main, XorStr("antiaim.hit.reactive"));
 		AntiAim->BreakLC = LoadBool(main, XorStr("antiaim.break.lagcomp"));
+		AntiAim->DefensiveTicks = LoadInt(main, XorStr("antiaim.defensive.ticks"));
+		AntiAim->ManualLeftKey = LoadInt(main, XorStr("antiaim.manual.left"));
+		AntiAim->ManualRightKey = LoadInt(main, XorStr("antiaim.manual.right"));
+		AntiAim->ManualBackKey = LoadInt(main, XorStr("antiaim.manual.back"));
 		AntiAim->FakeWalk = LoadBool(main, XorStr("antiaim.fakewalk"));
 		AntiAim->FakeWalkKey = LoadInt(main, XorStr("antiaim.fakewalk.key"));
 		AntiAim->Clamp();
@@ -624,6 +631,9 @@ namespace Config
 			Weapon[index]->Aimbot->AntiSpawnProtection = LoadBool(weapon, XorStr("aimbot.anti.spawn.protection"));
 			Weapon[ index ]->Aimbot->NoSwitch			= LoadBool( weapon, XorStr( "aimbot.no.switch" ) );
 			Weapon[ index ]->Aimbot->Spot				= LoadInt( weapon, XorStr( "aimbot.spot" ) );
+			Weapon[ index ]->Aimbot->ForceBody	= LoadInt( weapon, XorStr( "aimbot.body.aim" ) );
+			Weapon[ index ]->Aimbot->SafePoint	= LoadBool( weapon, XorStr( "aimbot.safe.point" ) );
+			Weapon[ index ]->Aimbot->SafeFire	= LoadBool( weapon, XorStr( "aimbot.safe.fire" ) );
 			Weapon[ index ]->Aimbot->SpotRandomize		= LoadBool( weapon, XorStr( "aimbot.spot.randomize" ) );
 			Weapon[ index ]->Aimbot->TargetSelection	= LoadInt( weapon, XorStr( "aimbot.target.selection" ) );
 			Weapon[ index ]->Aimbot->FieldOfView		= LoadFloat( weapon, XorStr( "aimbot.fov" ) );
@@ -705,6 +715,9 @@ namespace Config
 		SaveBool(main, XorStr("aimbot.anti.spawn.protection"), Main->Aimbot->AntiSpawnProtection);
 		SaveBool( main, XorStr( "aimbot.no.switch" ), Main->Aimbot->NoSwitch );
 		SaveInt( main, XorStr( "aimbot.spot" ), Main->Aimbot->Spot );
+		SaveInt( main, XorStr( "aimbot.body.aim" ), Main->Aimbot->ForceBody );
+		SaveBool( main, XorStr( "aimbot.safe.point" ), Main->Aimbot->SafePoint );
+		SaveBool( main, XorStr( "aimbot.safe.fire" ), Main->Aimbot->SafeFire );
 		SaveBool( main, XorStr( "aimbot.spot.randomize" ), Main->Aimbot->SpotRandomize );
 		SaveInt( main, XorStr( "aimbot.target.selection" ), Main->Aimbot->TargetSelection );
 		SaveFloat(main, XorStr("aimbot.fov"), Main->Aimbot->FieldOfView);
@@ -1030,6 +1043,10 @@ namespace Config
 		SaveFloat(main, XorStr("antiaim.move.breaker.fake.second"), AntiAim->MoveCustomAngleFakeYaw2);
 		SaveBool(main, XorStr("antiaim.hit.reactive"), AntiAim->HitReactive);
 		SaveBool(main, XorStr("antiaim.break.lagcomp"), AntiAim->BreakLC);
+		SaveInt(main, XorStr("antiaim.defensive.ticks"), AntiAim->DefensiveTicks);
+		SaveInt(main, XorStr("antiaim.manual.left"), AntiAim->ManualLeftKey);
+		SaveInt(main, XorStr("antiaim.manual.right"), AntiAim->ManualRightKey);
+		SaveInt(main, XorStr("antiaim.manual.back"), AntiAim->ManualBackKey);
 
 		Removals->Clamp();
 		SaveBool( main, XorStr( "removals.no.recoil" ), Removals->NoRecoil );
@@ -1105,6 +1122,9 @@ namespace Config
 			SaveBool(weapon, XorStr("aimbot.anti.spawn.protection"), Weapon[index]->Aimbot->AntiSpawnProtection);
 			SaveBool( weapon, XorStr( "aimbot.no.switch" ), Weapon[ index ]->Aimbot->NoSwitch );
 			SaveInt( weapon, XorStr( "aimbot.spot" ), Weapon[ index ]->Aimbot->Spot );
+			SaveInt( weapon, XorStr( "aimbot.body.aim" ), Weapon[ index ]->Aimbot->ForceBody );
+			SaveBool( weapon, XorStr( "aimbot.safe.point" ), Weapon[ index ]->Aimbot->SafePoint );
+			SaveBool( weapon, XorStr( "aimbot.safe.fire" ), Weapon[ index ]->Aimbot->SafeFire );
 			SaveBool( weapon, XorStr( "aimbot.spot.randomize" ), Weapon[ index ]->Aimbot->SpotRandomize );
 			SaveInt( weapon, XorStr( "aimbot.target.selection" ), Weapon[ index ]->Aimbot->TargetSelection );
 			SaveFloat( weapon, XorStr( "aimbot.fov" ), Weapon[ index ]->Aimbot->FieldOfView );
@@ -1280,6 +1300,9 @@ namespace Config
 			Current->Aimbot->HitScan				= 0;
 			Current->Aimbot->HitScanScale			= 0.0f;
 			Current->Aimbot->Silent				= false;
+			Current->Aimbot->ForceBody		= 0; // rage-only: legit has own zones
+			Current->Aimbot->SafePoint		= false;
+			Current->Aimbot->SafeFire			= false;
 			Current->Aimbot->NoSpreadActive		= false;
 			Current->Aimbot->NoSpread			= 0;
 			Current->Aimbot->LagCompensation		= legit->Backtrack ? 1 : 0; // legit backtrack

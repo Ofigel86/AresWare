@@ -50,6 +50,9 @@ namespace Config
 		bool	AutoScope = false;		// zoom scoped rifles when target found
 		int		MinDamageOverride = 0;	// min damage while override key held
 		int		MinDamageOverrideKey = 0;
+		int		ForceBody = 0;		// 0 - Off | 1 - Lethal | 2 - Always
+		bool	SafePoint = false;	// tight head multipoint
+		bool	SafeFire = false;	// fire only if spread sim hits
 		bool	NoSwitch = false;		// 
 		bool	Height = false;
 		int		Spot = 0;				// 
@@ -112,6 +115,7 @@ namespace Config
 			LimitValue( Spot, 0, 19 );
 			LimitValue( MinDamageOverride, 0, 100 );
 			LimitValue( MinDamageOverrideKey, 0, 128 );
+			LimitValue( ForceBody, 0, 2 );
 		}
 	};
 
@@ -186,7 +190,7 @@ namespace Config
 		void	Clamp()
 		{
 			LimitValue( Key, 0, 128 );
-			LimitValue( TargetSelection, 0, 2 );
+			LimitValue( TargetSelection, 0, 4 );
 			LimitValue( FieldOfView, 0.0f, 180.0f );
 			LimitValue( Smooth, 0, 2 );
 			LimitValue( StepX, 0.0f, 100.0f );
@@ -302,6 +306,10 @@ namespace Config
 		int MoveFakeSpinSpeed = 0;
 		bool HitReactive = false;
 		bool BreakLC = false;
+		int DefensiveTicks = 0;		// post-shot choke (CS:S defensive)
+		int ManualLeftKey = 0;
+		int ManualRightKey = 0;
+		int ManualBackKey = 0;
 		void Clamp()
 		{
 			LimitValue(StandSwitchPitchDelay, 20, 1020);
@@ -323,7 +331,11 @@ namespace Config
 				LimitValue(StandFakeSpinAngle, -999999.f, 9999999.f)
 				LimitValue(StandFakeSpinSpeed, -9999, 9999)
 				LimitValue(MoveFakeSpinAngle, -999999.f, 9999999.f)
-				LimitValue(MoveFakeSpinSpeed, -9999, 9999)
+				LimitValue(MoveFakeSpinSpeed, -9999, 9999);
+				LimitValue(DefensiveTicks, 0, 10);
+				LimitValue(ManualLeftKey, 0, 128);
+				LimitValue(ManualRightKey, 0, 128);
+				LimitValue(ManualBackKey, 0, 128);
 		}
 	};
 

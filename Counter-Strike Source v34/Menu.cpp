@@ -567,7 +567,16 @@ const char* TargetSelectionList[ ] =
 {
 	"Fast",
 	"Distance",
-	"FOV"
+	"FOV",
+	"Spawn Time",
+	"Damage"
+};
+
+const char* BodyAimList[ ] =
+{
+	"Off",
+	"Lethal",
+	"Always"
 };
 
 const char* SmoothList[ ] =
@@ -670,7 +679,8 @@ const char* PitchStandList[ ] =
 	"Custom",
 	"Flip",
 	"Switch",
-	"Jitter"
+	"Jitter",
+	"Random"
 };
 
 const char* PitchMoveList[ ] =
@@ -681,7 +691,8 @@ const char* PitchMoveList[ ] =
 	"Custom",
 	"Flip",
 	"Switch",
-	"Jitter"
+	"Jitter",
+	"Random"
 };
 
 const char* YawStandList[ ] =
@@ -700,7 +711,8 @@ const char* YawStandList[ ] =
 	"Custom Static Fake",
 	"Fake Spin",
 	"Fake Spin 2",
-	"Unbalanced"
+	"Unbalanced",
+	"Back Jitter"
 };
 
 const char* YawMoveList[ ] =
@@ -719,7 +731,8 @@ const char* YawMoveList[ ] =
 	"Custom Static Fake",
 	"Fake Spin",
 	"Fake Spin 2",
-	"Unbalanced"
+	"Unbalanced",
+	"Back Jitter"
 };
 
 const char* AccuracyList[ ] =
@@ -1002,8 +1015,8 @@ namespace Feature
 			d->AddLine( ImVec2( pos.x + 799.0f, pos.y + 67.0f ), ImVec2( pos.x + 799.0f, pos.y + 658.0f ), AW::Col( 255, 120, 120 ) );
 			d->AddLine( ImVec2( pos.x + 10.0f, pos.y + 657.0f ), ImVec2( pos.x + 800.0f, pos.y + 657.0f ), AW::Col( 255, 120, 120 ) );
 			ImGui::PushFont( fntTitle );
-			d->AddText( ImVec2( pos.x + 15.0f, pos.y + 6.0f ), AW::Col( 130, 0, 0 ), XorStr( "ARESWARE for Counter-Strike: Source" ) );
-			d->AddText( ImVec2( pos.x + 14.0f, pos.y + 5.0f ), AW::Col( 255, 255, 255 ), XorStr( "ARESWARE for Counter-Strike: Source" ) );
+			d->AddText( ImVec2( pos.x + 15.0f, pos.y + 6.0f ), AW::Col( 130, 0, 0 ), XorStr( "ARESWARE v2.0 for Counter-Strike: Source" ) );
+			d->AddText( ImVec2( pos.x + 14.0f, pos.y + 5.0f ), AW::Col( 255, 255, 255 ), XorStr( "ARESWARE v2.0 for Counter-Strike: Source" ) );
 			ImGui::PopFont();
 			float tabW = 790.0f / 7.0f;
 
@@ -1094,6 +1107,12 @@ namespace Feature
 			AW::KeyBox( XorStr( "Key" ), &aim->Key );
 
 		AW::Checkbox( XorStr( "Auto Fire" ), &aim->AutoFire );
+
+		if( Config::Main->AimbotStyle == 0 )
+		{
+			AW::Checkbox( XorStr( "Safe Point" ), &aim->SafePoint );
+			AW::Checkbox( XorStr( "Safe Fire" ), &aim->SafeFire );
+		}
 		AW::Checkbox( XorStr( "Auto Stop" ), &aim->AutoStop );
 		AW::Checkbox( XorStr( "Auto Crouch" ), &aim->AutoCrouch );
 		AW::Checkbox( XorStr( "Auto Reload" ), &aim->AutoReload );
@@ -1127,6 +1146,9 @@ namespace Feature
 		}
 
 		AW::Combo( XorStr( "Target Selection" ), &aim->TargetSelection, TargetSelectionList, ARRAYSIZE( TargetSelectionList ) );
+
+		if( Config::Main->AimbotStyle == 0 )
+			AW::Combo( XorStr( "Body Aim" ), &aim->ForceBody, BodyAimList, ARRAYSIZE( BodyAimList ) );
 
 		if( aim->TargetSelection == 2 )
 			AW::SliderFloat( XorStr( "Field Of View" ), &aim->FieldOfView, 0.0f, 180.0f, XorStr( "%.1f" ) );
@@ -1384,7 +1406,7 @@ namespace Feature
 				}
 
 				AW::EndPanel();
-				AW::BeginPanel( XorStr( "General" ), ImVec2( pos.x + 402.0f, pos.y + 100.0f ), ImVec2( 394.0f, 240.0f ) );
+				AW::BeginPanel( XorStr( "General" ), ImVec2( pos.x + 402.0f, pos.y + 100.0f ), ImVec2( 394.0f, 348.0f ) );
 				AW::Checkbox( XorStr( "At Target Enabled" ), &aa->AtTargetEnabled );
 
 				if( aa->AtTargetEnabled )
@@ -1404,8 +1426,12 @@ namespace Feature
 
 				AW::Checkbox( XorStr( "Hit Reactive" ), &aa->HitReactive );
 				AW::Checkbox( XorStr( "Break LagComp" ), &aa->BreakLC );
+				AW::SliderInt( XorStr( "Defensive Ticks" ), &aa->DefensiveTicks, 0, 10, XorStr( "%d" ) );
+				AW::KeyBox( XorStr( "Manual Left" ), &aa->ManualLeftKey );
+				AW::KeyBox( XorStr( "Manual Right" ), &aa->ManualRightKey );
+				AW::KeyBox( XorStr( "Manual Back" ), &aa->ManualBackKey );
 				AW::EndPanel();
-				AW::BeginPanel( XorStr( "Players" ), ImVec2( pos.x + 402.0f, pos.y + 348.0f ), ImVec2( 394.0f, 304.0f ) );
+				AW::BeginPanel( XorStr( "Players" ), ImVec2( pos.x + 402.0f, pos.y + 456.0f ), ImVec2( 394.0f, 196.0f ) );
 				DrawPlayersBlock();
 				AW::EndPanel();
 				Config::AntiAim->Clamp();

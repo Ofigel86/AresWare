@@ -18,6 +18,7 @@
 #include "LagCompensation.hpp"
 
 #include <cmath>
+#include "checksum_md5.hpp"
 
 namespace
 {
@@ -116,6 +117,10 @@ namespace Feature
 
 		m_pCmd = pCmd;
 		m_pLocal = C_CSPlayer::GetLocalPlayer();
+
+		// Рейдж: Body Aim Always — прицел всегда в грудь (Current пересобирается каждый тик).
+		if( Config::Main->AimbotStyle == 0 && cfg->ForceBody == 2 )
+			cfg->Spot = 10;
 
 		if( !m_pLocal || m_pLocal->m_lifeState() != LIFE_ALIVE )
 			return;
@@ -335,6 +340,10 @@ namespace Feature
 					bHoldFire = true;
 			}
 
+			// Рейдж: Safe Fire — стреляем только если симуляция точного спреда тика попадает в цель.
+			if( Config::Main->AimbotStyle == 0 && cfg->SafeFire && !WillShotHit() )
+				bHoldFire = true;
+
 			if( !bHoldFire )
 			{
 				pCmd->buttons &= ~IN_RELOAD;
@@ -441,6 +450,20 @@ namespace Feature
 				if( bFirst || flTime > flBest )
 				{
 					flBest = flTime;
+					pBest = pTarget;
+					vBestPoint = m_vTarget;
+				}
+			}
+			else if( cfg->TargetSelection == 4 ) // Damage: максимальный урон
+			{
+				int iDmg = 0;
+
+				// IsTargetGood точку уже нашёл — досчитываем только урон.
+				IsPointHittable( pTarget, m_vTarget, &iDmg );
+
+				if( bFirst || ( float )iDmg > flBest )
+				{
+					flBest = ( float )iDmg;
 					pBest = pTarget;
 					vBestPoint = m_vTarget;
 				}
@@ -598,6 +621,23 @@ namespace Feature
 		auto cfg = Config::Current->Aimbot;
 
 		int iDamage = 0;
+
+		// Рейдж: Body Aim Lethal — в грудь летит смертельный урон, бьём туда.
+		if( Config::Main->AimbotStyle == 0 && cfg->ForceBody == 1 )
+		{
+			Vector3 vChest;
+
+			if( pTarget->GetHitboxVector( 10, vChest ) )
+			{
+				int iChestDamage = 0;
+
+				if( IsPointHittable( pTarget, vChest, &iChestDamage ) && iChestDamage >= pTarget->m_iHealth() )
+				{
+					vPoint = vChest;
+					return true;
+				}
+			}
+		}
 
 		// Основная точка бьётся — хитскан не нужен.
 		if( IsPointHittable( pTarget, vPoint, &iDamage ) )
@@ -807,7 +847,9 @@ namespace Feature
 				{
 					const float flA = ( float )j * 0.7853982f;
 
-					const Vector3 vDot = vCenter + vRight * ( cosf( flA ) * flRadius ) + vUp * ( sinf( flA ) * flRadius );
+					const float flHeadRadius = cfg->SafePoint ? flRadius * 0.5f : flRadius;
+
+					const Vector3 vDot = vCenter + vRight * ( cosf( flA ) * flHeadRadius ) + vUp * ( sinf( flA ) * flHeadRadius );
 
 					if( ConsiderHitScanPoint( pTarget, vDot, vPoint, iBestDamage, flBestFov ) )
 						bFound = true;
@@ -867,6 +909,66 @@ namespace Feature
 
 		vPoint = vCandidate;
 		return true;
+	}
+
+	bool Aimbot::WillShotHit()
+	{
+		auto cfg = Config::Current->Aimbot;
+
+		if( !m_pTarget || !m_pWeapon || !m_pCmd || !m_pData )
+			return false;
+
+		// Точный сид выстрела: с сид-локом это константа 141 (NoSpread
+		// докрутит command_number позже в этом же тике), иначе — MD5
+		// текущего номера команды.
+		const int iSeed = ( cfg->NoSpread == 2 ) ? 141 : ( int )( MD5_PseudoRandom( m_pCmd->command_number ) & 255 );
+
+		Vector3 vForward, vRight, vUp;
+
+		AngleVectors( m_pCmd->viewangles, &vForward, &vRight, &vUp );
+
+		Vector3 vDir = vForward;
+
+		// Без NoSpread пуля уйдёт со спредом — симулируем честно.
+		// С NoSpread считаем компенсацию идеальной: пуля летит в прицел.
+		if( !( cfg->NoSpreadActive && cfg->NoSpread ) )
+		{
+			const float flSpread = m_pWeapon->GetSpread();
+
+			Valve::RandomSeed( ( iSeed & 255 ) + 1 );
+
+			const float flX = Valve::RandomFloat( -0.5f, 0.5f ) + Valve::RandomFloat( -0.5f, 0.5f );
+			const float flY = Valve::RandomFloat( -0.5f, 0.5f ) + Valve::RandomFloat( -0.5f, 0.5f );
+
+			vDir = vForward + ( flSpread * flX * vRight ) + ( flSpread * flY * vUp );
+
+			VectorNormalize( vDir );
+		}
+
+		const Vector3 vEye = m_pLocal->EyePosition();
+		const Vector3 vEnd = vEye + vDir * m_pData->m_flRange;
+
+		if( cfg->AutoWall )
+		{
+			C_BaseEntity* pHit = nullptr;
+
+			if( !Source::m_pAccuracy->CanPenetrate( vEye, vEnd, EffectiveMinDamage(), cfg->Target, nullptr, nullptr, nullptr, &pHit ) )
+				return false;
+
+			return ToCSPlayer( pHit ) == m_pTarget;
+		}
+
+		Ray_t ray;
+		trace_t tr;
+
+		CTraceFilterSimple trace( m_pLocal );
+
+		ray.Set( vEye, vEnd );
+
+		Source::m_pEngineTrace->TraceRay( ray, 0x46004003, &trace, &tr );
+		Valve::ClipTraceToPlayers( vEye, vEnd + vDir * 40.0f, 0x46004003, &trace, &tr );
+
+		return ToCSPlayer( tr.m_pEnt ) == m_pTarget;
 	}
 
 	bool Aimbot::IsScopedWeapon()
