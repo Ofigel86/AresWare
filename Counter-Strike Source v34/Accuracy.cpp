@@ -5,99 +5,57 @@
 
 namespace Feature
 {
+	static void CompensateSpread( const Vector3& vBase, float flSpread, float flX, float flY, Vector3& vOut )
+	{
+		Vector3 vForward, vRight, vUp;
+
+		AngleVectors( vBase, &vForward, &vRight, &vUp );
+
+		Vector3 vDirection = vForward + ( -flSpread * flX * vRight ) + ( -flSpread * flY * vUp );
+
+		VectorNormalize( vDirection );
+		VectorAngles( vDirection, vOut );
+
+		vOut.z = 0.0f;
+	}
+
 	void Accuracy::ApplySpreadFix( C_WeaponCSBaseGun* weapon, int random_seed, const Vector3& input, Vector3& va, int type, bool inverted )
 	{
 		if( !type )
 			return;
 
-		auto spread = weapon->GetSpread();
+		float flSpread = weapon->GetSpread();
+
+		if( flSpread <= 0.0f )
+			return;
 
 		if( inverted )
-			spread = -spread;
+			flSpread = -flSpread;
 
 		Valve::RandomSeed( ( random_seed & 255 ) + 1 );
 
-		float random[ 2 ] =
+		// Движок: shared-random сид + два броска на ось.
+		const float flX = Valve::RandomFloat( -0.5f, 0.5f ) + Valve::RandomFloat( -0.5f, 0.5f );
+		const float flY = Valve::RandomFloat( -0.5f, 0.5f ) + Valve::RandomFloat( -0.5f, 0.5f );
+
+		// Пуля летит forward + spread*x*right + spread*y*up в базисе
+		// выстрела — целимся в (forward - spread*x*right - spread*y*up).
+		// Предикт триггера (inverted) всегда однопроходный: предсказание
+		// предсказания дало бы двойной доворот.
+		if( type == 1 || inverted )
 		{
-			Valve::RandomFloat( -0.5f, 0.5f ) + Valve::RandomFloat( -0.5f, 0.5f ),
-			Valve::RandomFloat( -0.5f, 0.5f ) + Valve::RandomFloat( -0.5f, 0.5f ),
-		};
-
-		Vector3 forward, right, up;
-
-	/*	if( type == 1 ) // Normal
-		{
-			AngleVectors( input, &forward, &right, &up );
-
-			Vector3 direction = forward + ( -spread * random[ 0 ] * right ) + ( -spread * random[ 1 ] * up );
-			VectorNormalize( direction );
-
-			Vector3 compensated;
-			VectorAngles( direction, compensated );
-
-			va = compensated;
-		}*/
-		 if( type == 1 ) // Advanced
-		{
-			 AngleVectors(vec3_zero, &forward, &right, &up);
-
-			 Vector3 direction = forward + (-spread * random[0] * right) + (-spread * random[1] * up);
-			 VectorNormalize(direction);
-
-			 auto pitch = ToDegrees(std::atan2(direction.z, direction.x));
-
-			 if (pitch < 0.0f)
-				 pitch += 360.0f;
-
-			 pitch = -AngleNormalize(pitch);
-
-			 auto rotated_yaw = (std::cos(ToRadians(input.x)) / direction.y);
-
-			 if (rotated_yaw > 1.0f || rotated_yaw < -1.0f)
-				 rotated_yaw = 1.0f / rotated_yaw;
-
-			 float yaw = ToDegrees(std::atan2(rotated_yaw, std::sqrt(1.0f - square(rotated_yaw))));
-
-			 if (yaw < 0.0f)
-				 yaw += 360.0f;
-
-			 yaw = AngleNormalize(yaw);
-
-			 va.x += pitch;
-			 va.y += yaw;
+			CompensateSpread( input, flSpread, flX, flY, va );
 		}
-		 else  if (type == 2) // Advanced
-		 {
-			 AngleVectors(vec3_zero, &forward, &right, &up);
+		else if( type == 2 ) // Perfect: второй проход в уточнённом базисе.
+		{
+			Vector3 vOnce;
 
-			 Vector3 direction = forward + (-spread * random[0] * right) + (-spread * random[1] * up);
-			 VectorNormalize(direction);
-
-			 auto pitch = ToDegrees(std::atan2(direction.z, direction.x));
-
-			 if (pitch < 0.0f)
-				 pitch += 360.0f;
-
-			 pitch = -AngleNormalize(pitch);
-
-			 auto rotated_yaw = (std::cos(ToRadians(input.x)) / direction.y);
-
-			 if (rotated_yaw > 1.0f || rotated_yaw < -1.0f)
-				 rotated_yaw = 1.0f / rotated_yaw;
-
-			 float yaw = ToDegrees(std::atan2(rotated_yaw, std::sqrt(1.0f - square(rotated_yaw))));
-
-			 if (yaw < 0.0f)
-				 yaw += 360.0f;
-
-			 yaw = AngleNormalize(yaw);
-
-			 va.x += pitch;
-			 va.y += yaw;
-		 }
+			CompensateSpread( input, flSpread, flX, flY, vOnce );
+			CompensateSpread( vOnce, flSpread, flX, flY, va );
+		}
 	}
 
-	void Accuracy::ApplyRecoilFix(C_CSPlayer* player, Vector3& va, bool inverted)
+void Accuracy::ApplyRecoilFix(C_CSPlayer* player, Vector3& va, bool inverted)
 	{
 		if (inverted)
 		{

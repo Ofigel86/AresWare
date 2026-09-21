@@ -580,7 +580,7 @@ const char* SmoothList[ ] =
 const char* NoSpreadList[ ] =
 {
 	"Off",
-	"Pitch/Yaw",
+	"Normal",
 	"Perfect"
 };
 
