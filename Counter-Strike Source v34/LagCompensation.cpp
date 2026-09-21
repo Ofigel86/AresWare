@@ -44,7 +44,7 @@ namespace Feature
 
 		if (!record_data.empty())
 		{
-			for (auto i = 0u; i < record_data.size(); i++)
+			for (auto i = record_data.size(); i-- > 0u;)
 			{
 				if (!IsRecordGood(record_data[i]))
 					record_data.erase(record_data.begin() + i);
@@ -71,9 +71,9 @@ namespace Feature
 		if (local->m_lifeState() != LIFE_ALIVE)
 			return;
 
-		static int userID[64] = {};
-		static C_AnimationLayer backup_layers_update[64][15] = {};
-		static C_AnimationLayer backup_layers_interp[64][15] = {};
+		static int userID[65] = {};
+		static C_AnimationLayer backup_layers_update[65][15] = {};
+		static C_AnimationLayer backup_layers_interp[65][15] = {};
 
 		for (int i = 1; i <= Source::m_pEngine->GetMaxClients(); i++)
 		{
@@ -168,11 +168,8 @@ namespace Feature
 		auto record_recent = record_data.front();
 		auto record_previous = LagRecord{};
 
-		auto record_current = std::find(record_data.begin(), record_data.end(), record_recent);
-		auto record_index = std::distance(record_data.begin(), record_current);
-
-		if (record_index != 0u)
-			record_previous = *std::prev(record_current);
+		if (record_data.size() > 1u)
+			record_previous = record_data[1u];
 
 		if (!IsRecordGood(record_recent))
 		{
@@ -180,7 +177,7 @@ namespace Feature
 			return false;
 		}
 
-		if ((record_index != 0u) && (record_recent.m_vecOrigin - record_previous.m_vecOrigin).LengthSqr() > 4096.f)
+		if ((record_data.size() > 1u) && (record_recent.m_vecOrigin - record_previous.m_vecOrigin).LengthSqr() > 4096.f)
 		{
 			record_data.pop_front();
 			return false;
@@ -370,9 +367,9 @@ namespace Feature
 		if (local->m_lifeState() != LIFE_ALIVE)
 			return;
 
-		static int userID[64] = {};
-		static C_AnimationLayer backup_layers_update[64][15] = {};
-		static C_AnimationLayer backup_layers_interp[64][15] = {};
+		static int userID[65] = {};
+		static C_AnimationLayer backup_layers_update[65][15] = {};
+		static C_AnimationLayer backup_layers_interp[65][15] = {};
 
 		for (int i = 1; i <= Source::m_pEngine->GetMaxClients(); i++)
 		{
@@ -455,7 +452,7 @@ namespace Feature
 
 		if (!record_data1.empty())
 		{
-			for (auto i = 0u; i < record_data1.size(); i++)
+			for (auto i = record_data1.size(); i-- > 0u;)
 			{
 				if (!IsRecordGood1(record_data1[i]))
 					record_data1.erase(record_data1.begin() + i);
@@ -527,13 +524,13 @@ namespace Feature
 
 		if (!IsRecordGood1(record_recent))
 		{
-			record_data.pop_front();
+			record_data.pop_back();
 			return false;
 		}
 
 		if ((record_index != 0u) && (record_recent.m_vecOrigin - record_previous.m_vecOrigin).LengthSqr() > 4096.f)
 		{
-			record_data.pop_front();
+			record_data.pop_back();
 			return false;
 		}
 
