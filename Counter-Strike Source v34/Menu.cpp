@@ -1058,6 +1058,10 @@ namespace Feature
 		// Окно нужно для синхронизации позиции курсора (см. OnPresentDevice).
 		m_hWnd = hWnd;
 
+		// Маркер сборки: по нему в C:\rraggerr\v34\aresware.log видно, что
+		// запущена именно эта версия меню (панели — отдельные дочерние окна).
+		LOG( XorStr( "[Menu] Create: unique panel ids build (panel-fix)." ) );
+
 		ImGuiIO& io = ImGui::GetIO();
 		// Кандидаты по каждому шрифту: сначала «фирменные» (если установлены),
 		// затем гарантированные системные.
@@ -1507,7 +1511,13 @@ namespace Feature
 		}
 		else
 		{
-			AW::SubTabs( RageSubList, 2, &m_iRageSub, ImVec2( pos.x + 14.0f, pos.y + 70.0f ), ImVec2( 782.0f, 26.0f ) );
+			// Та же геометрия, что и во вкладке Weapons (см. ветку выше):
+			// полоса под-вкладок в правой колонке. Ширина 782 от pos.x + 14
+			// накрывала панель «Aimbot», которая рисуется раньше и лежит в
+			// дочернем окне поверх — её левая половина вместе с подписью
+			// «Weapons» оказывалась под панелью, и переключиться обратно
+			// мышью было нельзя.
+			AW::SubTabs( RageSubList, 2, &m_iRageSub, ImVec2( pos.x + 402.0f, pos.y + 70.0f ), ImVec2( 394.0f, 26.0f ) );
 
 			if( Config::Misc->Restriction != 1 )
 			{
