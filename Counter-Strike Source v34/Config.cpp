@@ -1,4 +1,4 @@
-﻿#include "Config.hpp"
+#include "Config.hpp"
 #include "Player.hpp"
 #include "Weapon.hpp"
 #include "Source.hpp"
@@ -345,6 +345,8 @@ namespace Config
 		AntiAim->MoveCustomAngleFakeYaw2 = LoadFloat(main, XorStr("antiaim.move.breaker.fake.second"));
 		AntiAim->HitReactive = LoadBool(main, XorStr("antiaim.hit.reactive"));
 		AntiAim->BreakLC = LoadBool(main, XorStr("antiaim.break.lagcomp"));
+		AntiAim->FakeWalk = LoadBool(main, XorStr("antiaim.fakewalk"));
+		AntiAim->FakeWalkKey = LoadInt(main, XorStr("antiaim.fakewalk.key"));
 		AntiAim->Clamp();
 		Removals->NoRecoil				= LoadBool( main, XorStr( "removals.no.recoil" ) );
 		Removals->NoVisualRecoil		= LoadBool( main, XorStr( "removals.no.visual.recoil" ) );

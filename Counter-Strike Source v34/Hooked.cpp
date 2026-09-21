@@ -1318,7 +1318,7 @@ void PerfectSilent(CUserCmd* cmd, C_WeaponCSBaseGun* weapon)
 	if (Config::AntiAim->OnKnife && weapon->GetWeaponType() == WEAPON_KNIFE)
 	{
 			if (cmd->buttons & IN_ATTACK2 && weapon->IsFireTime())
-			bSendPacket = true;
+				bSendPacket = true;
 	}
 
 }
@@ -1481,8 +1481,6 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 	{
 	//	QAngle qLastTickAngles = QAngle(0.0f, 0.0f, 0.0f);
 		Source::m_pClientSwap->VCall< CreateMoveFn >(IBaseClientDLL_CreateMove)(ecx, sequence_number, input_sample_frametime, active);
-
-		bool bSendPacket = true;
 
 		auto cmd = Source::m_pInput->GetUserCmd(sequence_number);
 		if (Config::Misc->Crash == 1)
