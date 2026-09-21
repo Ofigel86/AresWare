@@ -262,7 +262,9 @@ namespace Direct3D9
 
 		m_pTexture->LockRect( 0, &rect, nullptr, 0 );
 
-		BYTE* pDestRow = ( BYTE* )rect.pBits;
+		BYTE* pDestRow;
+
+		pDestRow = ( BYTE* )rect.pBits;
 		WORD* pDest16;
 		BYTE bAlpha;
 

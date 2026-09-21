@@ -2,8 +2,10 @@
 
 #include "Font.hpp"
 
-#include <vector>
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <vector>
 
 #define INVALID_FONT_HANDLE -1
 

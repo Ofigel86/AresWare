@@ -1879,8 +1879,10 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 				if (player->m_lifeState() == LIFE_ALIVE)
 				{
 					if (Config::Misc->Speed)
+					{
 						Vector3 vOriginalView;
 						Speed(player,cmd,vOriginalView);
+					}
 
 					if (Config::Misc->Restriction != 1)
 					{
