@@ -1463,17 +1463,29 @@ namespace Feature
 	void Menu::DrawRageTab()
 	{
 		ImVec2 pos = ImGui::GetWindowPos();
-		AW::BeginPanel( XorStr( "Aimbot" ), ImVec2( pos.x + 14.0f, pos.y + 70.0f ), ImVec2( 380.0f, 582.0f ) );
-		AW::Combo( XorStr( "Style" ), &Config::Main->AimbotStyle, AimbotStyleList, ARRAYSIZE( AimbotStyleList ) );
-
-		if( Config::Main->AimbotStyle == 1 )
-			AW::Notice( XorStr( "Rage inactive: Legit style selected" ) );
-
-		DrawAimbotBlock( Config::Main->Aimbot, true );
-		AW::EndPanel();
 
 		if( m_iRageSub == 0 )
 		{
+			// Панель Aimbot живёт только в под-вкладке Weapons: в Anti-Aim
+			// её место занимают Stand/Move (позиции заданы ниже). Раньше
+			// панель рисовалась всегда, и в Anti-Aim две панели ложились
+			// ровно друг на друга — настройки «плавали», а ползунки
+			// прокрутки накладывались один на другой.
+			AW::BeginPanel( XorStr( "Aimbot" ), ImVec2( pos.x + 14.0f, pos.y + 70.0f ), ImVec2( 380.0f, 582.0f ) );
+			AW::Combo( XorStr( "Style" ), &Config::Main->AimbotStyle, AimbotStyleList, ARRAYSIZE( AimbotStyleList ) );
+
+			if( Config::Main->AimbotStyle == 1 )
+				AW::Notice( XorStr( "Rage inactive: Legit style selected" ) );
+
+			// Без этой строки настройки слева выглядели «не работающими»:
+			// при включённом Weapon Config в бою используется конфиг оружия
+			// из панели справа, а не общий.
+			if( Config::Main->AimbotWeaponConfig )
+				AW::Notice( XorStr( "Weapon Config is on: the right panel is used" ) );
+
+			DrawAimbotBlock( Config::Main->Aimbot, true );
+			AW::EndPanel();
+
 			AW::SubTabs( RageSubList, 2, &m_iRageSub, ImVec2( pos.x + 402.0f, pos.y + 70.0f ), ImVec2( 394.0f, 26.0f ) );
 			int prevCls = m_iRageClass;
 			ImVec2 bp( pos.x + 402.0f, pos.y + 100.0f );
@@ -1547,6 +1559,15 @@ namespace Feature
 			// «Weapons» оказывалась под панелью, и переключиться обратно
 			// мышью было нельзя.
 			AW::SubTabs( RageSubList, 2, &m_iRageSub, ImVec2( pos.x + 402.0f, pos.y + 70.0f ), ImVec2( 394.0f, 26.0f ) );
+
+			// Левая колонка этой под-вкладки занята панелями Stand/Move,
+			// поэтому выбор стиля вынесен в строку заголовка (как «Active»
+			// во вкладке Legitbot) — иначе отсюда стиль не переключить.
+			AW::Text( ImVec2( pos.x + 22.0f, pos.y + 77.0f ), AW::Col( 28, 28, 28 ), XorStr( "Style" ) );
+			AW::ComboRaw( "##rageactivestyle", &Config::Main->AimbotStyle, AimbotStyleList, 2, ImVec2( pos.x + 90.0f, pos.y + 73.0f ), ImVec2( pos.x + 230.0f, pos.y + 93.0f ) );
+
+			if( Config::Main->AimbotStyle == 1 )
+				AW::Text( ImVec2( pos.x + 244.0f, pos.y + 77.0f ), AW::Col( 170, 50, 40 ), XorStr( "Rage inactive: Legit style selected" ) );
 
 			if( Config::Misc->Restriction != 1 )
 			{

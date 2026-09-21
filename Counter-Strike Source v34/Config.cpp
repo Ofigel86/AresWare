@@ -168,6 +168,19 @@ namespace Config
 		return ( float )atof( szData );
 	}
 
+	// Как LoadFloat, но при отсутствии ключа возвращает значение по умолчанию
+	// (нужно для настроек оружия: слот по умолчанию повторяет общий конфиг).
+	float LoadFloatDef( const std::string& strSection, const std::string& strName, float flDefault )
+	{
+		char szData[ MAX_PATH ];
+		GetPrivateProfileString( strSection.c_str(), strName.c_str(), "", szData, MAX_PATH, m_current.c_str() );
+
+		if( szData[ 0 ] == '\0' )
+			return flDefault;
+
+		return ( float )atof( szData );
+	}
+
 	Color LoadColor( const std::string& strSection, const std::string& strName )
 	{
 		Color result;
@@ -696,65 +709,100 @@ namespace Config
 				continue;
 			}
 
-			Weapon[ index ]->Aimbot->Mode				= LoadInt( weapon, XorStr( "aimbot.mode" ) );
-			Weapon[ index ]->Aimbot->Key				= LoadInt( weapon, XorStr( "aimbot.key" ) );
-			Weapon[ index ]->Aimbot->AutoFire			= LoadBool( weapon, XorStr( "aimbot.auto.fire" ) );
-			Weapon[ index ]->Aimbot->AutoStop			= LoadBool( weapon, XorStr( "aimbot.auto.stop" ) );
-			Weapon[ index ]->Aimbot->AutoCrouch			= LoadBool( weapon, XorStr( "aimbot.auto.crouch" ) );
-			Weapon[index]->Aimbot->AutoReload = LoadBool(weapon, XorStr("aimbot.auto.reload"));
-			Weapon[index]->Aimbot->AutoScope = LoadBool(weapon, XorStr("aimbot.auto.scope"));
-			Weapon[index]->Aimbot->MinDamageOverride = LoadInt(weapon, XorStr("aimbot.mindamage.override"));
-			Weapon[index]->Aimbot->MinDamageOverrideKey = LoadInt(weapon, XorStr("aimbot.mindamage.override.key"));
-			Weapon[index]->Aimbot->AntiSpawnProtection = LoadBool(weapon, XorStr("aimbot.anti.spawn.protection"));
-			Weapon[ index ]->Aimbot->NoSwitch			= LoadBool( weapon, XorStr( "aimbot.no.switch" ) );
-			Weapon[ index ]->Aimbot->Spot				= LoadInt( weapon, XorStr( "aimbot.spot" ) );
-			Weapon[ index ]->Aimbot->ForceBody	= LoadInt( weapon, XorStr( "aimbot.body.aim" ) );
-			Weapon[ index ]->Aimbot->SpotRandomize		= LoadBool( weapon, XorStr( "aimbot.spot.randomize" ) );
-			Weapon[ index ]->Aimbot->TargetSelection	= LoadInt( weapon, XorStr( "aimbot.target.selection" ) );
-			Weapon[ index ]->Aimbot->FieldOfView		= LoadFloat( weapon, XorStr( "aimbot.fov" ) );
-			Weapon[ index ]->Aimbot->Smooth				= LoadInt( weapon, XorStr( "aimbot.smooth" ) );
-			Weapon[ index ]->Aimbot->StepX				= LoadFloat( weapon, XorStr( "aimbot.step.vertical" ) );
-			Weapon[ index ]->Aimbot->StepY				= LoadFloat( weapon, XorStr( "aimbot.step.horizontal" ) );
-			Weapon[ index ]->Aimbot->SmoothX			= LoadFloat( weapon, XorStr( "aimbot.smooth.vertical" ) );
-			Weapon[ index ]->Aimbot->SmoothY			= LoadFloat( weapon, XorStr( "aimbot.smooth.horizontal" ) );
-			Weapon[ index ]->Aimbot->Duration			= LoadInt( weapon, XorStr( "aimbot.duration" ) );
-			Weapon[ index ]->Aimbot->Delay				= LoadInt( weapon, XorStr( "aimbot.delay" ) );
-			Weapon[ index ]->Aimbot->SwitchDelay		= LoadInt( weapon, XorStr( "aimbot.switch.delay" ) );
-			Weapon[ index ]->Aimbot->RCS				= LoadBool( weapon, XorStr( "aimbot.rcs" ) );
-			Weapon[ index ]->Aimbot->RCSDelay			= LoadInt( weapon, XorStr( "aimbot.rcs.delay" ) );
-			Weapon[ index ]->Aimbot->RCSAmountX			= LoadInt( weapon, XorStr( "aimbot.rcs.amount.vertical" ) );
-			Weapon[ index ]->Aimbot->RCSAmountY			= LoadInt( weapon, XorStr( "aimbot.rcs.amount.horizontal" ) );
-			Weapon[ index ]->Aimbot->AutoWall			= LoadBool( weapon, XorStr( "aimbot.autowall" ) );
-			Weapon[ index ]->Aimbot->MinDamage			= LoadInt( weapon, XorStr( "aimbot.min.damage" ) );
-			Weapon[ index ]->Aimbot->HitScan			= LoadInt( weapon, XorStr( "aimbot.hitscan" ) );
-			Weapon[ index ]->Aimbot->HitScanScale		= LoadFloat( weapon, XorStr( "aimbot.hitscan.scale" ) );
-			Weapon[ index ]->Aimbot->Target				= LoadInt( weapon, XorStr( "aimbot.target" ) );
-			Weapon[ index ]->Aimbot->Silent				= LoadBool( weapon, XorStr( "aimbot.silent" ) );
-			Weapon[ index ]->Aimbot->NoSpreadActive		= LoadBool(weapon, XorStr("aimbot.no.spread.active"));
-			Weapon[ index ]->Aimbot->NoSpread			= LoadInt(weapon, XorStr("aimbot.no.spread"));
+			// Слот оружия по умолчанию повторяет общий конфиг: сам по себе
+			// чекбокс «Weapon Config» лишь разрешает переопределять настройки
+			// для конкретного оружия. Раньше отсутствующие в файле ключи
+			// читались как 0/false, поэтому включённый Weapon Config молча
+			// выключал рейджбот (Mode = Off) для любого оружия, которое не
+			// настраивали руками — «чит есть, а не стреляет».
+			memcpy( Weapon[ index ]->Aimbot, Main->Aimbot, sizeof( AimbotList ) );
+			memcpy( Weapon[ index ]->Triggerbot, Main->Triggerbot, sizeof( TriggerbotList ) );
+
+			// Маркер «это оружие настраивали руками»: сборки до этой правки
+			// сохраняли в файл нули для каждого оружия, поэтому отличить
+			// «не настроено» от «намеренно выключено» было нельзя.
+			const bool bConfigured = LoadIntDef( weapon, XorStr( "configured" ), 0 ) != 0;
+
+			Weapon[ index ]->Aimbot->Mode				= LoadIntDef( weapon, XorStr( "aimbot.mode" ), Weapon[ index ]->Aimbot->Mode );
+			Weapon[ index ]->Aimbot->Key				= LoadIntDef( weapon, XorStr( "aimbot.key" ), Weapon[ index ]->Aimbot->Key );
+			Weapon[ index ]->Aimbot->AutoFire			= LoadBoolDef( weapon, XorStr( "aimbot.auto.fire" ), Weapon[ index ]->Aimbot->AutoFire );
+			Weapon[ index ]->Aimbot->AutoStop			= LoadBoolDef( weapon, XorStr( "aimbot.auto.stop" ), Weapon[ index ]->Aimbot->AutoStop );
+			Weapon[ index ]->Aimbot->AutoCrouch			= LoadBoolDef( weapon, XorStr( "aimbot.auto.crouch" ), Weapon[ index ]->Aimbot->AutoCrouch );
+			Weapon[ index ]->Aimbot->AutoReload = LoadBoolDef( weapon, XorStr("aimbot.auto.reload"), Weapon[ index ]->Aimbot->AutoReload );
+			Weapon[ index ]->Aimbot->AutoScope = LoadBoolDef( weapon, XorStr("aimbot.auto.scope"), Weapon[ index ]->Aimbot->AutoScope );
+			Weapon[ index ]->Aimbot->MinDamageOverride = LoadIntDef( weapon, XorStr("aimbot.mindamage.override"), Weapon[ index ]->Aimbot->MinDamageOverride );
+			Weapon[ index ]->Aimbot->MinDamageOverrideKey = LoadIntDef( weapon, XorStr("aimbot.mindamage.override.key"), Weapon[ index ]->Aimbot->MinDamageOverrideKey );
+			Weapon[ index ]->Aimbot->AntiSpawnProtection = LoadBoolDef( weapon, XorStr("aimbot.anti.spawn.protection"), Weapon[ index ]->Aimbot->AntiSpawnProtection );
+			Weapon[ index ]->Aimbot->NoSwitch			= LoadBoolDef( weapon, XorStr( "aimbot.no.switch" ), Weapon[ index ]->Aimbot->NoSwitch );
+			Weapon[ index ]->Aimbot->Spot				= LoadIntDef( weapon, XorStr( "aimbot.spot" ), Weapon[ index ]->Aimbot->Spot );
+			Weapon[ index ]->Aimbot->ForceBody	= LoadIntDef( weapon, XorStr( "aimbot.body.aim" ), Weapon[ index ]->Aimbot->ForceBody );
+			Weapon[ index ]->Aimbot->SpotRandomize		= LoadBoolDef( weapon, XorStr( "aimbot.spot.randomize" ), Weapon[ index ]->Aimbot->SpotRandomize );
+			Weapon[ index ]->Aimbot->TargetSelection	= LoadIntDef( weapon, XorStr( "aimbot.target.selection" ), Weapon[ index ]->Aimbot->TargetSelection );
+			Weapon[ index ]->Aimbot->FieldOfView		= LoadFloatDef( weapon, XorStr( "aimbot.fov" ), Weapon[ index ]->Aimbot->FieldOfView );
+			Weapon[ index ]->Aimbot->Smooth				= LoadIntDef( weapon, XorStr( "aimbot.smooth" ), Weapon[ index ]->Aimbot->Smooth );
+			Weapon[ index ]->Aimbot->StepX				= LoadFloatDef( weapon, XorStr( "aimbot.step.vertical" ), Weapon[ index ]->Aimbot->StepX );
+			Weapon[ index ]->Aimbot->StepY				= LoadFloatDef( weapon, XorStr( "aimbot.step.horizontal" ), Weapon[ index ]->Aimbot->StepY );
+			Weapon[ index ]->Aimbot->SmoothX			= LoadFloatDef( weapon, XorStr( "aimbot.smooth.vertical" ), Weapon[ index ]->Aimbot->SmoothX );
+			Weapon[ index ]->Aimbot->SmoothY			= LoadFloatDef( weapon, XorStr( "aimbot.smooth.horizontal" ), Weapon[ index ]->Aimbot->SmoothY );
+			Weapon[ index ]->Aimbot->Duration			= LoadIntDef( weapon, XorStr( "aimbot.duration" ), Weapon[ index ]->Aimbot->Duration );
+			Weapon[ index ]->Aimbot->Delay				= LoadIntDef( weapon, XorStr( "aimbot.delay" ), Weapon[ index ]->Aimbot->Delay );
+			Weapon[ index ]->Aimbot->SwitchDelay		= LoadIntDef( weapon, XorStr( "aimbot.switch.delay" ), Weapon[ index ]->Aimbot->SwitchDelay );
+			Weapon[ index ]->Aimbot->RCS				= LoadBoolDef( weapon, XorStr( "aimbot.rcs" ), Weapon[ index ]->Aimbot->RCS );
+			Weapon[ index ]->Aimbot->RCSDelay			= LoadIntDef( weapon, XorStr( "aimbot.rcs.delay" ), Weapon[ index ]->Aimbot->RCSDelay );
+			Weapon[ index ]->Aimbot->RCSAmountX			= LoadIntDef( weapon, XorStr( "aimbot.rcs.amount.vertical" ), Weapon[ index ]->Aimbot->RCSAmountX );
+			Weapon[ index ]->Aimbot->RCSAmountY			= LoadIntDef( weapon, XorStr( "aimbot.rcs.amount.horizontal" ), Weapon[ index ]->Aimbot->RCSAmountY );
+			Weapon[ index ]->Aimbot->AutoWall			= LoadBoolDef( weapon, XorStr( "aimbot.autowall" ), Weapon[ index ]->Aimbot->AutoWall );
+			Weapon[ index ]->Aimbot->MinDamage			= LoadIntDef( weapon, XorStr( "aimbot.min.damage" ), Weapon[ index ]->Aimbot->MinDamage );
+			Weapon[ index ]->Aimbot->HitScan			= LoadIntDef( weapon, XorStr( "aimbot.hitscan" ), Weapon[ index ]->Aimbot->HitScan );
+			Weapon[ index ]->Aimbot->HitScanScale		= LoadFloatDef( weapon, XorStr( "aimbot.hitscan.scale" ), Weapon[ index ]->Aimbot->HitScanScale );
+			Weapon[ index ]->Aimbot->Target				= LoadIntDef( weapon, XorStr( "aimbot.target" ), Weapon[ index ]->Aimbot->Target );
+			Weapon[ index ]->Aimbot->Silent				= LoadBoolDef( weapon, XorStr( "aimbot.silent" ), Weapon[ index ]->Aimbot->Silent );
+			Weapon[ index ]->Aimbot->NoSpreadActive		= LoadBoolDef( weapon, XorStr("aimbot.no.spread.active"), Weapon[ index ]->Aimbot->NoSpreadActive );
+			Weapon[ index ]->Aimbot->NoSpread			= LoadIntDef( weapon, XorStr("aimbot.no.spread"), Weapon[ index ]->Aimbot->NoSpread );
 		//	Weapon[index]->Aimbot->SeedHelp = LoadBool(weapon, XorStr("aimbot.seed.help"));
-			Weapon[index]->Aimbot->Height = LoadBool(weapon, XorStr("aimbot.height"));
-			Weapon[index]->Aimbot->HeightScale = LoadFloat(weapon, XorStr("aimbot.height.scale"));
-			Weapon[index]->Aimbot->LagCompensation = LoadInt(weapon, XorStr("aimbot.adjustment"));
+			Weapon[ index ]->Aimbot->Height = LoadBoolDef( weapon, XorStr("aimbot.height"), Weapon[ index ]->Aimbot->Height );
+			Weapon[ index ]->Aimbot->HeightScale = LoadFloatDef( weapon, XorStr("aimbot.height.scale"), Weapon[ index ]->Aimbot->HeightScale );
+			Weapon[ index ]->Aimbot->LagCompensation = LoadIntDef( weapon, XorStr("aimbot.adjustment"), Weapon[ index ]->Aimbot->LagCompensation );
 
 			Weapon[ index ]->Aimbot->Clamp();
 
-			Weapon[ index ]->Triggerbot->Mode			= LoadInt( weapon, XorStr( "triggerbot.mode" ) );
-			Weapon[ index ]->Triggerbot->Key			= LoadInt( weapon, XorStr( "triggerbot.key" ) );
-			Weapon[ index ]->Triggerbot->Accuracy		= LoadInt( weapon, XorStr( "triggerbot.accuracy" ) );
-			Weapon[ index ]->Triggerbot->Delay			= LoadInt( weapon, XorStr( "triggerbot.delay" ) );
-			Weapon[ index ]->Triggerbot->Burst			= LoadInt( weapon, XorStr( "triggerbot.burst" ) );
-			Weapon[ index ]->Triggerbot->Head			= LoadBool( weapon, XorStr( "triggerbot.head" ) );
-			Weapon[ index ]->Triggerbot->Chest			= LoadBool( weapon, XorStr( "triggerbot.chest" ) );
-			Weapon[ index ]->Triggerbot->Stomach		= LoadBool( weapon, XorStr( "triggerbot.stomach" ) );
-			Weapon[ index ]->Triggerbot->Arms			= LoadBool( weapon, XorStr( "triggerbot.arms" ) );
-			Weapon[ index ]->Triggerbot->Legs			= LoadBool( weapon, XorStr( "triggerbot.legs" ) );
-			Weapon[ index ]->Triggerbot->AutoWall		= LoadBool( weapon, XorStr( "triggerbot.autowall" ) );
-			Weapon[ index ]->Triggerbot->MinDamage		= LoadInt( weapon, XorStr( "triggerbot.min.damage" ) );
-			Weapon[ index ]->Triggerbot->Target			= LoadInt( weapon, XorStr( "triggerbot.target" ) );
-			Weapon[ index ]->Triggerbot->ThroughSmoke	= LoadBool( weapon, XorStr( "triggerbot.through.smoke" ) );
+			Weapon[ index ]->Triggerbot->Mode			= LoadIntDef( weapon, XorStr( "triggerbot.mode" ), Weapon[ index ]->Triggerbot->Mode );
+			Weapon[ index ]->Triggerbot->Key			= LoadIntDef( weapon, XorStr( "triggerbot.key" ), Weapon[ index ]->Triggerbot->Key );
+			Weapon[ index ]->Triggerbot->Accuracy		= LoadIntDef( weapon, XorStr( "triggerbot.accuracy" ), Weapon[ index ]->Triggerbot->Accuracy );
+			Weapon[ index ]->Triggerbot->Delay			= LoadIntDef( weapon, XorStr( "triggerbot.delay" ), Weapon[ index ]->Triggerbot->Delay );
+			Weapon[ index ]->Triggerbot->Burst			= LoadIntDef( weapon, XorStr( "triggerbot.burst" ), Weapon[ index ]->Triggerbot->Burst );
+			Weapon[ index ]->Triggerbot->Head			= LoadBoolDef( weapon, XorStr( "triggerbot.head" ), Weapon[ index ]->Triggerbot->Head );
+			Weapon[ index ]->Triggerbot->Chest			= LoadBoolDef( weapon, XorStr( "triggerbot.chest" ), Weapon[ index ]->Triggerbot->Chest );
+			Weapon[ index ]->Triggerbot->Stomach		= LoadBoolDef( weapon, XorStr( "triggerbot.stomach" ), Weapon[ index ]->Triggerbot->Stomach );
+			Weapon[ index ]->Triggerbot->Arms			= LoadBoolDef( weapon, XorStr( "triggerbot.arms" ), Weapon[ index ]->Triggerbot->Arms );
+			Weapon[ index ]->Triggerbot->Legs			= LoadBoolDef( weapon, XorStr( "triggerbot.legs" ), Weapon[ index ]->Triggerbot->Legs );
+			Weapon[ index ]->Triggerbot->AutoWall		= LoadBoolDef( weapon, XorStr( "triggerbot.autowall" ), Weapon[ index ]->Triggerbot->AutoWall );
+			Weapon[ index ]->Triggerbot->MinDamage		= LoadIntDef( weapon, XorStr( "triggerbot.min.damage" ), Weapon[ index ]->Triggerbot->MinDamage );
+			Weapon[ index ]->Triggerbot->Target			= LoadIntDef( weapon, XorStr( "triggerbot.target" ), Weapon[ index ]->Triggerbot->Target );
+			Weapon[ index ]->Triggerbot->ThroughSmoke	= LoadBoolDef( weapon, XorStr( "triggerbot.through.smoke" ), Weapon[ index ]->Triggerbot->ThroughSmoke );
 
 			Weapon[ index ]->Triggerbot->Clamp();
+
+			// Рейджбот «молча не стрелял» при включённом Weapon Config: в
+			// старом конфиге у каждого оружия лежал Mode = Off, и именно он
+			// использовался в бою, хотя в меню настраивался общий конфиг.
+			// Если это оружие никогда не настраивали (нет маркера), а общий
+			// режим включён — слот повторяет общий конфиг.
+			if( !bConfigured )
+			{
+				if( Weapon[ index ]->Aimbot->Mode == 0 && Main->Aimbot->Mode != 0 )
+				{
+					memcpy( Weapon[ index ]->Aimbot, Main->Aimbot, sizeof( AimbotList ) );
+
+					LOG( XorStr( "[Config] Weapon '%s' was never configured, global aimbot config is used." ), weapon );
+				}
+
+				if( Weapon[ index ]->Triggerbot->Mode == 0 && Main->Triggerbot->Mode != 0 )
+					memcpy( Weapon[ index ]->Triggerbot, Main->Triggerbot, sizeof( TriggerbotList ) );
+
+				Weapon[ index ]->Aimbot->Clamp();
+				Weapon[ index ]->Triggerbot->Clamp();
+			}
 		}
 	}
 
@@ -1189,6 +1237,9 @@ namespace Config
 
 			Main->Aimbot->Clamp();
 
+			// Маркер для следующей загрузки: настройки этого оружия уже
+			// записаны пользователем (или унаследованы от общего конфига).
+			SaveInt( weapon, XorStr( "configured" ), 1 );
 			SaveInt( weapon, XorStr( "aimbot.mode" ), Weapon[ index ]->Aimbot->Mode );
 			SaveInt( weapon, XorStr( "aimbot.key" ), Weapon[ index ]->Aimbot->Key );
 			SaveBool( weapon, XorStr( "aimbot.auto.fire" ), Weapon[ index ]->Aimbot->AutoFire );
