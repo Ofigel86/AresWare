@@ -44,6 +44,7 @@ namespace Feature
 		void	ResetColors();
 
 	private:
+		HWND	m_hWnd;
 		bool	m_bMouse;
 
 		int		m_iWeaponAimbot;

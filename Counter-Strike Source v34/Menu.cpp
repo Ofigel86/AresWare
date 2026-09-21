@@ -5,6 +5,7 @@
 #include "ImGui.hpp"
 #include "ImGuiDX9.hpp"
 #include "KeyTranslate.hpp"
+#include <windows.h>   // GetCursorPos/ScreenToClient/GetClientRect/GetForegroundWindow
 #include <ctime>
 
 int iTab;
@@ -1006,7 +1007,8 @@ std::string GetExtension( const std::string& target )
 namespace Feature
 {
 	Menu::Menu()
-		:	m_bMouse( false ),
+		:	m_hWnd( nullptr ),
+			m_bMouse( false ),
 			m_iWeaponAimbot( 0 ),
 			m_iWeaponTriggerbot( 0 ),
 			m_iRageClass( 0 ),
@@ -1052,6 +1054,9 @@ namespace Feature
 	{
 		if( !ImGui_ImplDX9_Init( hWnd, pDevice ) )
 			return false;
+
+		// Окно нужно для синхронизации позиции курсора (см. OnPresentDevice).
+		m_hWnd = hWnd;
 
 		ImGuiIO& io = ImGui::GetIO();
 		// Кандидаты по каждому шрифту: сначала «фирменные» (если установлены),
@@ -1110,12 +1115,33 @@ namespace Feature
 
 	void Menu::OnPresentDevice()
 	{
+		const bool bJustOpened = ( !m_bMouse && Shared::m_bMenu );
+
 		if( m_bMouse != Shared::m_bMenu )
 		{
 			m_bMouse = Shared::m_bMenu;
 
 			if( ConVar* pMouseEnable = GetMouseEnableCvar() )
 				pMouseEnable->m_nValue = ( int )!m_bMouse;
+
+			if( !m_bMouse )
+			{
+				// Меню закрыто — ImGui_ImplDX9_WndProcHandler больше не
+				// вызывается (OnKeyEvent выходит сразу), поэтому всё, что уже
+				// накопилось в io, там и останется до следующего открытия:
+				// «зажатая» ранее клавиша подхватывалась как бинд сразу при
+				// повторном открытии, а незавершённый захват клавиши ждал
+				// первого же нажатия. Чистим состояние.
+				ImGuiIO& io = ImGui::GetIO();
+
+				for( int i = 0; i < IM_ARRAYSIZE( io.KeysDown ); i++ )
+					io.KeysDown[ i ] = false;
+
+				for( int i = 0; i < IM_ARRAYSIZE( io.MouseDown ); i++ )
+					io.MouseDown[ i ] = false;
+
+				AW::s_pKeyCap = nullptr;
+			}
 		}
 
 		if( !Shared::m_bMenu )
@@ -1135,6 +1161,38 @@ namespace Feature
 			}
 
 			return;
+		}
+
+		// Позиция курсора меню.
+		//
+		// io.MousePos заполняется только сообщениями WM_MOUSEMOVE (см.
+		// ImGui_ImplDX9_WndProcHandler). В первый кадр после открытия меню там
+		// ещё лежит значение с прошлого раза (или -FLT_MAX, если мышь ни разу
+		// не двигалась с момента запуска) — то есть курсор меню не там, где он
+		// физически, и первый клик попадает «не туда». Если сообщения до окна
+		// вообще не доходят (raw input, пересозданное при смене разрешения
+		// окно), значение неисправимо испорчено.
+		//
+		// Поэтому позицию берём из системы — но строго только тогда, когда в
+		// ImGui нет пригодного значения (только что открылись или координаты
+		// отрицательные). В остальных кадрах данные WM_MOUSEMOVE не трогаем:
+		// так синхронизация не может испортить живой ввод.
+		{
+			ImGuiIO& io = ImGui::GetIO();
+			const bool bPositionUnknown = io.MousePos.x < 0.0f || io.MousePos.y < 0.0f;
+
+			if( ( bJustOpened || bPositionUnknown ) && m_hWnd && IsWindow( m_hWnd ) && GetForegroundWindow() == m_hWnd )
+			{
+				POINT pt = {};
+				RECT rc = {};
+
+				if( GetCursorPos( &pt ) && ScreenToClient( m_hWnd, &pt ) && GetClientRect( m_hWnd, &rc )
+					&& pt.x >= 0 && pt.y >= 0 && pt.x < rc.right && pt.y < rc.bottom )
+				{
+					io.MousePos.x = ( float )pt.x;
+					io.MousePos.y = ( float )pt.y;
+				}
+			}
 		}
 
 		ImGui_ImplDX9_NewFrame();
