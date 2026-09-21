@@ -779,6 +779,35 @@ namespace Feature
 				return raw_yaw;
 			}
 
+			// ----------------------------------------------------------
+			// ПРИОРИТЕТ 1: pose parameter "body_yaw".
+			//
+			// Сервер сам присылает нам поворот корпуса относительно ног
+			// (это и есть десинк) — его не надо угадывать лесенкой.
+			// В CS:S v34 body_yaw хранится в m_flPoseParameter уже
+			// нормализованным в 0..1 для диапазона [-60; 60] градусов.
+			// Пока значение валидно, это КРАТНО точнее брутфорса, поэтому
+			// лесенка ниже остаётся только как запасной вариант.
+			if( s_poseIdx[ index ].yaw >= 0 && s_poseSeen[ index ] )
+			{
+				float pose = s_serverPose[ index ][ s_poseIdx[ index ].yaw ];
+
+				if( pose == pose && pose >= -0.01f && pose <= 1.01f )
+				{
+					// 0..1 -> -60..+60 градусов поворота корпуса.
+					const float body_yaw = ( pose * 120.0f ) - 60.0f;
+
+					// Корпус повёрнут заметно = игрок в десинке. Реальные
+					// углы = то, что networked, плюс этот поворот.
+					if( std::fabs( body_yaw ) > 5.0f )
+					{
+						state.lastYawCorr = body_yaw;
+
+						return NormalizeYaw( raw_yaw + body_yaw + Config::Misc->ResolverAng );
+					}
+				}
+			}
+
 			const float* ladder = kYawStatic;
 			int length = LADDER_LEN( kYawStatic );
 			float base = raw_yaw;

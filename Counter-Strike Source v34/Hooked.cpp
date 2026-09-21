@@ -325,7 +325,10 @@ void AutoJump( CUserCmd* cmd, C_CSPlayer* player )
 		{
 			bFirstJump = bFakeJump = true;
 		}
-		else if( !( Source::m_pDataManager->GetFlags() & FL_ONGROUND ) )
+		// Флаги берём у самого игрока: DataManager отдаёт снимок прошлого
+		// кадра, и на чокнутых тиках (фейк-лаг/фейк-волк) бани-хоп из-за
+		// этого переставал работать — прыжок гасился на земле.
+		else if( !( player->m_fFlags() & FL_ONGROUND ) )
 		{
 			if( bFakeJump && player->m_vecVelocity().z < 0.0f )
 				bFakeJump = false;
@@ -752,6 +755,15 @@ void FakeWalk(CUserCmd* cmd, C_CSPlayer* player)
 		return;
 	}
 
+	// Стреляем — команда должна уйти немедленно и с реальными углами,
+	// иначе фейк-волк съедает выстрел.
+	if (cmd->buttons & IN_ATTACK)
+	{
+		s_iChoked = 0;
+		bSendPacket = true;
+		return;
+	}
+
 	// В воздухе гасить движение нельзя: потеряем управление в прыжке,
 	// а красться всё равно незачем.
 	if (!(player->m_fFlags() & FL_ONGROUND))
@@ -1023,8 +1035,16 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 	if (player->m_MoveType() == MOVETYPE_LADDER || player->m_MoveType() == MOVETYPE_NOCLIP)
 		return;
 
+	// На тике выстрела анти-аим полностью отключается: углы остаются
+	// реальными (их выставил аимбот) И пакет обязан уйти на сервер.
+	// Раньше bSendPacket мог остаться false от фейк-лага/чока, и пуля
+	// уходила по ФЕЙКОВЫМ углам — отсюда "чит мисает в голову" и
+	// "рейдж перестаёт стрелять".
 	if ((cmd->buttons & IN_ATTACK) && weapon->IsFireTime())
+	{
+		bSendPacket = true;
 		return;
+	}
 
 	// Manual AA: боковой/задний доворот поверх выставленных углов.
 	// Жмём свой чок пополам, чтобы десинк не зависел от FakeLag.
@@ -1049,773 +1069,198 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 
 	if (Config::AntiAim->AtTargetEnabled)
 		AtTarget(cmd, player);
-	
+
 	auto velocity = player->m_vecVelocity();
 
-	float speed = velocity.Length2D();
-	int type = cmd->command_number % 3;
-	if (speed > 100.01)
+	const float speed = velocity.Length2D();
+	const bool bMoving = (speed > 100.01f);
+
+	// Наборы настроек для стойки и движения.
+	const int iYawMode  = bMoving ? Config::AntiAim->YawMove  : Config::AntiAim->YawStand;
+	const int iPitchMode= bMoving ? Config::AntiAim->PitchMove: Config::AntiAim->PitchStand;
+	const int iChoke    = bMoving ? Config::AntiAim->MoveChokedPackets : Config::AntiAim->StandChokedPackets;
+	const float flBase  = bMoving ? Config::AntiAim->MoveCustomAngleYaw : Config::AntiAim->StandCustomAngleYaw;
+	const float flRange = bMoving ? Config::AntiAim->MoveCustomAngleFakeYaw : Config::AntiAim->StandCustomAngleFakeYaw;
+	const int iSpinSpeed= bMoving ? Config::AntiAim->MoveSpinSpeed : Config::AntiAim->StandSpinSpeed;
+
+	// ------------------------------------------------------------------
+	// ЕДИНЫЙ МЕНЕДЖЕР ЧОКА.
+	//
+	// Раньше каждая из ~30 веток анти-аима сама писала bSendPacket, и они
+	// дрались между собой, с фейк-лагом и фейк-волком: кто отработал
+	// последним — тот и выиграл. Из-за этого AA "ломались в какой-то
+	// момент" и рейдж переставал стрелять (реальный угол мог никогда не
+	// уехать на сервер).
+	//
+	// Теперь решение принимается РОВНО в одном месте:
+	//   choke-тики  -> уходит ФЕЙКОВЫЙ угол (сервер его видит и по нему
+	//                  считает нашу модель для врагов);
+	//   send-тик    -> уходит РЕАЛЬНЫЙ угол (по нему стреляем мы).
+	// Именно разница между ними и есть десинк — то, чего не хватало
+	// джиттерам: без send/choke-разделения "фейка" просто нет.
+	// ------------------------------------------------------------------
+	static int s_iChokeLeft = 0;
+
+	bool bRealTick;
+
+	if (iChoke <= 0)
 	{
-		if (Config::AntiAim->PitchMove == 1) // Emotion
-		{
-			cmd->viewangles.x = 70.f;
-		}
-		else if (Config::AntiAim->PitchMove == 3) // Custom
-		{
-			static bool p5 = false;
-
-			if (p5)
-			{
-				cmd->viewangles.x = (Config::AntiAim->MoveCustomAngleFakePitch);
-			}
-			else
-			{
-				cmd->viewangles.x = (Config::AntiAim->MoveCustomAnglePitch);
-			}
-			p5 = !p5;
-
-		}
-		else if (Config::AntiAim->PitchMove == 2) // Fake Down 2
-		{
-			cmd->viewangles.x = -180.f;
-
-		}
-		else if (Config::AntiAim->PitchMove == 4) // Flip
-		{
-			cmd->viewangles.y -= 180.f;
-			cmd->viewangles.x -= 180.f;
-		}
-		else if (Config::AntiAim->PitchMove == 5) // Switch
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-				choked_tick_count = Config::AntiAim->MoveSwitchPitchDelay;
-
-			if (choked_tick_count >= Config::AntiAim->MoveSwitchPitchDelay/2)
-			{
-				cmd->viewangles.x = Config::AntiAim->MoveCustomAnglePitch;
-				choked_tick_count--;
-			}
-
-			if (choked_tick_count < Config::AntiAim->MoveSwitchPitchDelay/2)
-			{
-				cmd->viewangles.x = Config::AntiAim->MoveCustomAngleFakePitch;
-				choked_tick_count--;
-			}
-		}
-		else if (Config::AntiAim->PitchMove == 6) // Send Jitter
-		{
-			// Alternate the custom pitches per SEND tick: per-tick flips alias
-			// to a static angle under choke, this guarantees the sent pitch
-			// keeps changing. Pairs best with a non-choking yaw + Misc fakelag.
-			static int iSendCount = 0;
-
-			if (bSendPacket)
-				iSendCount++;
-
-			if (iSendCount % 2)
-				cmd->viewangles.x = Config::AntiAim->MoveCustomAngleFakePitch;
-			else
-				cmd->viewangles.x = Config::AntiAim->MoveCustomAnglePitch;
-		}
-		else if (Config::AntiAim->PitchMove == 7) // Random
-		{
-			// Случайный питч на SEND-тиках: резолверу не за что зацепиться.
-			static unsigned int s_iPitchSeedM = 0xC0FFEEu;
-			static float s_flPitchM = 0.0f;
-
-			if (bSendPacket)
-			{
-				s_iPitchSeedM = s_iPitchSeedM * 1664525u + 1013904223u;
-				s_flPitchM = (float)((s_iPitchSeedM >> 8) % 178) - 89.0f;
-			}
-
-			cmd->viewangles.x = s_flPitchM;
-		}
-		if (Config::AntiAim->YawMove == 1) // Backward
-		{
-			cmd->viewangles.y += 180.f;
-		}
-		else if (Config::AntiAim->YawMove == 2) // Legit
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->MoveChokedPackets;
-
-				bSendPacket = true;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y += 180.f;
-			}
-		}
-
-		else if (Config::AntiAim->YawMove == 3) // Fake Sideways Left
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->MoveChokedPackets;
-
-				bSendPacket = true;
-
-				cmd->viewangles.y += 90.f;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y -= 90.f;
-			}
-		}
-		else if (Config::AntiAim->YawMove == 4) // Fake Sideways Right
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->MoveChokedPackets;
-
-				bSendPacket = true;
-
-				cmd->viewangles.y -= 90.f;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y += 90.f;
-			}
-		}
-		else if (Config::AntiAim->YawMove == 5) // Spin
-		{
-			static float yaw = 0.f;
-
-			yaw += (Config::AntiAim->MoveSpinSpeed * g_iAAHurtDir);
-
-			cmd->viewangles.y += yaw;
-
-			if (yaw > 360.f)
-				yaw = 0.f;
-		}
-
-		else if (Config::AntiAim->YawMove == 6) // Jitter 
-		{
-			static int lelkek = 0;
-			static int choked_tick_count = 0;
-			if (lelkek == 0)
-			{
-				if (choked_tick_count == 0)
-				{
-					choked_tick_count = Config::AntiAim->MoveChokedPackets;
-
-					bSendPacket = true;
-
-					cmd->viewangles.y += Config::AntiAim->MoveCustomAngleFakeYaw1;
-				}
-				else
-				{
-					choked_tick_count--;
-					lelkek++;
-
-					bSendPacket = false;
-
-					cmd->viewangles.y += Config::AntiAim->MoveCustomAngleYaw1;
-				}
-			}
-
-			else if (lelkek == 1)
-			{
-				if (choked_tick_count == 0)
-				{
-					choked_tick_count = Config::AntiAim->MoveChokedPackets;
-
-					bSendPacket = true;
-
-					cmd->viewangles.y += Config::AntiAim->MoveCustomAngleFakeYaw2;
-				}
-				else
-				{
-					choked_tick_count--;
-					lelkek = 0;
-
-					bSendPacket = false;
-
-					cmd->viewangles.y += Config::AntiAim->MoveCustomAngleYaw2;
-				}
-			}
-
-		}
-		else if (Config::AntiAim->YawMove == 7) // Custom Static Jitter
-		{
-			static bool customjitt = false;
-
-			if (customjitt)
-				cmd->viewangles.y = (Config::AntiAim->MoveCustomAngleYaw);
-			else
-				cmd->viewangles.y = (Config::AntiAim->MoveCustomAngleFakeYaw);
-
-			customjitt = !customjitt;
-		}
-		else if (Config::AntiAim->YawMove == 8) // Custom Jitter
-		{
-			static bool customjitt1 = false;
-
-			if (customjitt1)
-				cmd->viewangles.y += (Config::AntiAim->MoveCustomAngleYaw);
-			else
-				cmd->viewangles.y += (Config::AntiAim->MoveCustomAngleFakeYaw);
-
-			customjitt1 = !customjitt1;
-		}
-
-		else if (Config::AntiAim->YawMove == 9) // Static Custom
-
-		{
-			cmd->viewangles.y = (Config::AntiAim->MoveStaticModifer);
-		}
-
-		else if (Config::AntiAim->YawMove == 10) // Custom Fake
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->MoveChokedPackets;
-
-				bSendPacket = true;
-				cmd->viewangles.y += (Config::AntiAim->MoveCustomAngleFakeYaw);
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y += (Config::AntiAim->MoveCustomAngleYaw);
-			}
-		}
-
-		else if (Config::AntiAim->YawMove == 11) // Static FakeLag
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->MoveChokedPackets;
-
-				bSendPacket = true;
-				cmd->viewangles.y = (Config::AntiAim->MoveCustomAngleFakeYaw);
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y = (Config::AntiAim->MoveCustomAngleYaw);
-			}
-		}
-		else if (Config::AntiAim->YawMove == 12) // Fake Spin
-		{
-			static int choked_tick_count = 0;
-			static float yaw = 0.f;
-
-			yaw += (Config::AntiAim->MoveFakeSpinSpeed);
-
-			if (yaw > 360.f)
-				yaw = 0.f;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->MoveChokedPackets;
-				bSendPacket = true;
-				cmd->viewangles.y = (Config::AntiAim->MoveFakeSpinAngle);
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-				cmd->viewangles.y += yaw;
-				
-			}
-		}
-
-		else if (Config::AntiAim->YawMove == 13) // Fake Spin 2
-		{
-			static int choked_tick_count = 0;
-			static float yaw = 0.f;
-
-			yaw += (Config::AntiAim->MoveFakeSpinSpeed * g_iAAHurtDir);
-
-			if (yaw > 360.f)
-				yaw = 0.f;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->MoveChokedPackets;
-				bSendPacket = true;
-				cmd->viewangles.y += yaw;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-				cmd->viewangles.y += yaw + 180	;
-			}
-		}
-		else if (Config::AntiAim->YawMove == 14) // Unbalanced Jitter
-		{
-			// 3:1 unbalanced pattern counted over SENDS: three sends of the
-			// custom yaw, one of the fake yaw. Median of recent sends lands on
-			// the majority side while the mean sits between - beats median /
-			// average feedback resolvers that assume symmetric jitter.
-			static int choked_tick_count = 0;
-			static int iSendCount = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->MoveChokedPackets;
-
-				bSendPacket = true;
-
-				if (iSendCount % 4 == 3)
-					cmd->viewangles.y += Config::AntiAim->MoveCustomAngleFakeYaw * g_iAAHurtDir;
-				else
-					cmd->viewangles.y += Config::AntiAim->MoveCustomAngleYaw * g_iAAHurtDir;
-
-				iSendCount++;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y += Config::AntiAim->MoveCustomAngleYaw;
-			}
-		}
-		else if (Config::AntiAim->YawMove == 15) // Back Jitter
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->MoveChokedPackets;
-
-				bSendPacket = true;
-
-				cmd->viewangles.y += 180.f + 30.f * g_iAAHurtDir;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y += 180.f - 30.f * g_iAAHurtDir;
-			}
-		}
-}
-	if (speed < 100.01)
+		// Чок выключен — десинка нет, каждый тик реальный.
+		bRealTick = true;
+		s_iChokeLeft = 0;
+	}
+	else if (s_iChokeLeft > 0)
 	{
-		if (Config::AntiAim->PitchStand == 1) // Emotion
-		{
-			cmd->viewangles.x = 70.f;
-		}
-		else if (Config::AntiAim->PitchStand == 3) // Custom
-		{
-			static bool p5 = false;
-
-			if (p5)
-			{
-				cmd->viewangles.x = (Config::AntiAim->StandCustomAngleFakePitch);
-			}
-			else
-			{
-				cmd->viewangles.x = (Config::AntiAim->StandCustomAnglePitch);
-			}
-			p5 = !p5;
-
-		}
-		else if (Config::AntiAim->PitchStand == 2) // Fake Down 2
-		{
-			cmd->viewangles.x = -180.f;
-
-		}
-		else if (Config::AntiAim->PitchStand == 4) // Flip
-		{
-			cmd->viewangles.y -= 180.f;
-			cmd->viewangles.x -= 180.f;
-		}
-		else if (Config::AntiAim->PitchStand == 5) // Switch
-		{
-			static int hhh = 0;
-
-			if (hhh == 0)
-				hhh = Config::AntiAim->StandSwitchPitchDelay;
-
-			if (hhh >= Config::AntiAim->StandSwitchPitchDelay / 2)
-			{
-				cmd->viewangles.x = Config::AntiAim->StandCustomAngleFakePitch;
-				hhh--;
-			}
-
-			if (hhh < Config::AntiAim->StandSwitchPitchDelay / 2)
-			{
-				cmd->viewangles.x = Config::AntiAim->StandCustomAnglePitch;
-				hhh--;
-			}
-		}
-		else if (Config::AntiAim->PitchStand == 6) // Send Jitter
-		{
-			// Alternate the custom pitches per SEND tick: per-tick flips alias
-			// to a static angle under choke, this guarantees the sent pitch
-			// keeps changing. Pairs best with a non-choking yaw + Misc fakelag.
-			static int iSendCount = 0;
-
-			if (bSendPacket)
-				iSendCount++;
-
-			if (iSendCount % 2)
-				cmd->viewangles.x = Config::AntiAim->StandCustomAngleFakePitch;
-			else
-				cmd->viewangles.x = Config::AntiAim->StandCustomAnglePitch;
-		}
-		else if (Config::AntiAim->PitchStand == 7) // Random
-		{
-			// Случайный питч на SEND-тиках: резолверу не за что зацепиться.
-			static unsigned int s_iPitchSeedS = 0xC0FFEEu;
-			static float s_flPitchS = 0.0f;
-
-			if (bSendPacket)
-			{
-				s_iPitchSeedS = s_iPitchSeedS * 1664525u + 1013904223u;
-				s_flPitchS = (float)((s_iPitchSeedS >> 8) % 178) - 89.0f;
-			}
-
-			cmd->viewangles.x = s_flPitchS;
-		}
-		if (Config::AntiAim->YawStand == 1) // Backward
-		{
-			cmd->viewangles.y += 180.f;
-		}
-		else if (Config::AntiAim->YawStand == 2) // Legit
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->StandChokedPackets;
-
-				bSendPacket = true;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y += 180.f;
-			}
-		}
-
-		else if (Config::AntiAim->YawStand == 3) // Fake Sideways Left
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->StandChokedPackets;
-
-				bSendPacket = true;
-
-				cmd->viewangles.y += 90.f;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y -= 90.f;
-			}
-		}
-		else if (Config::AntiAim->YawStand == 4) // Fake Sideways Right
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->StandChokedPackets;
-
-				bSendPacket = true;
-
-				cmd->viewangles.y -= 90.f;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y += 90.f;
-			}
-		}
-		else if (Config::AntiAim->YawStand == 5) // Spin
-		{
-			static float yaw = 0.f;
-
-			yaw += (Config::AntiAim->StandSpinSpeed * g_iAAHurtDir);
-
-			cmd->viewangles.y += yaw;
-
-			if (yaw > 360.f)
-				yaw = 0.f;
-		}
-
-		else if (Config::AntiAim->YawStand == 6) // Jitter 
-		{
-			static int lelkek = 0;
-			static int choked_tick_count = 0;
-			if (lelkek == 0)
-			{
-				if (choked_tick_count == 0)
-				{
-					choked_tick_count = Config::AntiAim->StandChokedPackets;
-
-					bSendPacket = true;
-
-					cmd->viewangles.y += Config::AntiAim->StandCustomAngleFakeYaw1;
-				}
-				else
-				{
-					choked_tick_count--;
-					lelkek++;
-
-					bSendPacket = false;
-
-					cmd->viewangles.y += Config::AntiAim->StandCustomAngleYaw1;
-				}
-			}
-
-			else if (lelkek == 1)
-			{
-				if (choked_tick_count == 0)
-				{
-					choked_tick_count = Config::AntiAim->StandChokedPackets;
-
-					bSendPacket = true;
-
-					cmd->viewangles.y += Config::AntiAim->StandCustomAngleFakeYaw2;
-				}
-				else
-				{
-					choked_tick_count--;
-					lelkek = 0;
-
-					bSendPacket = false;
-
-					cmd->viewangles.y += Config::AntiAim->StandCustomAngleYaw2;
-				}
-			}
-		}
-		else if (Config::AntiAim->YawStand == 7) // Custom Static Jitter
-		{
-			static bool customjitt = false;
-
-			if (customjitt)
-				cmd->viewangles.y = (Config::AntiAim->StandCustomAngleYaw);
-			else
-				cmd->viewangles.y = (Config::AntiAim->StandCustomAngleFakeYaw);
-
-			customjitt = !customjitt;
-		}
-		else if (Config::AntiAim->YawStand == 8) // Custom Jitter
-		{
-			static bool customjitt1 = false;
-
-			if (customjitt1)
-				cmd->viewangles.y += (Config::AntiAim->StandCustomAngleYaw);
-			else
-				cmd->viewangles.y += (Config::AntiAim->StandCustomAngleFakeYaw);
-
-			customjitt1 = !customjitt1;
-		}
-
-		else if (Config::AntiAim->YawStand == 9) // Static Custom
-
-		{
-			cmd->viewangles.y = (Config::AntiAim->StandStaticModifer);
-		}
-
-		else if (Config::AntiAim->YawStand == 10) // Custom Fake
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->StandChokedPackets;
-
-				bSendPacket = true;
-				cmd->viewangles.y += (Config::AntiAim->StandCustomAngleFakeYaw);
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y += (Config::AntiAim->StandCustomAngleYaw);
-			}
-		}
-
-		else if (Config::AntiAim->YawStand == 11) // Static FakeLag
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->StandChokedPackets;
-
-				bSendPacket = true;
-				cmd->viewangles.y = (Config::AntiAim->StandCustomAngleFakeYaw);
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y = (Config::AntiAim->StandCustomAngleYaw);
-			}
-		}
-
-		else if (Config::AntiAim->YawStand == 12) // Fake Spin
-		{
-			static int choked_tick_count = 0;
-			static float yaw = 0.f;
-
-			yaw += (Config::AntiAim->StandFakeSpinSpeed);
-
-			if (yaw > 360.f)
-				yaw = 0.f;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->StandChokedPackets;
-
-				bSendPacket = true;
-				cmd->viewangles.y = (Config::AntiAim->StandFakeSpinAngle);
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-				cmd->viewangles.y += yaw;
-
-			}
-		}
-
-		else if (Config::AntiAim->YawStand == 13) // Fake Spin 2
-		{
-			static int choked_tick_count = 0;
-			static float yaw = 0.f;
-
-			yaw += (Config::AntiAim->StandFakeSpinSpeed * g_iAAHurtDir);
-
-			if (yaw > 360.f)
-				yaw = 0.f;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->StandChokedPackets;
-				bSendPacket = true;
-				cmd->viewangles.y += yaw;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-				cmd->viewangles.y += yaw + 180;
-			}
-		}
-		else if (Config::AntiAim->YawStand == 14) // Unbalanced Jitter
-		{
-			// 3:1 unbalanced pattern counted over SENDS: three sends of the
-			// custom yaw, one of the fake yaw. Median of recent sends lands on
-			// the majority side while the mean sits between - beats median /
-			// average feedback resolvers that assume symmetric jitter.
-			static int choked_tick_count = 0;
-			static int iSendCount = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->StandChokedPackets;
-
-				bSendPacket = true;
-
-				if (iSendCount % 4 == 3)
-					cmd->viewangles.y += Config::AntiAim->StandCustomAngleFakeYaw * g_iAAHurtDir;
-				else
-					cmd->viewangles.y += Config::AntiAim->StandCustomAngleYaw * g_iAAHurtDir;
-
-				iSendCount++;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y += Config::AntiAim->StandCustomAngleYaw;
-			}
-		}
-		else if (Config::AntiAim->YawStand == 15) // Back Jitter
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-			{
-				choked_tick_count = Config::AntiAim->StandChokedPackets;
-
-				bSendPacket = true;
-
-				cmd->viewangles.y += 180.f + 30.f * g_iAAHurtDir;
-			}
-			else
-			{
-				choked_tick_count--;
-
-				bSendPacket = false;
-
-				cmd->viewangles.y += 180.f - 30.f * g_iAAHurtDir;
-			}
-		}
+		--s_iChokeLeft;
+		bRealTick = false;
+	}
+	else
+	{
+		s_iChokeLeft = iChoke;
+		bRealTick = true;
 	}
 
-	// FakeDuck: дёргаем бит приседания КАЖДЫЙ тик — сервер видит
-	// мерцающий хитбокс, а модель клиента почти не приседает.
-	// Раньше бит переключался только на send-тиках, поэтому при чоке N
-	// период был N+1 тиков и фейк-дак работал заметно медленно.
-	// Активен только пока игрок реально жмёт присед (или назначенную
-	// клавишу) — сам по себе больше не включается.
+	// Страховка: движок рвёт соединение примерно на 62 чоках подряд.
+	static int s_iChokeRun = 0;
+
+	if (bRealTick)
+	{
+		s_iChokeRun = 0;
+	}
+	else if (++s_iChokeRun >= 55)
+	{
+		s_iChokeRun = 0;
+		s_iChokeLeft = 0;
+		bRealTick = true;
+	}
+
+	bSendPacket = bRealTick;
+
+	// --------------------------- PITCH --------------------------------
+	// 0 Off | 1 Down | 2 Up | 3 Zero | 4 Jitter | 5 Custom
+	switch (iPitchMode)
+	{
+	case 1:		// Down — классика, самый надёжный
+		cmd->viewangles.x = 89.0f;
+		break;
+
+	case 2:		// Up
+		cmd->viewangles.x = -89.0f;
+		break;
+
+	case 3:		// Zero — тяжелее всего резолвится питч-резольверами
+		cmd->viewangles.x = 0.0f;
+		break;
+
+	case 4:		// Jitter — реал вниз, фейк вверх (разные питчи в снапшотах)
+		cmd->viewangles.x = bRealTick ? 89.0f : -89.0f;
+		break;
+
+	case 5:		// Custom
+		cmd->viewangles.x = bRealTick
+			? (bMoving ? Config::AntiAim->MoveCustomAnglePitch : Config::AntiAim->StandCustomAnglePitch)
+			: (bMoving ? Config::AntiAim->MoveCustomAngleFakePitch : Config::AntiAim->StandCustomAngleFakePitch);
+		break;
+
+	default:
+		break;
+	}
+
+	// ---------------------------- YAW ---------------------------------
+	// 0 Off | 1 Backward | 2 Jitter | 3 Spin | 4 Static Desync | 5 Random
+	//
+	// Во ВСЕХ режимах реальный и фейковый углы различаются — иначе
+	// анти-аим бесполезен (по нам просто попадают в реальную модель).
+	if (iYawMode > 0)
+	{
+		// Отталкиваемся от направления "от врага": так десинк остаётся
+		// осмысленным независимо от того, куда смотрит игрок.
+		float flRealYaw = cmd->viewangles.y;
+		float flFakeYaw = cmd->viewangles.y;
+
+		// Ширина расхождения реала и фейка. 0 в конфиге = дефолт 60,
+		// иначе игрок просто не увидел бы никакого эффекта.
+		float flWidth = (flRange != 0.0f) ? flRange : 60.0f;
+
+		if (flWidth > 180.0f)  flWidth = 180.0f;
+		if (flWidth < -180.0f) flWidth = -180.0f;
+
+		switch (iYawMode)
+		{
+		case 1:		// Backward — спина к врагу, фейк уводится в сторону
+			flRealYaw = cmd->viewangles.y + 180.0f + flBase;
+			flFakeYaw = flRealYaw + flWidth;
+			break;
+
+		case 2:		// Jitter — реал и фейк прыгают в РАЗНЫЕ стороны
+		{
+			// g_iAAHurtDir переключается при получении урона, поэтому
+			// противник не может выучить фазу дрожания.
+			const float flJit = flWidth * 0.5f * (float)g_iAAHurtDir;
+
+			flRealYaw = cmd->viewangles.y + 180.0f + flBase + flJit;
+			flFakeYaw = cmd->viewangles.y + 180.0f + flBase - flJit;
+			break;
+		}
+
+		case 3:		// Spin — фейк крутится, реал держит спину
+		{
+			static float s_flSpin = 0.0f;
+
+			int iSpeed = iSpinSpeed;
+
+			if (iSpeed == 0)
+				iSpeed = 12;
+
+			s_flSpin += (float)iSpeed;
+
+			while (s_flSpin > 180.0f)  s_flSpin -= 360.0f;
+			while (s_flSpin < -180.0f) s_flSpin += 360.0f;
+
+			flRealYaw = cmd->viewangles.y + 180.0f + flBase;
+			flFakeYaw = cmd->viewangles.y + s_flSpin;
+			break;
+		}
+
+		case 4:		// Static Desync — фиксированный увод, максимум стабильности
+			flRealYaw = cmd->viewangles.y + 180.0f + flBase - flWidth * 0.5f;
+			flFakeYaw = cmd->viewangles.y + 180.0f + flBase + flWidth * 0.5f;
+			break;
+
+		case 5:		// Random — фейк случайный в пределах ширины
+		{
+			const float flRand = ((float)(rand() % 2001) / 1000.0f - 1.0f) * flWidth;
+
+			flRealYaw = cmd->viewangles.y + 180.0f + flBase;
+			flFakeYaw = flRealYaw + flRand;
+			break;
+		}
+
+		default:
+			break;
+		}
+
+		cmd->viewangles.y = bRealTick ? flRealYaw : flFakeYaw;
+	}
+
+	// Углы вне допустимого диапазона сервер отбрасывает вместе со всей
+	// командой — тогда пропадает и выстрел. Нормализуем строго один раз.
+	cmd->viewangles.x = AngleNormalize(cmd->viewangles.x);
+	cmd->viewangles.y = AngleNormalize(cmd->viewangles.y);
+
+	if (cmd->viewangles.x > 89.0f)  cmd->viewangles.x = 89.0f;
+	if (cmd->viewangles.x < -89.0f) cmd->viewangles.x = -89.0f;
+
+	cmd->viewangles.z = 0.0f;
+
+	// ------------------------------- FakeDuck -------------------------
+	// Бит приседания переключается не каждый тик, а раз в N тиков
+	// (настройка Fake Duck Ticks, по умолчанию 5): слишком быстрое
+	// мерцание сервер сглаживает, и хитбокс не "залипает" внизу.
+	//
+	// Главное отличие от прошлой версии: фейк-дак больше НЕ МЕШАЕТ
+	// стрелять. Раньше бит IN_DUCK дёргался в том числе на тике выстрела,
+	// из-за чего пуля уходила в момент смены стойки и не регистрировалась.
 	if (Config::AntiAim->FakeDuck && player->m_MoveType() != MOVETYPE_LADDER &&
 		(player->m_fFlags() & FL_ONGROUND))
 	{
@@ -1825,16 +1270,35 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 			? ((GetAsyncKeyState(iKey) & 0x8000) != 0)
 			: ((cmd->buttons & IN_DUCK) != 0);
 
-		if (bWantDuck)
+		// В момент стрельбы фиксируем присед и не трогаем его: так выстрел
+		// уходит из стабильной стойки и попадает.
+		const bool bShooting = (cmd->buttons & IN_ATTACK) != 0;
+
+		if (bWantDuck && !bShooting)
 		{
-			static bool bDuckFlip = false;
+			static bool s_bDuckFlip = false;
+			static int  s_iDuckTick = 0;
 
-			bDuckFlip = !bDuckFlip;
+			int iTicks = Config::AntiAim->FakeDuckTicks;
 
-			if (bDuckFlip)
+			if (iTicks < 2)
+				iTicks = 2;
+
+			if (++s_iDuckTick >= iTicks)
+			{
+				s_iDuckTick = 0;
+				s_bDuckFlip = !s_bDuckFlip;
+			}
+
+			if (s_bDuckFlip)
 				cmd->buttons |= IN_DUCK;
 			else
 				cmd->buttons &= ~IN_DUCK;
+		}
+		else if (bWantDuck)
+		{
+			// Стреляем — держим присед стабильно нажатым.
+			cmd->buttons |= IN_DUCK;
 		}
 	}
 }
@@ -1964,8 +1428,22 @@ void RemoveInterpolation()
 auto Lag(CUserCmd* usercmd) -> void
 {
 	auto netchan = (CNetChan*)Source::m_pEngine->GetNetChannelInfo();
-	C_CSPlayer* player;
+
+	// КРИТИЧНО: здесь был неинициализированный указатель
+	//   C_CSPlayer* player;  auto weapon = player->GetActiveWeapon();
+	// то есть чтение по мусорному адресу при КАЖДОМ вызове Lag(). Именно
+	// это приводило к тому, что "в какой-то момент всё ломается": портилась
+	// память/стек, после чего отваливались анти-аимы, стрельба и бани-хоп.
+	auto player = C_CSPlayer::GetLocalPlayer();
+
+	if (!player || player->m_lifeState() != LIFE_ALIVE)
+		return;
+
 	auto weapon = player->GetActiveWeapon();
+
+	if (!weapon)
+		return;
+
 	if (netchan)
 	{
 		auto command = 0;

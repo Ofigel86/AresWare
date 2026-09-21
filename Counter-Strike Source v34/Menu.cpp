@@ -788,65 +788,41 @@ const char* NoEnemyList[ ] =
 const char* PitchStandList[ ] =
 {
 	"Off",
-	"Emotion",
-	"Fake Down",
-	"Custom",
-	"Flip",
-	"Switch",
-	"Send Jitter",
-	"Random"
+	"Down",
+	"Up",
+	"Zero",
+	"Jitter",
+	"Custom"
 };
 
 const char* PitchMoveList[ ] =
 {
 	"Off",
-	"Emotion",
-	"Fake Down",
-	"Custom",
-	"Flip",
-	"Switch",
-	"Send Jitter",
-	"Random"
+	"Down",
+	"Up",
+	"Zero",
+	"Jitter",
+	"Custom"
 };
 
 const char* YawStandList[ ] =
 {
 	"Off",
 	"Backward",
-	"Legit",
-	"Fake Sideways Left",
-	"Fake Sideways Right",
+	"Jitter",
 	"Spin",
-	"Double Fake (Jitter)",
-	"Custom Static Jitter",
-	"Custom Jitter",
-	"Custom Static",
-	"Custom Fake",
-	"Static FakeLag",
-	"Fake Spin",
-	"Fake Spin (Back)",
-	"Unbalanced Jitter",
-	"Back Jitter"
+	"Static Desync",
+	"Random"
 };
 
 const char* YawMoveList[ ] =
 {
 	"Off",
 	"Backward",
-	"Legit",
-	"Fake Sideways Left",
-	"Fake Sideways Right",
+	"Jitter",
 	"Spin",
-	"Double Fake (Jitter)",
-	"Custom Static Jitter",
-	"Custom Jitter",
-	"Custom Static",
-	"Custom Fake",
-	"Static FakeLag",
-	"Fake Spin",
-	"Fake Spin (Back)",
-	"Unbalanced Jitter",
-	"Back Jitter"
+	"Static Desync",
+	"Random"
 };
 
 const char* AccuracyList[ ] =
@@ -1596,90 +1572,55 @@ namespace Feature
 				AW::BeginPanel( XorStr( "Stand" ), ImVec2( pos.x + 14.0f, pos.y + 100.0f ), ImVec2( 380.0f, 268.0f ) );
 				AW::Combo( XorStr( "Stand Pitch" ), &aa->PitchStand, PitchStandList, ARRAYSIZE( PitchStandList ) );
 				AW::Combo( XorStr( "Stand Yaw" ), &aa->YawStand, YawStandList, ARRAYSIZE( YawStandList ) );
-				int ys = aa->YawStand;
-				int ps = aa->PitchStand;
+				const int ys = aa->YawStand;
+				const int ps = aa->PitchStand;
 
-				if( ys == 2 || ys == 3 || ys == 4 || ys == 6 || ys == 10 || ys == 11 || ys == 12 || ys == 13 || ys == 14 )
+				// Choked Packets = ширина десинка: сколько тиков уходит
+				// фейковый угол перед отправкой реального. Нужен всем
+				// рабочим режимам, кроме Off.
+				if( ys > 0 )
 					AW::SliderInt( XorStr( "Stand Choked Packets" ), &aa->StandChokedPackets, 0, 15, XorStr( "%d" ) );
 
-				if( ys == 9 )
-					AW::SliderFloat( XorStr( "Stand Static Modifier" ), &aa->StandStaticModifer, -180.0f, 180.0f, XorStr( "%.1f" ) );
+				// Base = доворот реального угла, Desync Width = расхождение
+				// реала и фейка (0 = авто 60 градусов).
+				if( ys > 0 )
+				{
+					AW::SliderFloat( XorStr( "Stand Base Angle" ), &aa->StandCustomAngleYaw, -180.0f, 180.0f, XorStr( "%.1f" ) );
+					AW::SliderFloat( XorStr( "Stand Desync Width" ), &aa->StandCustomAngleFakeYaw, -180.0f, 180.0f, XorStr( "%.1f" ) );
+				}
 
-				if( ys == 5 )
+				if( ys == 3 ) // Spin
 					AW::SliderInt( XorStr( "Stand Spin Speed" ), &aa->StandSpinSpeed, -100, 100, XorStr( "%d" ) );
 
-				if( ys == 12 )
+				if( ps == 5 ) // Custom pitch
 				{
-					AW::SliderInt( XorStr( "Stand Custom Fake Spin Speed" ), &aa->StandFakeSpinSpeed, -100, 100, XorStr( "%d" ) );
-					AW::SliderFloat( XorStr( "Stand Custom Fake Spin" ), &aa->StandFakeSpinAngle, -180.0f, 180.0f, XorStr( "%.1f" ) );
-				}
-
-				if( ps == 3 || ps == 5 || ps == 6 )
-				{
-					AW::SliderFloat( XorStr( "Stand Custom Angle Pitch" ), &aa->StandCustomAnglePitch, -180.0f, 180.0f, XorStr( "%.1f" ) );
-					AW::SliderFloat( XorStr( "Stand Custom Angle FakePitch" ), &aa->StandCustomAngleFakePitch, -180.0f, 180.0f, XorStr( "%.1f" ) );
-				}
-
-				if( ps == 5 )
-					AW::SliderInt( XorStr( "Stand Switch Delay" ), &aa->StandSwitchPitchDelay, 20, 620, XorStr( "%d" ) );
-
-				if( ys == 7 || ys == 8 || ys == 10 || ys == 11 || ys == 14 )
-				{
-					AW::SliderFloat( XorStr( "Stand Custom Angle Yaw" ), &aa->StandCustomAngleYaw, -180.0f, 180.0f, XorStr( "%.1f" ) );
-					AW::SliderFloat( XorStr( "Stand Custom Angle FakeYaw" ), &aa->StandCustomAngleFakeYaw, -180.0f, 180.0f, XorStr( "%.1f" ) );
-				}
-
-				if( ys == 6 )
-				{
-					AW::SliderFloat( XorStr( "Stand First Fake" ), &aa->StandCustomAngleFakeYaw1, -180.0f, 180.0f, XorStr( "%.1f" ) );
-					AW::SliderFloat( XorStr( "Stand Second Fake" ), &aa->StandCustomAngleFakeYaw2, -180.0f, 180.0f, XorStr( "%.1f" ) );
-					AW::SliderFloat( XorStr( "Stand First Real" ), &aa->StandCustomAngleYaw1, -180.0f, 180.0f, XorStr( "%.1f" ) );
-					AW::SliderFloat( XorStr( "Stand Second Real" ), &aa->StandCustomAngleYaw2, -180.0f, 180.0f, XorStr( "%.1f" ) );
+					AW::SliderFloat( XorStr( "Stand Real Pitch" ), &aa->StandCustomAnglePitch, -89.0f, 89.0f, XorStr( "%.1f" ) );
+					AW::SliderFloat( XorStr( "Stand Fake Pitch" ), &aa->StandCustomAngleFakePitch, -89.0f, 89.0f, XorStr( "%.1f" ) );
 				}
 
 				AW::EndPanel();
 				AW::BeginPanel( XorStr( "Move" ), ImVec2( pos.x + 14.0f, pos.y + 376.0f ), ImVec2( 380.0f, 276.0f ) );
 				AW::Combo( XorStr( "Move Pitch" ), &aa->PitchMove, PitchMoveList, ARRAYSIZE( PitchMoveList ) );
 				AW::Combo( XorStr( "Move Yaw" ), &aa->YawMove, YawMoveList, ARRAYSIZE( YawMoveList ) );
-				int ym = aa->YawMove;
-				int pm = aa->PitchMove;
+				const int ym = aa->YawMove;
+				const int pm = aa->PitchMove;
 
-				if( ym == 2 || ym == 3 || ym == 4 || ym == 6 || ym == 10 || ym == 11 || ym == 12 || ym == 13 || ym == 14 )
+				if( ym > 0 )
 					AW::SliderInt( XorStr( "Move Choked Packets" ), &aa->MoveChokedPackets, 0, 15, XorStr( "%d" ) );
 
-				if( ym == 9 )
-					AW::SliderFloat( XorStr( "Move Static Modifier" ), &aa->MoveStaticModifer, -180.0f, 180.0f, XorStr( "%.1f" ) );
+				if( ym > 0 )
+				{
+					AW::SliderFloat( XorStr( "Move Base Angle" ), &aa->MoveCustomAngleYaw, -180.0f, 180.0f, XorStr( "%.1f" ) );
+					AW::SliderFloat( XorStr( "Move Desync Width" ), &aa->MoveCustomAngleFakeYaw, -180.0f, 180.0f, XorStr( "%.1f" ) );
+				}
 
-				if( ym == 5 )
+				if( ym == 3 ) // Spin
 					AW::SliderInt( XorStr( "Move Spin Speed" ), &aa->MoveSpinSpeed, -100, 100, XorStr( "%d" ) );
 
-				if( ym == 12 )
+				if( pm == 5 ) // Custom pitch
 				{
-					AW::SliderInt( XorStr( "Move Custom Fake Spin Speed" ), &aa->MoveFakeSpinSpeed, -100, 100, XorStr( "%d" ) );
-					AW::SliderFloat( XorStr( "Move Custom Fake Spin" ), &aa->MoveFakeSpinAngle, -180.0f, 180.0f, XorStr( "%.1f" ) );
-				}
-
-				if( pm == 3 || pm == 5 || pm == 6 )
-				{
-					AW::SliderFloat( XorStr( "Move Custom Angle Pitch" ), &aa->MoveCustomAnglePitch, -180.0f, 180.0f, XorStr( "%.1f" ) );
-					AW::SliderFloat( XorStr( "Move Custom Angle FakePitch" ), &aa->MoveCustomAngleFakePitch, -180.0f, 180.0f, XorStr( "%.1f" ) );
-				}
-
-				if( pm == 5 )
-					AW::SliderInt( XorStr( "Move Switch Delay" ), &aa->MoveSwitchPitchDelay, 20, 620, XorStr( "%d" ) );
-
-				if( ym == 7 || ym == 8 || ym == 10 || ym == 11 || ym == 14 )
-				{
-					AW::SliderFloat( XorStr( "Move Custom Angle Yaw" ), &aa->MoveCustomAngleYaw, -180.0f, 180.0f, XorStr( "%.1f" ) );
-					AW::SliderFloat( XorStr( "Move Custom Angle FakeYaw" ), &aa->MoveCustomAngleFakeYaw, -180.0f, 180.0f, XorStr( "%.1f" ) );
-				}
-
-				if( ym == 6 )
-				{
-					AW::SliderFloat( XorStr( "Move First Fake" ), &aa->MoveCustomAngleFakeYaw1, -180.0f, 180.0f, XorStr( "%.1f" ) );
-					AW::SliderFloat( XorStr( "Move Second Fake" ), &aa->MoveCustomAngleFakeYaw2, -180.0f, 180.0f, XorStr( "%.1f" ) );
-					AW::SliderFloat( XorStr( "Move First Real" ), &aa->MoveCustomAngleYaw1, -180.0f, 180.0f, XorStr( "%.1f" ) );
-					AW::SliderFloat( XorStr( "Move Second Real" ), &aa->MoveCustomAngleYaw2, -180.0f, 180.0f, XorStr( "%.1f" ) );
+					AW::SliderFloat( XorStr( "Move Real Pitch" ), &aa->MoveCustomAnglePitch, -89.0f, 89.0f, XorStr( "%.1f" ) );
+					AW::SliderFloat( XorStr( "Move Fake Pitch" ), &aa->MoveCustomAngleFakePitch, -89.0f, 89.0f, XorStr( "%.1f" ) );
 				}
 
 				AW::EndPanel();
@@ -1699,7 +1640,10 @@ namespace Feature
 
 				// Пустая клавиша = работать от обычного приседа игрока.
 				if( aa->FakeDuck )
+				{
 					AW::KeyBox( XorStr( "Fake Duck Key (empty = crouch)" ), &aa->FakeDuckKey );
+					AW::SliderInt( XorStr( "Fake Duck Ticks" ), &aa->FakeDuckTicks, 2, 12, XorStr( "%d" ) );
+				}
 
 				AW::Checkbox( XorStr( "Fake Walk" ), &aa->FakeWalk );
 

@@ -266,29 +266,22 @@ namespace Config
 
 	struct AntiAimList
 	{
-		float StandCustomAngleFakeYaw2 = 0.0f;
-		float StandCustomAngleFakeYaw1 = 0.0f;
-		float StandCustomAngleYaw1 = 0.0f;
-		float StandCustomAngleYaw2 = 0.0f;
-		float MoveCustomAngleFakeYaw2 = 0.0f;
-		float MoveCustomAngleFakeYaw1 = 0.0f;
-		float MoveCustomAngleYaw1 = 0.0f;
-		float MoveCustomAngleYaw2 = 0.0f;
-		int StandSwitchPitchDelay = 20;
-		int MoveSwitchPitchDelay = 20;
 		// Удалены неиспользуемые поля: YawMoveJitterSpeed, YawRealMove,
 		// YawFakeMove, YawRealStand, YawFakeStand, test1..test3 — их не читали
 		// ни логика, ни меню, и они не сохранялись в конфиг.
 		bool FakeDuck = false;
 		int FakeDuckKey = 0;			// 0 = работать при обычном приседании
+		int FakeDuckTicks = 5;			// период мерцания приседа, тиков (2..12)
 		bool FakeWalkToggle = false;	// клавиша-переключатель вместо удержания
 		int FakeWalkSpeed = 33;			// % от обычной скорости
 		int	AtTarget = 0;		// 
 		int NoEnemy = 0;
 		bool NoEnemyEnabled = false;
 		bool AtTargetEnabled = false;
-		int		PitchStand = 0;				// 0 - Off | 1 - Up | 2 - Down | 3 - Emotion Up | 4 - Emotion Down | 5 - Fake Up
-		int		YawStand = 0;				// 0 - Off | 1 - Backward | 2 - Fake Forward | 3 - Sideways Left | 4 - Sideways Right | 5 - Fake Sideways Left | 6 - Fake Sideways Right | 7 - Slow Spin | 8 - Fast Spin | 9 - Jitter | 10 - Jitter2 | 11 - Jitter3
+		// Pitch: 0 Off | 1 Down | 2 Up | 3 Zero | 4 Jitter | 5 Custom
+		// Yaw:   0 Off | 1 Backward | 2 Jitter | 3 Spin | 4 Static Desync | 5 Random
+		int		PitchStand = 0;
+		int		YawStand = 0;
 		int		PitchMove = 0;
 		int		YawMove = 0;
 		int		StandChokedPackets = 0;		// 1 - 15
@@ -297,22 +290,16 @@ namespace Config
 		float		MoveCustomAngleYaw = 0;		// 0 - 360
 		float		MoveCustomAngleFakePitch = 0;		// 0 - 180
 		float		MoveCustomAngleFakeYaw = 0;		// 0 - 360
-		float		MoveStaticModifer = 0;		// 0 - 360
 		int			MoveSpinSpeed = 0;
 		float		StandCustomAnglePitch = 0;		// 0 - 180
 		float		StandCustomAngleYaw = 0;		// 0 - 360
 		float		StandCustomAngleFakePitch = 0;		// 0 - 180
 		float		StandCustomAngleFakeYaw = 0;		// 0 - 360
-		float		StandStaticModifer = 0;		// 0 - 360
 		int			StandSpinSpeed = 0;
 		
 		bool OnKnife = false;
 		bool FakeWalk = false;
 		int FakeWalkKey = 0;
-		float StandFakeSpinAngle = 0.0f;
-		int StandFakeSpinSpeed = 0;
-		float MoveFakeSpinAngle = 0.0f;
-		int MoveFakeSpinSpeed = 0;
 		bool HitReactive = false;
 		bool BreakLC = false;
 		int DefensiveTicks = 0;		// post-shot choke (CS:S defensive)
@@ -321,28 +308,27 @@ namespace Config
 		int ManualBackKey = 0;
 		void Clamp()
 		{
-			LimitValue(StandSwitchPitchDelay, 20, 1020);
-			LimitValue(MoveSwitchPitchDelay, 20, 1020);
+			// Режимов теперь ровно 6 (0..5) — старые конфиги могли хранить
+			// индекс до 15 и попадали бы в несуществующую ветку.
+			LimitValue(YawStand, 0, 5);
+			LimitValue(YawMove, 0, 5);
+			LimitValue(PitchStand, 0, 5);
+			LimitValue(PitchMove, 0, 5);
 			LimitValue(StandChokedPackets, 0, 15);
 			LimitValue(StandCustomAnglePitch, -9999999.f, 9999999.f);
 			LimitValue(StandCustomAngleYaw, -9999999.f, 9999999.f);
 			LimitValue(StandCustomAngleFakePitch, -9999999.f, 9999999.f);
 			LimitValue(StandCustomAngleFakeYaw, -9999999.f, 9999999.f);
-			LimitValue(StandStaticModifer, -9999999.f, 9999999.f);
 			LimitValue(StandSpinSpeed, -100, 100);
 			LimitValue(MoveChokedPackets, 0, 15);
 			LimitValue(MoveCustomAnglePitch, -9999999.f, 9999999.f);
 			LimitValue(MoveCustomAngleYaw, -9999999.f, 9999999.f);
 			LimitValue(MoveCustomAngleFakePitch, -9999999.f, 9999999.f);
 			LimitValue(MoveCustomAngleFakeYaw, -9999999.f, 9999999.f);
-			LimitValue(MoveStaticModifer, -9999999.f, 9999999.f);
 			LimitValue(MoveSpinSpeed, -100, 100);
-			LimitValue(StandFakeSpinAngle, -999999.f, 9999999.f);
-			LimitValue(StandFakeSpinSpeed, -9999, 9999);
-			LimitValue(MoveFakeSpinAngle, -999999.f, 9999999.f);
-			LimitValue(MoveFakeSpinSpeed, -9999, 9999);
 				LimitValue(DefensiveTicks, 0, 10);
 				LimitValue(FakeDuckKey, 0, 128);
+				LimitValue(FakeDuckTicks, 2, 12);
 				LimitValue(FakeWalkSpeed, 10, 90);
 				LimitValue(ManualLeftKey, 0, 128);
 				LimitValue(ManualRightKey, 0, 128);

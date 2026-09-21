@@ -584,9 +584,6 @@ namespace Config
 		AntiAim->StandCustomAngleFakePitch = LoadFloat(main, XorStr("antiaim.custom.fakepitch.stand"));
 		AntiAim->StandCustomAngleYaw = LoadFloat(main, XorStr("antiaim.custom.yaw.stand"));
 		AntiAim->StandCustomAngleFakeYaw = LoadFloat(main, XorStr("antiaim.custom.fakeyaw.stand"));
-		AntiAim->StandStaticModifer = LoadFloat(main, XorStr("antiaim.static.modifer.stand"));
-		AntiAim->StandSwitchPitchDelay = LoadInt(main, XorStr("antiaim.stand.switch.delay"));
-		AntiAim->MoveSwitchPitchDelay = LoadInt(main, XorStr("antiaim.move.switch.delay"));
 		AntiAim->StandSpinSpeed = LoadInt(main, XorStr("antiaim.spinspeed.stand"));
 		AntiAim->PitchMove = LoadInt(main, XorStr("antiaim.pitch.move"));
 		AntiAim->YawMove = LoadInt(main, XorStr("antiaim.yaw.move"));
@@ -595,19 +592,10 @@ namespace Config
 		AntiAim->MoveCustomAngleFakePitch = LoadFloat(main, XorStr("antiaim.custom.fakepitch.move"));
 		AntiAim->MoveCustomAngleYaw = LoadFloat(main, XorStr("antiaim.custom.yaw.move"));
 		AntiAim->MoveCustomAngleFakeYaw = LoadFloat(main, XorStr("antiaim.custom.fakeyaw.move"));
-		AntiAim->MoveStaticModifer = LoadFloat(main, XorStr("antiaim.static.modifer.move"));
 		AntiAim->MoveSpinSpeed = LoadInt(main, XorStr("antiaim.spinspeed.move"));
 		AntiAim->NoEnemyEnabled = LoadBool(main, XorStr("antiaim.no.enemy.enabled"));
 		AntiAim->NoEnemy = LoadInt(main, XorStr("antiaim.no.enemy"));
 		AntiAim->OnKnife = LoadBool(main, XorStr("antiaim.on.knife"));
-		AntiAim->StandCustomAngleYaw1 = LoadFloat(main, XorStr("antiaim.stand.breaker.real.first"));
-		AntiAim->StandCustomAngleYaw2 = LoadFloat(main, XorStr("antiaim.stand.breaker.real.second"));
-		AntiAim->StandCustomAngleFakeYaw1 = LoadFloat(main, XorStr("antiaim.stand.breaker.fake.first"));
-		AntiAim->StandCustomAngleFakeYaw2 = LoadFloat(main, XorStr("antiaim.stand.breaker.fake.second"));
-		AntiAim->MoveCustomAngleYaw1 = LoadFloat(main, XorStr("antiaim.move.breaker.real.first"));
-		AntiAim->MoveCustomAngleYaw2 = LoadFloat(main, XorStr("antiaim.move.breaker.real.second"));
-		AntiAim->MoveCustomAngleFakeYaw1 = LoadFloat(main, XorStr("antiaim.move.breaker.fake.first"));
-		AntiAim->MoveCustomAngleFakeYaw2 = LoadFloat(main, XorStr("antiaim.move.breaker.fake.second"));
 		AntiAim->HitReactive = LoadBool(main, XorStr("antiaim.hit.reactive"));
 		AntiAim->BreakLC = LoadBool(main, XorStr("antiaim.break.lagcomp"));
 		AntiAim->DefensiveTicks = LoadInt(main, XorStr("antiaim.defensive.ticks"));
@@ -622,6 +610,7 @@ namespace Config
 		AntiAim->FakeWalkSpeed = LoadIntDef(main, XorStr("antiaim.fakewalk.speed"), 33);
 		AntiAim->FakeDuck = LoadBoolDef(main, XorStr("antiaim.fakeduck"), false);
 		AntiAim->FakeDuckKey = LoadIntDef(main, XorStr("antiaim.fakeduck.key"), 0);
+		AntiAim->FakeDuckTicks = LoadIntDef(main, XorStr("antiaim.fakeduck.ticks"), 5);
 		AntiAim->Clamp();
 		Removals->NoRecoil				= LoadBool( main, XorStr( "removals.no.recoil" ) );
 		Removals->NoVisualRecoil		= LoadBool( main, XorStr( "removals.no.visual.recoil" ) );
@@ -1147,9 +1136,6 @@ namespace Config
 		SaveFloat(main, XorStr("antiaim.custom.fakepitch.stand"), AntiAim->StandCustomAngleFakePitch);
 		SaveFloat(main, XorStr("antiaim.custom.yaw.stand"), AntiAim->StandCustomAngleYaw);
 		SaveFloat(main, XorStr("antiaim.custom.fakeyaw.stand"), AntiAim->StandCustomAngleFakeYaw);
-		SaveFloat(main, XorStr("antiaim.static.modifer.stand"), AntiAim->StandStaticModifer);
-		SaveInt(main, XorStr("antiaim.stand.switch.delay"), AntiAim->StandSwitchPitchDelay);
-		SaveInt(main, XorStr("antiaim.move.switch.delay"), AntiAim->MoveSwitchPitchDelay);
 		SaveInt(main, XorStr("antiaim.spinspeed.stand"), AntiAim->StandSpinSpeed);
 		SaveInt(main, XorStr("antiaim.pitch.move"), AntiAim->PitchMove);
 		SaveInt(main, XorStr("antiaim.yaw.move"), AntiAim->YawMove);
@@ -1158,7 +1144,6 @@ namespace Config
 		SaveFloat(main, XorStr("antiaim.custom.fakepitch.move"), AntiAim->MoveCustomAngleFakePitch);
 		SaveFloat(main, XorStr("antiaim.custom.yaw.move"), AntiAim->MoveCustomAngleYaw);
 		SaveFloat(main, XorStr("antiaim.custom.fakeyaw.move"), AntiAim->MoveCustomAngleFakeYaw);
-		SaveFloat(main, XorStr("antiaim.static.modifer.move"), AntiAim->MoveStaticModifer);
 		SaveInt(main, XorStr("antiaim.spinspeed.move"), AntiAim->MoveSpinSpeed);
 		SaveBool(main, XorStr("antiaim.no.enemy.enabled"), AntiAim->NoEnemyEnabled);
 		SaveInt(main, XorStr("antiaim.no.enemy"), AntiAim->NoEnemy);
@@ -1170,14 +1155,7 @@ namespace Config
 		// FakeDuck раньше вообще не сохранялся и слетал при перезапуске.
 		SaveBool(main, XorStr("antiaim.fakeduck"), AntiAim->FakeDuck);
 		SaveInt(main, XorStr("antiaim.fakeduck.key"), AntiAim->FakeDuckKey);
-		SaveFloat(main, XorStr("antiaim.stand.breaker.real.first"), AntiAim->StandCustomAngleYaw1);
-		SaveFloat(main, XorStr("antiaim.stand.breaker.real.second"), AntiAim->StandCustomAngleYaw2);
-		SaveFloat(main, XorStr("antiaim.stand.breaker.fake.first"), AntiAim->StandCustomAngleFakeYaw1);
-		SaveFloat(main, XorStr("antiaim.stand.breaker.fake.second"), AntiAim->StandCustomAngleFakeYaw2);
-		SaveFloat(main, XorStr("antiaim.move.breaker.real.first"), AntiAim->MoveCustomAngleYaw1);
-		SaveFloat(main, XorStr("antiaim.move.breaker.real.second"), AntiAim->MoveCustomAngleYaw2);
-		SaveFloat(main, XorStr("antiaim.move.breaker.fake.first"), AntiAim->MoveCustomAngleFakeYaw1);
-		SaveFloat(main, XorStr("antiaim.move.breaker.fake.second"), AntiAim->MoveCustomAngleFakeYaw2);
+		SaveInt(main, XorStr("antiaim.fakeduck.ticks"), AntiAim->FakeDuckTicks);
 		SaveBool(main, XorStr("antiaim.hit.reactive"), AntiAim->HitReactive);
 		SaveBool(main, XorStr("antiaim.break.lagcomp"), AntiAim->BreakLC);
 		SaveInt(main, XorStr("antiaim.defensive.ticks"), AntiAim->DefensiveTicks);
