@@ -510,6 +510,7 @@ namespace Config
 		Render->ChamsColored			= LoadBool( main, XorStr( "render.chams.visible" ) );
 		Render->ChamsTarget				= LoadInt(main, XorStr("render.chams.target"));
 		Render->ChamsVisOnly = LoadBool(main, XorStr("render.chams.visibleonly"));
+		Render->ChamsAlpha				= LoadInt( main, XorStr( "render.chams.alpha" ) );
 
 		AntiAim->AtTargetEnabled = LoadBool(main, XorStr("antiaim.at.target.enabled"));
 		AntiAim->AtTarget				= LoadInt( main, XorStr( "antiaim.at.target" ) );
@@ -988,6 +989,7 @@ namespace Config
 		SaveBool(main, XorStr("render.chams.outlined"), Render->ChamsOutlined);
 		SaveInt(main, XorStr("render.chams.target"), Render->ChamsTarget);
 		SaveBool(main, XorStr("render.chams.visibleonly"), Render->ChamsVisOnly);
+		SaveInt( main, XorStr( "render.chams.alpha" ), Render->ChamsAlpha );
 
 		AntiAim->Clamp();
 

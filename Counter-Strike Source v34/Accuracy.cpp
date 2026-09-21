@@ -186,8 +186,16 @@ namespace Feature
 				flDamageModifier = 0.99f;
 			}
 
-			flCurrentDistance += tr.fraction * flDistance;
-			flCurrentDamage *= pow(flRangeModifier, flCurrentDistance / 500.0f);
+			// Фоллоф считаем по отрезку, а не по накопленной дистанции:
+			// оригинал пересчитывал весь путь на каждой итерации и урон
+			// таял в разы быстрее честного.
+			const float flLegDistance = tr.fraction * flDistance;
+
+			flCurrentDistance += flLegDistance;
+			flCurrentDamage *= pow(flRangeModifier, flLegDistance / 500.0f);
+
+			if (flCurrentDistance > pData->m_flRange)
+				break;
 
 			if (flCurrentDistance > flPenetrationDistance && iPenetration > 0)
 				iPenetration = 0;
@@ -200,16 +208,24 @@ namespace Feature
 				{
 					float flModDamage = Valve::GetHitgroupModDamage(flCurrentDamage, tr.hitgroup);
 
-					iModDamage += Valve::GetPlayerModDamage(flModDamage, pLastPlayerHit->m_ArmorValue(), pData->m_flArmorRatio, tr.hitgroup, pLastPlayerHit->m_iTeamNum() == pLocal->m_iTeamNum(), pLastPlayerHit->m_bHasHelmet());
+					int iHitDamage = Valve::GetPlayerModDamage(flModDamage, pLastPlayerHit->m_ArmorValue(), pData->m_flArmorRatio, tr.hitgroup, pLastPlayerHit->m_iTeamNum() == pLocal->m_iTeamNum(), pLastPlayerHit->m_bHasHelmet());
 
-					if (pHitbox)
-						*pHitbox = tr.hitbox;
+					// Максимум, а не сумма: вдоль луча может быть несколько
+					// тел — мин. урон и выходные хитбокс/сущность берём
+					// от самого уронного попадания.
+					if (iHitDamage >= iModDamage)
+					{
+						iModDamage = iHitDamage;
 
-					if (pHitgroup)
-						*pHitgroup = tr.hitgroup;
+						if (pHitbox)
+							*pHitbox = tr.hitbox;
 
-					if (ppEnt)
-						*ppEnt = pLastPlayerHit;
+						if (pHitgroup)
+							*pHitgroup = tr.hitgroup;
+
+						if (ppEnt)
+							*ppEnt = pLastPlayerHit;
+					}
 				}
 			}
 

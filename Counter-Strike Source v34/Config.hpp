@@ -245,6 +245,7 @@ namespace Config
 		bool	ChamsColored = false;	// 
 		int		ChamsTarget = 0;		// 0 - Everyone | 1 - Enemy | 2 - FriendlyF
 		bool	ChamsVisOnly = false;
+		int		ChamsAlpha = 255;		// 0 - 255 global chams opacity
 		bool    out = false;
 	};
 

@@ -635,7 +635,10 @@ const char* ChamsModeList[ ] =
 	"Shadow",
 	"Shadow Flat",
 	"Chipolino",
-	"Wireframe"
+	"Wireframe",
+	"Glass",
+	"Glow",
+	"Ghost"
 };
 
 const char* ChamsTargetList[ ] =
@@ -1628,6 +1631,7 @@ namespace Feature
 				AW::Checkbox( XorStr( "Chams V. color" ), &Config::Render->ChamsColored );
 				AW::Checkbox( XorStr( "Chams outlined" ), &Config::Render->ChamsOutlined );
 				AW::Checkbox( XorStr( "Chams V. only" ), &Config::Render->ChamsVisOnly );
+				AW::SliderInt( XorStr( "Chams Alpha" ), &Config::Render->ChamsAlpha, 0, 255, XorStr( "%d" ) );
 				AW::Combo( XorStr( "Chams Target" ), &Config::Render->ChamsTarget, ChamsTargetList, ARRAYSIZE( ChamsTargetList ) );
 			}
 

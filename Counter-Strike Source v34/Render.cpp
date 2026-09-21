@@ -16,6 +16,12 @@ namespace Feature
 		m_pOut = CreateMaterial(false, true, false);
 		m_pWireIn = CreateMaterial(false, true, true);
 		m_pWireOut = CreateMaterial(false, false, true);
+		m_pGlassIn = CreateMaterial(false, true, false, true);
+		m_pGlassOut = CreateMaterial(false, false, false, true);
+		m_pGlowIn = CreateMaterial(false, true, false, false, true);
+		m_pGlowOut = CreateMaterial(false, false, false, false, true);
+		m_pGhostIn = CreateMaterial(false, true, true, true);
+		m_pGhostOut = CreateMaterial(false, false, true, true);
 	}
 
 	void Render::OnDrawModel(void* ecx, ModelRenderInfo_t* info)
@@ -43,6 +49,17 @@ namespace Feature
 			if (player->m_iTeamNum() != enemy->m_iTeamNum())
 				return;
 		}
+
+		// Общая прозрачность чамсов (слайдер); стекло/призрак всегда полупрозрачны.
+		int iChamsAlpha = Config::Render->ChamsAlpha;
+
+		if( iChamsAlpha < 0 )
+			iChamsAlpha = 0;
+		else if( iChamsAlpha > 255 )
+			iChamsAlpha = 255;
+
+		if( Config::Render->ChamsMode == 6 || Config::Render->ChamsMode == 8 )
+			iChamsAlpha /= 2;
 
 		IMaterial* pIn = nullptr;
 		IMaterial* pOut = nullptr;
@@ -89,7 +106,32 @@ namespace Feature
 			}
 			pOut = m_pWireOut;
 		}
+		else if (Config::Render->ChamsMode == 6) // Glass
+		{
+			if (Config::Render->ChamsVisOnly == 0)
+			{
+				pIn = m_pGlassIn;
+				}
+			pOut = m_pGlassOut;
+			}
+		else if (Config::Render->ChamsMode == 7) // Glow
+		{
+			if (Config::Render->ChamsVisOnly == 0)
+			{
+				pIn = m_pGlowIn;
+				}
+			pOut = m_pGlowOut;
+			}
+		else if (Config::Render->ChamsMode == 8) // Ghost
+		{
+			if (Config::Render->ChamsVisOnly == 0)
+			{
+				pIn = m_pGhostIn;
+				}
+			pOut = m_pGhostOut;
+			}
 		Color color = Config::Colors->ChamsOutlinedC;
+		color.A = ( std::uint8_t )( ( int )color.A * iChamsAlpha / 255 );
 
 		if (Config::Render->ChamsOutlined)
 		{
@@ -106,6 +148,7 @@ namespace Feature
 			color = Config::Colors->T_Chams_Normal;
 		else if (enemy->m_iTeamNum() == 3) // CT
 			color = Config::Colors->CT_Chams_Normal;
+		color.A = ( std::uint8_t )( ( int )color.A * iChamsAlpha / 255 );
 
 		ForceMaterial(color, pIn);
 		Source::m_pModelRenderSwap->VCall< DrawModelExFn >(IVModelRender_DrawModelEx)(ecx, info);
@@ -116,12 +159,13 @@ namespace Feature
 				color = Config::Colors->T_Chams_Colored;
 			else if (enemy->m_iTeamNum() == 3) // CT
 				color = Config::Colors->CT_Chams_Colored;
+		color.A = ( std::uint8_t )( ( int )color.A * iChamsAlpha / 255 );
 		}
 
 		ForceMaterial(color, pOut);
 	}
 
-	IMaterial* Render::CreateMaterial(bool bVertexLit, bool bIgnoreZ, bool bWireframe /*= false*/)
+	IMaterial* Render::CreateMaterial(bool bVertexLit, bool bIgnoreZ, bool bWireframe /*= false*/, bool bTranslucent /*= false*/, bool bAdditive /*= false*/)
 	{
 		static int iCreated = 0;
 		static const char szMaterialStruct[] =
@@ -141,13 +185,15 @@ namespace Feature
 			\n\t\"$ignorez\" \"%i\"\
 			\n\t\"$znearer\" \"0\"\
 			\n\t\"$wireframe\" \"%i\"\
+			\n\t\"$translucent\" \"%i\"\
+			\n\t\"$additive\" \"%i\"\
 			\n}\n"
 		};
 
 		const char* szBaseType = bVertexLit ? "VertexLitGeneric" : "UnlitGeneric";
 
 		char szMaterial[512];
-		sprintf_s(szMaterial, sizeof(szMaterial), szMaterialStruct, szBaseType, bIgnoreZ ? 1 : 0, bWireframe ? 1 : 0);
+		sprintf_s(szMaterial, sizeof(szMaterial), szMaterialStruct, szBaseType, bIgnoreZ ? 1 : 0, bWireframe ? 1 : 0, bTranslucent ? 1 : 0, bAdditive ? 1 : 0);
 
 		char szName[512];
 		sprintf_s(szName, sizeof(szName), "custom_material_%i.vmt", iCreated);

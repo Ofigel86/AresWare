@@ -801,9 +801,21 @@ namespace Feature
 			VectorNormalize( vRight );
 			CrossProduct( vRight, vForward, vUp );
 
-			if( box->group == 1 ) // Голова: центр + кольцо из 4 точек.
+			if( box->group == 1 ) // Голова: центр + кольцо из 8 точек.
 			{
-				const Vector3 vRing[ 4 ] =
+				for( int j = 0; j < 8; j++ )
+				{
+					const float flA = ( float )j * 0.7853982f;
+
+					const Vector3 vDot = vCenter + vRight * ( cosf( flA ) * flRadius ) + vUp * ( sinf( flA ) * flRadius );
+
+					if( ConsiderHitScanPoint( pTarget, vDot, vPoint, iBestDamage, flBestFov ) )
+						bFound = true;
+				}
+			}
+			else if( box->group <= 3 ) // Таз/грудь/живот: центр + крест.
+			{
+				const Vector3 vCross[ 4 ] =
 				{
 					vCenter + vRight * flRadius,
 					vCenter - vRight * flRadius,
@@ -813,25 +825,11 @@ namespace Feature
 
 				for( int j = 0; j < 4; j++ )
 				{
-					if( ConsiderHitScanPoint( pTarget, vRing[ j ], vPoint, iBestDamage, flBestFov ) )
+					if( ConsiderHitScanPoint( pTarget, vCross[ j ], vPoint, iBestDamage, flBestFov ) )
 						bFound = true;
 				}
 			}
-			else if( box->group == 2 || box->group == 3 ) // Грудь/живот: центр + бока.
-			{
-				const Vector3 vSides[ 2 ] =
-				{
-					vCenter + vRight * flRadius,
-					vCenter - vRight * flRadius
-				};
-
-				for( int j = 0; j < 2; j++ )
-				{
-					if( ConsiderHitScanPoint( pTarget, vSides[ j ], vPoint, iBestDamage, flBestFov ) )
-						bFound = true;
-				}
-			}
-			// Руки/ноги: только центр (бюджет ~30 точек на цель).
+			// Руки/ноги: только центр (бюджет ~45 точек на цель).
 		}
 
 		return bFound;
