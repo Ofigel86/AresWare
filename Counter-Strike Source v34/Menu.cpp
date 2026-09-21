@@ -1622,8 +1622,9 @@ namespace Feature
 		}
 
 		AW::EndPanel();
-		AW::BeginPanel( XorStr( "Restriction" ), ImVec2( pos.x + 14.0f, pos.y + 508.0f ), ImVec2( 380.0f, 144.0f ) );
+		AW::BeginPanel( XorStr( "Restriction" ), ImVec2( pos.x + 14.0f, pos.y + 508.0f ), ImVec2( 380.0f, 180.0f ) );
 		AW::Combo( XorStr( "Restriction" ), &Config::Misc->Restriction, RestrictionList, ARRAYSIZE( RestrictionList ) );
+		AW::Checkbox( XorStr( "Anti SMAC" ), &Config::Misc->AntiSMAC );
 		AW::EndPanel();
 		AW::BeginPanel( XorStr( "Effects" ), ImVec2( pos.x + 402.0f, pos.y + 70.0f ), ImVec2( 394.0f, 300.0f ) );
 		AW::Checkbox( XorStr( "Fake Lag" ), &Config::Misc->FakeLag );

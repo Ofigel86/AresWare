@@ -378,6 +378,7 @@ namespace Config
 		Misc->SpeedKey = LoadInt(main, XorStr("misc.cstrafer.key"));
 		Misc->SpeedMod = LoadFloat(main, XorStr("misc.cstrafer.modifer"));
 		Misc->Restriction = LoadInt(main, XorStr("misc.restriction"));
+		Misc->AntiSMAC = LoadBool(main, XorStr("misc.anti.smac"));
 		Misc->ResolverAng = LoadFloat(main, XorStr("misc.resolver.angle"));
 		Misc->ResolverLog = LoadBoolDef(main, XorStr("misc.resolver.log"), true);
 
@@ -663,6 +664,7 @@ namespace Config
 		SaveInt(main, XorStr("misc.cstrafer.key"), Misc->SpeedKey);
 		SaveFloat(main, XorStr("misc.cstrafer.modifer"), Misc->SpeedMod);
 		SaveInt(main, XorStr("misc.restriction"), Misc->Restriction);
+		SaveBool(main, XorStr("misc.anti.smac"), Misc->AntiSMAC);
 		SaveFloat(main, XorStr("misc.resolver.angle"), Misc->ResolverAng);
 		SaveBool(main, XorStr("misc.resolver.log"), Misc->ResolverLog);
 

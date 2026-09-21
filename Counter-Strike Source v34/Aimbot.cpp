@@ -260,8 +260,24 @@ namespace Feature
 
 		if( cfg->AutoFire && !bNeedScope )
 		{
-			pCmd->buttons &= ~IN_RELOAD;
-			pCmd->buttons |= IN_ATTACK;
+			// Легит: огонь только когда смуз почти довёлся до точки — иначе
+			// стреляем в стены раньше прицела. SMAC-режим мимо: там углы не
+			// двигаем (доводка мышью), остаточный угол не показатель.
+			bool bHoldFire = false;
+
+			if( Config::Main->AimbotStyle == 1 && Config::Misc->Restriction != 1 )
+			{
+				const float flResidual = GetFOV( pCmd->viewangles + m_pLocal->m_vecPunchAngle() * 2.0f, m_pLocal->EyePosition(), vPoint );
+
+				if( flResidual > 2.0f )
+					bHoldFire = true;
+			}
+
+			if( !bHoldFire )
+			{
+				pCmd->buttons &= ~IN_RELOAD;
+				pCmd->buttons |= IN_ATTACK;
+			}
 		}
 
 		if( cfg->AutoStop )
@@ -425,7 +441,9 @@ namespace Feature
 		if( m_vTarget.DistTo( vEye ) > m_pData->m_flRange )
 			return false;
 
-		if( cfg->TargetSelection == 2 ) // Crosshair: режем по FOV
+		// Легит-стиль: FOV-лимит действует при любом TargetSelection — иначе
+		// доводка идёт на цели по всему экрану (нелегитно и палится SMAC).
+		if( cfg->TargetSelection == 2 || Config::Main->AimbotStyle == 1 ) // Crosshair: режем по FOV
 		{
 			const float flFov = GetFOV( m_pCmd->viewangles + m_pLocal->m_vecPunchAngle() * 2.0f, vEye, m_vTarget );
 

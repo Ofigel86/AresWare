@@ -221,6 +221,32 @@ void AutoStrafe( CUserCmd* cmd, C_CSPlayer* player )
 	cmd->sidemove = flForward * flSinD + flSide * flCosD;
 }
 
+// Anti SMAC (Misc): последний штрих перед отправкой — чиним углы юзеркоманды,
+// которые могли испортить аим/сайлент/анти-аим: NaN/Inf в нули, питч в ±89,
+// yaw в ±180, roll строго 0. Именно такие углы проверяет smac_eyetest.
+static bool IsBadFloat( float fl ) // NaN/Inf, побитово (не зависит от /fp)
+{
+	return ( ( *( unsigned int* )&fl ) & 0x7F800000 ) == 0x7F800000;
+}
+
+void AntiSMAC( CUserCmd* cmd )
+{
+	Vector3& vAngles = cmd->viewangles;
+
+	if( IsBadFloat( vAngles.x ) )
+		vAngles.x = 0.0f;
+
+	if( IsBadFloat( vAngles.y ) )
+		vAngles.y = 0.0f;
+
+	if( IsBadFloat( vAngles.z ) )
+		vAngles.z = 0.0f;
+
+	ClampAngles( vAngles );
+
+	vAngles.z = 0.0f;
+}
+
 void AutoJump( CUserCmd* cmd, C_CSPlayer* player )
 {
 	if( player->m_MoveType() == MOVETYPE_LADDER || player->m_MoveType() == MOVETYPE_NOCLIP )
@@ -1715,6 +1741,9 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 							
 						angl = QAngle(cmd->viewangles.z, cmd->viewangles.x, cmd->viewangles.y);
 						}
+						if( Config::Misc->AntiSMAC )
+							AntiSMAC( cmd );
+
 						Source::MovementFix(cmd, va, false);
 					}
 				}

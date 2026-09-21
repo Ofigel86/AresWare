@@ -351,6 +351,7 @@ namespace Config
 		int		SpeedFactor = 1;		// 1 - 15
 
 		int		Restriction = 0;		// 0 - Off | 1 - SMAC | 2 - Ultr@
+		bool	AntiSMAC = false;		// sanitize usercmd angles (SMAC eye-test)
 
 		void Clamp()
 		{
