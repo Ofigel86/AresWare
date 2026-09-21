@@ -1139,8 +1139,8 @@ namespace Feature
 
 		AW::Combo( XorStr( "Hit Scan" ), &aim->HitScan, HitScanList, ARRAYSIZE( HitScanList ) );
 
-		if( aim->HitScan == 2 )
-			AW::SliderFloat( XorStr( "Scale" ), &aim->HitScanScale, 0.0f, 1.0f, XorStr( "%.2f" ) );
+			if( aim->HitScan == 2 || aim->HitScan == 3 )
+				AW::SliderFloat( XorStr( "Scale" ), &aim->HitScanScale, 0.0f, 1.0f, XorStr( "%.2f" ) );
 
 		AW::Combo( XorStr( "Target" ), &aim->Target, AimTargetList, ARRAYSIZE( AimTargetList ) );
 
