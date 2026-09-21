@@ -50,9 +50,28 @@ namespace Source
 	extern std::shared_ptr< Memory::Detour >		m_pPresentSwap;
 	extern std::shared_ptr< Memory::Detour >		m_pRunPredictionSwap;
 
-	extern bool										Startup();
-	extern bool										Release();
-	extern void										Free();
+	// Все циклы по игрокам обязаны идти через MaxClients().
+	// GetMaxClients() возвращает значение из движка: на кастомном сервере или
+	// сразу после смены карты оно может быть больше 64, а все таблицы чита
+	// (записи backtracking, resolver, PlayerList) рассчитаны ровно на 64
+	// игрока. Раньше циклы шли напрямую по GetMaxClients(), поэтому индекс
+	// уходил за границы массивов, и получался мусорный игрок (или падение).
+	inline int MaxClients()
+	{
+		if( !m_pEngine )
+			return 0;
+
+		const int iMax = m_pEngine->GetMaxClients();
+
+		if( iMax < 0 )
+			return 0;
+
+		return ( iMax > 64 ) ? 64 : iMax;
+	}
+
+	extern bool														Startup();
+	extern bool														Release();
+	extern void														Free();
 
 	extern void*									QueryInterface(const char* szMod, const char* szName, bool bCustom = false);
 	extern void										MovementFix(CUserCmd* cmd, const Vector3& va, bool aa = false);

@@ -5,6 +5,21 @@
 
 namespace Feature
 {
+	// Материал поверхности для расчёта прострела. GetSurfaceData возвращает
+	// указатель из движка и может отдать nullptr (браш без props, отладочный
+	// сервер) — обращение к ->game.material без проверки было падением при
+	// включённом AutoWall. Для неизвестной поверхности берём бетон: у него
+	// самые консервативные параметры пробития.
+	static int MaterialOfSurface( int iSurfaceProps )
+	{
+		auto pData = Source::m_pPhysicsSurfaceProps->GetSurfaceData( iSurfaceProps );
+
+		if( !pData )
+			return CHAR_TEX_CONCRETE;
+
+		return pData->game.material;
+	}
+
 	static void CompensateSpread( const Vector3& vBase, float flSpread, float flX, float flY, Vector3& vOut )
 	{
 		Vector3 vForward, vRight, vUp;
@@ -130,9 +145,7 @@ void Accuracy::ApplyRecoilFix(C_CSPlayer* player, Vector3& va, bool inverted)
 			if (tr.fraction == 1.0f)
 				break;
 
-			surfacedata_t* pSurfaceData = Source::m_pPhysicsSurfaceProps->GetSurfaceData(tr.surface.surfaceProps);
-
-			int iEnterMaterial = pSurfaceData->game.material;
+			const int iEnterMaterial = MaterialOfSurface( tr.surface.surfaceProps );
 
 			Valve::GetMaterialParameters(iEnterMaterial, flPenetrationModifier, flDamageModifier);
 
@@ -213,9 +226,7 @@ void Accuracy::ApplyRecoilFix(C_CSPlayer* player, Vector3& va, bool inverted)
 				Source::m_pEngineTrace->TraceRay(ray, 0x4600400B, &trace, &exit);
 			}
 
-			pSurfaceData = Source::m_pPhysicsSurfaceProps->GetSurfaceData(exit.surface.surfaceProps);
-
-			int iExitMaterial = pSurfaceData->game.material;
+			const int iExitMaterial = MaterialOfSurface( exit.surface.surfaceProps );
 
 			bHitGrate = bHitGrate && (exit.contents & 0x8);
 

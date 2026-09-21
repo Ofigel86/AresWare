@@ -113,6 +113,17 @@ namespace AW
 		return 0;
 	}
 
+	// Безопасный слот оружия: Config::GetWeaponID() возвращает WEAPON_NONE,
+	// если имя не распознано, а Config::Weapon[] — массив указателей. Прямое
+	// Config::Weapon[ wid ]->... в меню было разыменованием мусора/нуля.
+	static Config::CurrentList* WeaponSlot( CSWeaponID id )
+	{
+		if( id <= 0 || id >= WEAPON_MAX )
+			return nullptr;
+
+		return Config::Weapon[ id ];
+	}
+
 	static void Text( const ImVec2& p, ImU32 col, const char* text )
 	{
 		ImGui::GetWindowDrawList()->AddText( p, col, text );
@@ -188,7 +199,14 @@ namespace AW
 			cw = 200.0f;
 
 		g_flCtrlW = cw;
-		ImGui::SetCursorScreenPos( ImVec2( g_flContentX, p.y + 28.0f ) );
+		// Контент панели позиционируется в абсолютных экранных координатах
+		// (RowReserve и далее), а ImGui сдвигает содержимое окна через
+		// window->Scroll только для курсорной раскладки. Поэтому вычитаем
+		// текущую прокрутку панели: строки уезжают вверх, как и положено, и
+		// SizeContents (считается как CursorMaxPos - Pos + Scroll) не растёт
+		// от самой прокрутки — иначе диапазон скроллбара разъезжался бы.
+		const float flPanelScrollY = ImGui::GetScrollY();
+		ImGui::SetCursorScreenPos( ImVec2( g_flContentX, p.y + 28.0f - flPanelScrollY ) );
 	}
 
 	static void EndPanel()
@@ -1307,6 +1325,11 @@ namespace Feature
 
 	void Menu::DrawAimbotBlock( Config::AimbotList* aim, bool bGlobal )
 	{
+		// Слот мог не выделиться при загрузке конфига — без проверки это
+		// падение меню прямо в кадре отрисовки.
+		if( !aim )
+			return;
+
 		AW::Combo( XorStr( "Mode" ), &aim->Mode, ModeList, ARRAYSIZE( ModeList ) );
 
 		if( aim->Mode == 2 )
@@ -1416,6 +1439,9 @@ namespace Feature
 
 	void Menu::DrawTriggerBlock( Config::TriggerbotList* trigger )
 	{
+		if( !trigger )
+			return;
+
 		AW::Combo( XorStr( "Mode" ), &trigger->Mode, ModeList, ARRAYSIZE( ModeList ) );
 
 		if( trigger->Mode == 2 )
@@ -1506,7 +1532,10 @@ namespace Feature
 			AW::Combo( XorStr( "Weapon" ), &j, names, clsCount );
 			m_iWeaponAimbot = AW::ClassWeapon( m_iRageClass, j );
 			CSWeaponID wid = Config::GetWeaponID( Config::WeaponList[ m_iWeaponAimbot ] );
-			DrawAimbotBlock( Config::Weapon[ wid ]->Aimbot, false );
+			Config::CurrentList* pSlot = AW::WeaponSlot( wid );
+
+			if( pSlot )
+				DrawAimbotBlock( pSlot->Aimbot, false );
 			AW::EndPanel();
 		}
 		else
@@ -1757,7 +1786,8 @@ namespace Feature
 			AW::EndPanel();
 			int clsCount = AW::kClsCount[ m_iLegitClass ];
 			CSWeaponID twid = Config::GetWeaponID( Config::WeaponList[ m_iWeaponTriggerbot ] );
-			Config::TriggerbotList* shown = Config::Main->TriggerbotWeaponConfig ? Config::Weapon[ twid ]->Triggerbot : Config::Main->Triggerbot;
+			Config::CurrentList* pTbSlot = AW::WeaponSlot( twid );
+			Config::TriggerbotList* shown = ( Config::Main->TriggerbotWeaponConfig && pTbSlot ) ? pTbSlot->Triggerbot : Config::Main->Triggerbot;
 			AW::BeginPanel( XorStr( "Triggerbot" ), ImVec2( pos.x + 402.0f, pos.y + 248.0f ), ImVec2( 394.0f, 258.0f ) );
 			AW::Checkbox( XorStr( "Weapon Config" ), &Config::Main->TriggerbotWeaponConfig );
 			const char* names[ 9 ];
@@ -1769,7 +1799,8 @@ namespace Feature
 			AW::Combo( XorStr( "Weapon" ), &j, names, clsCount );
 			m_iWeaponTriggerbot = AW::ClassWeapon( m_iLegitClass, j );
 			twid = Config::GetWeaponID( Config::WeaponList[ m_iWeaponTriggerbot ] );
-			shown = Config::Main->TriggerbotWeaponConfig ? Config::Weapon[ twid ]->Triggerbot : Config::Main->Triggerbot;
+			pTbSlot = AW::WeaponSlot( twid );
+			shown = ( Config::Main->TriggerbotWeaponConfig && pTbSlot ) ? pTbSlot->Triggerbot : Config::Main->Triggerbot;
 			DrawTriggerBlock( shown );
 			AW::EndPanel();
 			AW::BeginPanel( XorStr( "Filter" ), ImVec2( pos.x + 402.0f, pos.y + 510.0f ), ImVec2( 394.0f, 142.0f ) );
@@ -2178,7 +2209,7 @@ namespace Feature
 			return;
 		}
 
-		int size = Source::m_pEngine->GetMaxClients();
+		int size = Source::MaxClients();
 
 		for( int i = 0; i <= size; i++ )
 		{

@@ -32,7 +32,7 @@ namespace
 
 		const int iTargetMode = Config::Current->Aimbot->Target;
 		const int iLocalTeam = local->m_iTeamNum();
-		const int iMaxClients = Source::m_pEngine->GetMaxClients();
+		const int iMaxClients = Source::MaxClients();
 
 		for( int i = 1; i <= iMaxClients; i++ )
 		{
@@ -402,7 +402,7 @@ namespace Feature
 
 		const Vector3 vEye = m_pLocal->EyePosition();
 		const Vector3 vView = m_pCmd->viewangles + m_pLocal->m_vecPunchAngle() * 2.0f;
-		const int iMaxClients = Source::m_pEngine->GetMaxClients();
+		const int iMaxClients = Source::MaxClients();
 
 		C_CSPlayer* pBest = nullptr;
 		Vector3 vBestPoint;

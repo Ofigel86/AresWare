@@ -50,7 +50,7 @@ namespace Feature
 	{
 		// Индексы игроков в движке Source начинаются с 1: слот 0 — это
 		// worldspawn, обновлять его не нужно (раньше цикл шёл с нуля).
-		int size = Source::m_pEngine->GetMaxClients();
+		int size = Source::MaxClients();
 
 		if( size < 1 )
 			return;

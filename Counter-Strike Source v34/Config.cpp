@@ -685,6 +685,17 @@ namespace Config
 			auto weapon = WeaponList[ i ];
 			auto index = GetWeaponID( weapon );
 
+			// Индекс приходит из таблицы имён, а указатели — из кучи: без
+			// проверки битое имя оружия (или неудачная аллокация) давали
+			// выход за границы массива/разыменование null прямо при загрузке
+			// конфига — чит не запускался вовсе.
+			if( index <= 0 || index >= WEAPON_MAX || !Weapon[ index ]
+				|| !Weapon[ index ]->Aimbot || !Weapon[ index ]->Triggerbot )
+			{
+				LOG( XorStr( "[Config] Weapon '%s' has no config slot (id %d), skipped." ), weapon, index );
+				continue;
+			}
+
 			Weapon[ index ]->Aimbot->Mode				= LoadInt( weapon, XorStr( "aimbot.mode" ) );
 			Weapon[ index ]->Aimbot->Key				= LoadInt( weapon, XorStr( "aimbot.key" ) );
 			Weapon[ index ]->Aimbot->AutoFire			= LoadBool( weapon, XorStr( "aimbot.auto.fire" ) );
@@ -1170,6 +1181,12 @@ namespace Config
 			auto weapon = WeaponList[ i ];
 			auto index = GetWeaponID( weapon );
 
+			// Та же проверка, что и при загрузке: сохранение не должно
+			// падать на битом имени оружия или null-слоте.
+			if( index <= 0 || index >= WEAPON_MAX || !Weapon[ index ]
+				|| !Weapon[ index ]->Aimbot || !Weapon[ index ]->Triggerbot )
+				continue;
+
 			Main->Aimbot->Clamp();
 
 			SaveInt( weapon, XorStr( "aimbot.mode" ), Weapon[ index ]->Aimbot->Mode );
@@ -1288,12 +1305,28 @@ namespace Config
 
 		auto i = weapon->GetWeaponID();
 
-		if( Main->AimbotWeaponConfig )
+		// GetWeaponID() приходит из игры, поэтому индекс обязан проверяться:
+		// раньше стояло Weapon[ i ] без проверок — id больше WEAPON_MAX
+		// (кастомный сервер, другой билд клиента) или WEAPON_NONE давали выход
+		// за границы массива указателей и memcpy из мусора. Если id не наш,
+		// тихо используем общий конфиг (как при выключенном Weapon Config).
+		const bool bPerWeapon = i > 0 && i < WEAPON_MAX
+			&& Weapon[ i ] && Weapon[ i ]->Aimbot && Weapon[ i ]->Triggerbot;
+
+		static int s_iLastBadWeapon = -1;
+
+		if( Main->AimbotWeaponConfig && !bPerWeapon && s_iLastBadWeapon != i )
+		{
+			s_iLastBadWeapon = i;
+			LOG( XorStr( "[Config] Weapon id %d is outside the weapon table, global config is used." ), i );
+		}
+
+		if( Main->AimbotWeaponConfig && bPerWeapon )
 			memcpy( Current->Aimbot, Weapon[ i ]->Aimbot, sizeof( AimbotList ) );
 		else
 			memcpy( Current->Aimbot, Main->Aimbot, sizeof( AimbotList ) );
 		
-		if( Main->TriggerbotWeaponConfig )
+		if( Main->TriggerbotWeaponConfig && bPerWeapon )
 			memcpy( Current->Triggerbot, Weapon[ i ]->Triggerbot, sizeof( TriggerbotList ) );
 		else
 			memcpy( Current->Triggerbot, Main->Triggerbot, sizeof( TriggerbotList ) );

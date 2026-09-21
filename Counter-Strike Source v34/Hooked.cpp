@@ -636,7 +636,7 @@ void AtTarget(CUserCmd* cmd, C_CSPlayer* player)
 
 	Vector3 end, aim;
 
-	for (int i = 1; i <= Source::m_pEngine->GetMaxClients(); i++)
+	for (int i = 1; i <= Source::MaxClients(); i++)
 	{
 		auto enemy = ToCSPlayer(Source::m_pEntList->GetBaseEntity(i));
 
@@ -690,7 +690,7 @@ auto IsEveryoneDead1()
 {
 		auto local = C_CSPlayer::GetLocalPlayer();
 
-		for (auto i = 1; i <= Source::m_pEngine->GetMaxClients(); i++)
+		for (auto i = 1; i <= Source::MaxClients(); i++)
 		{
 			auto player = C_CSPlayer::GetPlayer(i);
 
@@ -719,7 +719,7 @@ auto IsEveryoneDead2()
 {
 	auto local = C_CSPlayer::GetLocalPlayer();
 
-	for (auto i = 1; i <= Source::m_pEngine->GetMaxClients(); i++)
+	for (auto i = 1; i <= Source::MaxClients(); i++)
 	{
 		auto player = C_CSPlayer::GetPlayer(i);
 
@@ -748,7 +748,7 @@ auto IsEveryoneDead3()
 {
 	auto local = C_CSPlayer::GetLocalPlayer();
 
-	for (auto i = 1; i <= Source::m_pEngine->GetMaxClients(); i++)
+	for (auto i = 1; i <= Source::MaxClients(); i++)
 	{
 		auto player = C_CSPlayer::GetPlayer(i);
 
@@ -2025,8 +2025,11 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 							if (Config::Current->Aimbot->NoSpread)
 								NoSpread(cmd, weapon);
 						}
-						if (!Shared::m_bPanic && (Config::AntiAim->AtTarget || Config::AntiAim->PitchMove || Config::AntiAim->YawMove || Config::AntiAim->PitchStand || Config::AntiAim->YawStand))
-						if (Config::Removals->NoRecoil)							
+						// Паник-кей (F12) глушит и компенсацию отдачи.
+						// Внимание: раньше над этой строкой стоял ещё один
+						// if (условия AntiAim) без тела — из-за висячего if
+						// NoRecoil работал только при включённом анти-аиме.
+						if (!Shared::m_bPanic && Config::Removals->NoRecoil)
 							NoRecoil(cmd, player, weapon);
 
 						if (Config::Misc->Restriction != 1)
@@ -2225,7 +2228,7 @@ void __fastcall Hooked_FrameStageNotify(void* ecx, void* edx, ClientFrameStage_t
 					if( ConVar* pFakeLag = CvarNetFakeLag() )
 						pFakeLag->m_nValue = 0;
 				}
-				for (int i = 1; i <= Source::m_pEngine->GetMaxClients(); i++)
+				for (int i = 1; i <= Source::MaxClients(); i++)
 				{
 					auto player = C_CSPlayer::GetPlayer(i);
 
@@ -2386,8 +2389,10 @@ HRESULT D3DAPI Hooked_Reset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* pP
 
 		// Смена режима экрана/разрешения может пересоздать окно игры: наш
 		// WndProc теряется, и кнопка меню перестаёт работать. Пере-захватываем.
-		if( Source::m_pInput )
-			Source::m_pInput->EnsureCaptured();
+		// Внимание: m_pInput — это игровой интерфейс IInput (у него такого
+		// метода нет), захват окна живёт в Input::Win32 → m_pTargetInput.
+		if( Source::m_pTargetInput )
+			Source::m_pTargetInput->EnsureCaptured();
 
 		return hRet;
 	}

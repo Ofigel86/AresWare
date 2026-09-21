@@ -11,7 +11,16 @@ namespace Feature
 	
 	auto LagCompensation::UpdateLagRecord(C_CSPlayer* player) -> void
 	{
+		// Индекс сущности приходит из игры (виртуальный вызов), а таблицы
+		// записей рассчитаны на 64 игрока. Без проверки мусорный индекс
+		// давал выход за границы std::array<...,64> и порчу памяти.
+		if (!player)
+			return;
+
 		auto index = (player->GetIndex() - 1);
+
+		if (index < 0 || index >= 64)
+			return;
 
 		auto record = LagRecord{};
 		auto& record_data = m_LagRecord[index];
@@ -75,7 +84,11 @@ namespace Feature
 		static C_AnimationLayer backup_layers_update[65][15] = {};
 		static C_AnimationLayer backup_layers_interp[65][15] = {};
 
-		for (int i = 1; i <= Source::m_pEngine->GetMaxClients(); i++)
+		// Таблицы ниже рассчитаны на 65 записей (индексы 1..64), поэтому
+		// граница берётся из Source::MaxClients() (он же клампит значение).
+		const int iMaxClients = Source::MaxClients();
+
+		for (int i = 1; i <= iMaxClients; i++)
 		{
 			auto player = C_CSPlayer::GetPlayer(i);
 
@@ -93,12 +106,22 @@ namespace Feature
 			if (!Source::m_pEngine->GetPlayerInfo(i, &info))
 				continue;
 
+			// Слои анимации могли быть недоступны (нулевой указатель) —
+			// раньше это был memcpy по nullptr.
+			auto pLayers = player->GetAnimOverlays();
+
+			if (!pLayers)
+				continue;
+
+			const int iLayers = player->GetNumAnimOverlays();
+			const std::size_t uBytes = sizeof(C_AnimationLayer) * iLayers;
+
 			switch (stage)
 			{
 			case FRAME_NET_UPDATE_START:
 			{
 				userID[i] = info.userID;
-				std::memcpy(&backup_layers_update[i], player->GetAnimOverlays(), sizeof(C_AnimationLayer) * player->GetNumAnimOverlays());
+				std::memcpy(&backup_layers_update[i], pLayers, uBytes);
 				break;
 			}
 			case FRAME_RENDER_START:
@@ -106,8 +129,8 @@ namespace Feature
 				if (info.userID == userID[i])
 					continue;
 
-				std::memcpy(&backup_layers_interp[i], player->GetAnimOverlays(), sizeof(C_AnimationLayer) * player->GetNumAnimOverlays());
-				std::memcpy(player->GetAnimOverlays(), &backup_layers_update[i], sizeof(C_AnimationLayer) * player->GetNumAnimOverlays());
+				std::memcpy(&backup_layers_interp[i], pLayers, uBytes);
+				std::memcpy(pLayers, &backup_layers_update[i], uBytes);
 				break;
 			}
 			case FRAME_RENDER_END:
@@ -115,7 +138,7 @@ namespace Feature
 				if (info.userID != userID[i])
 					continue;
 
-				std::memcpy(player->GetAnimOverlays(), &backup_layers_interp[i], sizeof(C_AnimationLayer) * player->GetNumAnimOverlays());
+				std::memcpy(pLayers, &backup_layers_interp[i], uBytes);
 				break;
 			}
 			}
@@ -123,7 +146,16 @@ namespace Feature
 	}
 	auto LagCompensation::StartLagCompensation(C_CSPlayer* player) -> bool
 	{
+		// Индекс сущности приходит из игры (виртуальный вызов), а таблицы
+		// записей рассчитаны на 64 игрока. Без проверки мусорный индекс
+		// давал выход за границы std::array<...,64> и порчу памяти.
+		if (!player)
+			return false;
+
 		auto index = (player->GetIndex() - 1);
+
+		if (index < 0 || index >= 64)
+			return false;
 
 		auto& record_data = m_LagRecord[index];
 		auto& record_restore = m_RestoreRecord[index];
@@ -157,7 +189,16 @@ namespace Feature
 
 	auto LagCompensation::GetBestRecord(C_CSPlayer* player, LagRecord* record) -> bool
 	{
+		// Индекс сущности приходит из игры (виртуальный вызов), а таблицы
+		// записей рассчитаны на 64 игрока. Без проверки мусорный индекс
+		// давал выход за границы std::array<...,64> и порчу памяти.
+		if (!player)
+			return false;
+
 		auto index = (player->GetIndex() - 1);
+
+		if (index < 0 || index >= 64)
+			return false;
 
 		auto& record_data = m_LagRecord[index];
 		auto& record_restore = m_RestoreRecord[index];
@@ -210,7 +251,16 @@ namespace Feature
 
 	auto LagCompensation::FinishLagCompensation(C_CSPlayer* player) -> void
 	{
+		// Индекс сущности приходит из игры (виртуальный вызов), а таблицы
+		// записей рассчитаны на 64 игрока. Без проверки мусорный индекс
+		// давал выход за границы std::array<...,64> и порчу памяти.
+		if (!player)
+			return;
+
 		auto index = (player->GetIndex() - 1);
+
+		if (index < 0 || index >= 64)
+			return;
 
 		auto& record_restore = m_RestoreRecord[index];
 
@@ -274,7 +324,16 @@ namespace Feature
 
 	auto LagCompensation::BacktrackPlayer(C_CSPlayer* player, CUserCmd* usercmd, Vector& spot) -> bool
 	{
+		// Индекс сущности приходит из игры (виртуальный вызов), а таблицы
+		// записей рассчитаны на 64 игрока. Без проверки мусорный индекс
+		// давал выход за границы std::array<...,64> и порчу памяти.
+		if (!player)
+			return false;
+
 		auto index = (player->GetIndex() - 1);
+
+		if (index < 0 || index >= 64)
+			return false;
 
 		if (!StartLagCompensation(player))
 			return false;
@@ -371,7 +430,11 @@ namespace Feature
 		static C_AnimationLayer backup_layers_update[65][15] = {};
 		static C_AnimationLayer backup_layers_interp[65][15] = {};
 
-		for (int i = 1; i <= Source::m_pEngine->GetMaxClients(); i++)
+		// Таблицы ниже рассчитаны на 65 записей (индексы 1..64), поэтому
+		// граница берётся из Source::MaxClients() (он же клампит значение).
+		const int iMaxClients = Source::MaxClients();
+
+		for (int i = 1; i <= iMaxClients; i++)
 		{
 			auto player = C_CSPlayer::GetPlayer(i);
 
@@ -389,12 +452,22 @@ namespace Feature
 			if (!Source::m_pEngine->GetPlayerInfo(i, &info))
 				continue;
 
+			// Слои анимации могли быть недоступны (нулевой указатель) —
+			// раньше это был memcpy по nullptr.
+			auto pLayers = player->GetAnimOverlays();
+
+			if (!pLayers)
+				continue;
+
+			const int iLayers = player->GetNumAnimOverlays();
+			const std::size_t uBytes = sizeof(C_AnimationLayer) * iLayers;
+
 			switch (stage)
 			{
 			case FRAME_NET_UPDATE_START:
 			{
 				userID[i] = info.userID;
-				std::memcpy(&backup_layers_update[i], player->GetAnimOverlays(), sizeof(C_AnimationLayer) * player->GetNumAnimOverlays());
+				std::memcpy(&backup_layers_update[i], pLayers, uBytes);
 				break;
 			}
 			case FRAME_RENDER_START:
@@ -402,8 +475,8 @@ namespace Feature
 				if (info.userID == userID[i])
 					continue;
 
-				std::memcpy(&backup_layers_interp[i], player->GetAnimOverlays(), sizeof(C_AnimationLayer) * player->GetNumAnimOverlays());
-				std::memcpy(player->GetAnimOverlays(), &backup_layers_update[i], sizeof(C_AnimationLayer) * player->GetNumAnimOverlays());
+				std::memcpy(&backup_layers_interp[i], pLayers, uBytes);
+				std::memcpy(pLayers, &backup_layers_update[i], uBytes);
 				break;
 			}
 			case FRAME_RENDER_END:
@@ -411,7 +484,7 @@ namespace Feature
 				if (info.userID != userID[i])
 					continue;
 
-				std::memcpy(player->GetAnimOverlays(), &backup_layers_interp[i], sizeof(C_AnimationLayer) * player->GetNumAnimOverlays());
+				std::memcpy(pLayers, &backup_layers_interp[i], uBytes);
 				break;
 			}
 			}
@@ -419,7 +492,16 @@ namespace Feature
 	}
 	auto LagCompensation1::UpdateLagRecord1(C_CSPlayer* player) -> void
 	{
+		// Индекс сущности приходит из игры (виртуальный вызов), а таблицы
+		// записей рассчитаны на 64 игрока. Без проверки мусорный индекс
+		// давал выход за границы std::array<...,64> и порчу памяти.
+		if (!player)
+			return;
+
 		auto index = (player->GetIndex() - 1);
+
+		if (index < 0 || index >= 64)
+			return;
 
 		auto record1 = LagRecord1{ };
 		auto& record_data1 = m_LagRecord[index];
@@ -471,7 +553,16 @@ namespace Feature
 
 	auto LagCompensation1::StartLagCompensation1(C_CSPlayer* player) -> bool
 	{
+		// Индекс сущности приходит из игры (виртуальный вызов), а таблицы
+		// записей рассчитаны на 64 игрока. Без проверки мусорный индекс
+		// давал выход за границы std::array<...,64> и порчу памяти.
+		if (!player)
+			return false;
+
 		auto index = (player->GetIndex() - 1);
+
+		if (index < 0 || index >= 64)
+			return false;
 
 		auto& record_data = m_LagRecord[index];
 		auto& record_restore = m_RestoreRecord[index];
@@ -505,7 +596,16 @@ namespace Feature
 
 	auto LagCompensation1::GetBestRecord1(C_CSPlayer* player, LagRecord1* record1) -> bool
 	{
+		// Индекс сущности приходит из игры (виртуальный вызов), а таблицы
+		// записей рассчитаны на 64 игрока. Без проверки мусорный индекс
+		// давал выход за границы std::array<...,64> и порчу памяти.
+		if (!player)
+			return false;
+
 		auto index = (player->GetIndex() - 1);
+
+		if (index < 0 || index >= 64)
+			return false;
 
 		auto& record_data = m_LagRecord[index];
 		auto& record_restore = m_RestoreRecord[index];
@@ -561,7 +661,16 @@ namespace Feature
 
 	auto LagCompensation1::FinishLagCompensation1(C_CSPlayer* player) -> void
 	{
+		// Индекс сущности приходит из игры (виртуальный вызов), а таблицы
+		// записей рассчитаны на 64 игрока. Без проверки мусорный индекс
+		// давал выход за границы std::array<...,64> и порчу памяти.
+		if (!player)
+			return;
+
 		auto index = (player->GetIndex() - 1);
+
+		if (index < 0 || index >= 64)
+			return;
 
 		auto& record_restore = m_RestoreRecord[index];
 
@@ -625,7 +734,16 @@ namespace Feature
 
 	auto LagCompensation1::BacktrackPlayer1(C_CSPlayer* player, CUserCmd* usercmd, Vector& spot) -> bool
 	{
+		// Индекс сущности приходит из игры (виртуальный вызов), а таблицы
+		// записей рассчитаны на 64 игрока. Без проверки мусорный индекс
+		// давал выход за границы std::array<...,64> и порчу памяти.
+		if (!player)
+			return false;
+
 		auto index = (player->GetIndex() - 1);
+
+		if (index < 0 || index >= 64)
+			return false;
 
 		if (!StartLagCompensation1(player))
 			return false;

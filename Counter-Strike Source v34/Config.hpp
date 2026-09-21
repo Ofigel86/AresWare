@@ -435,6 +435,10 @@ namespace Config
 			LimitValue( SpeedFactor, 1, 15 );
 			LimitValue( AutoPeekKey, 0, 128 );
 			LimitValue( AutoPistolDelay, 0, 500 );
+			// FakePing пишется прямо в net_fakelag: из руки отредактированный
+			// конфиг с огромным значением отправлял клиента в бесконечный
+			// choke (сервер отключает за таймаут).
+			LimitValue( FakePing, 0, 260 );
 		}
 	};
 

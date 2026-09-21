@@ -170,7 +170,22 @@ void C_BaseEntity::SetAbsAngles(const QAngle& angles)
 int C_BaseEntity::GetNumAnimOverlays()
 {
 	static auto offset = 0x06BC;
-	return *(int*)(this + offset);
+	const int iNum = *(int*)(this + offset);
+
+	// Счётчик слоёв анимации приходит из сети, а буферы чита фиксированные:
+	// std::array<LayerRecord, 15> в LagRecord и C_AnimationLayer[65][15] в
+	// LagCompensation. Раньше это значение возвращалось как есть, поэтому
+	// сервер (или повреждённые данные) мог заставить циклы и memcpy по
+	// счётчику уйти за границы массива — порча памяти на каждом кадре.
+	// Ограничиваем тем же пределом, что и наши буферы (15 слоёв Source).
+	if( iNum < 0 || iNum > 15 )
+		return 0;
+
+	// Нет массива слоёв — нет и слоёв (иначе memcpy по нулевому указателю).
+	if( GetAnimOverlays() == nullptr )
+		return 0;
+
+	return iNum;
 }
 
 C_AnimationLayer* C_BaseEntity::GetAnimOverlays()
@@ -181,8 +196,17 @@ C_AnimationLayer* C_BaseEntity::GetAnimOverlays()
 
 C_AnimationLayer* C_BaseEntity::GetAnimOverlay(std::size_t index)
 {
+	// Как и GetNumAnimOverlays(): без проверок это было &layers[index] по
+	// нулевому указателю или за концом массива слоёв.
+	if( index >= 15 )
+		return nullptr;
+
 	auto layers = GetAnimOverlays();
-	return &layers[index];
+
+	if( !layers )
+		return nullptr;
+
+	return &layers[ index ];
 }
 
 // private

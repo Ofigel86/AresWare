@@ -25,10 +25,16 @@ namespace Debug
 	extern void Log( const char* fmt, ... );
 }
 
+// Оба макроса объявлены как variadic-only: вызов с одним аргументом
+// (LOG( "текст" )) при определении вида ( fmt, ... ) раскрывается в
+// Debug::Log( fmt, ) — лишняя запятая. MSVC со старым препроцессором это
+// проглатывает, но в строгом режиме (/Zc:preprocessor) это ошибка компиляции,
+// а таких вызовов в проекте больше пятидесяти. __VA_ARGS__ без именованного
+// параметра работает одинаково на MSVC, GCC и Clang.
 #ifdef _DEBUG
-#define DPRINT( fmt, ... ) Debug::Print( fmt, __VA_ARGS__ )
+#define DPRINT( ... ) Debug::Print( __VA_ARGS__ )
 #else
-#define DPRINT( fmt, ... )
+#define DPRINT( ... )
 #endif
 
-#define LOG( fmt, ... ) Debug::Log( fmt, __VA_ARGS__ )
+#define LOG( ... ) Debug::Log( __VA_ARGS__ )
