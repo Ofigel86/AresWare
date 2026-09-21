@@ -21,6 +21,13 @@ namespace Feature
 		// Обновляет m_vTarget (с учётом хитскана).
 		bool				IsTargetGood( C_CSPlayer* pTarget );
 
+		// Быстрая проверка захваченной цели между тиками (жива, не дормант).
+		bool				IsTargetAlive( C_CSPlayer* pTarget );
+
+		// Оценка урона по цели без трассы прострела (для Target Selection
+		// = Damage с выключенным AutoWall): урон оружия с затуханием.
+		int					EstimateDamage( C_CSPlayer* pTarget, const Vector3& vPoint );
+
 		// Точка прицеливания: хитбокс Spot с учётом лаг-компенсации.
 		bool				ComputeAimPoint( C_CSPlayer* pTarget, Vector3& vPoint );
 
@@ -84,6 +91,11 @@ namespace Feature
 		bool				m_bLegitToggle;
 		bool				m_bLegitToggleWasDown;
 
+		// Цель потеряна — отсчёт SwitchDelay идёт от этого момента,
+		// а не от захвата предыдущей цели.
+		bool				m_bLostTarget;
+
 		Shared::Timer		m_Timer;
+		Shared::Timer		m_SwitchTimer;
 	};
 }

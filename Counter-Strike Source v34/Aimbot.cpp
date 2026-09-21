@@ -97,7 +97,9 @@ namespace Feature
 {
 	Aimbot::Aimbot()
 		: m_bKeyPressed( false ),
-		m_bChangeTarget( false ),
+		// true: на первом же тике нужно искать цель, иначе аимбот ждёт,
+		// пока кто-нибудь сбросит флаг (при старте цели ещё нет).
+		m_bChangeTarget( true ),
 		m_bAutoScoped( false ),
 		m_pCmd( nullptr ),
 		m_pLocal( nullptr ),
@@ -107,7 +109,8 @@ namespace Feature
 		m_vOldPunch( 0.0f, 0.0f, 0.0f ),
 		m_iLegitDelay( 0 ),
 		m_bLegitToggle( true ),
-		m_bLegitToggleWasDown( false )
+		m_bLegitToggleWasDown( false ),
+		m_bLostTarget( false )
 	{
 	}
 
@@ -161,16 +164,14 @@ namespace Feature
 		// Silent без AutoFire работает только в момент выстрела.
 		const bool bShooting = ( pCmd->buttons & IN_ATTACK ) && m_pWeapon->IsFireTime();
 
-		if( cfg->Silent && !cfg->AutoFire && !bShooting )
+		// Аимбот в простое (Silent вне выстрела / кнопка не зажата): цель
+		// отпускаем, чтобы следующий активный тик выбрал её заново.
+		if( ( cfg->Silent && !cfg->AutoFire && !bShooting )
+			|| ( cfg->Mode == 2 && !m_bKeyPressed ) ) // On Press
 		{
+			m_pTarget = nullptr;
 			m_bChangeTarget = true;
-			m_Timer.Reset();
-			return;
-		}
-
-		if( cfg->Mode == 2 && !m_bKeyPressed ) // On Press
-		{
-			m_bChangeTarget = true;
+			m_bLostTarget = false;
 			m_Timer.Reset();
 			return;
 		}
@@ -189,6 +190,15 @@ namespace Feature
 
 		if( !m_pData )
 			return;
+
+		// Захваченная цель могла умереть или уйти в дормант между тиками:
+		// указатель на неё остаётся валидным, поэтому без явной перепроверки
+		// аимбот продолжал держать труп и не искал новую цель.
+		if( m_pTarget && !IsTargetAlive( m_pTarget ) )
+		{
+			m_pTarget = nullptr;
+			m_bChangeTarget = true;
+		}
 
 		if( m_bChangeTarget )
 			ChangeTarget();
@@ -235,13 +245,29 @@ namespace Feature
 			if( cfg->NoSwitch )
 				return;
 
-			// Перед сменой цели выдерживаем SwitchDelay.
-			if( cfg->SwitchDelay && m_Timer.Elapsed() < cfg->SwitchDelay )
-				return;
+			// Перед сменой цели выдерживаем SwitchDelay. Отсчёт идёт от
+			// момента ПОТЕРИ цели: m_Timer хранит время захвата, поэтому
+			// сравнение с ним означало «подождать SwitchDelay после захвата
+			// прошлой цели» — в затяжном бою задержка успевала истечь и не
+			// работала, а сразу после захвата, наоборот, блокировала поиск.
+			if( cfg->SwitchDelay )
+			{
+				if( !m_bLostTarget )
+				{
+					m_bLostTarget = true;
+					m_SwitchTimer.Reset();
+				}
+
+				if( m_SwitchTimer.Elapsed() < cfg->SwitchDelay )
+					return;
+			}
 
 			m_bChangeTarget = true;
 			return;
 		}
+
+		// Цель на руках — окно SwitchDelay закрыто.
+		m_bLostTarget = false;
 
 		Config::Misc->target = m_pTarget->GetIndex();
 
@@ -261,8 +287,22 @@ namespace Feature
 		if( iAimDelay && m_Timer.Elapsed() < iAimDelay )
 			return;
 
-		if( cfg->Duration && m_Timer.Elapsed() > cfg->Duration )
+		// Duration: время доводки по одной цели истекло. Раньше здесь стоял
+		// просто return — цель оставалась захваченной навсегда, и аимбот
+		// больше не наводился ни на неё, ни на кого-то ещё (Duration работал
+		// как «выключить аимбот через N мс»). Теперь отпускаем цель, чтобы
+		// следующий тик выбрал новую. Отсчёт ведём от конца задержки, иначе
+		// Duration < Delay не давал ни одного тика доводки.
+		if( cfg->Duration && m_Timer.Elapsed() > ( long long )cfg->Duration + iAimDelay )
+		{
+			if( !cfg->NoSwitch )
+			{
+				m_pTarget = nullptr;
+				m_bChangeTarget = true;
+			}
+
 			return;
+		}
 
 		// Дальше работаем с копией: m_vTarget остаётся чистым кэшем.
 		Vector3 vPoint = m_vTarget;
@@ -301,17 +341,21 @@ namespace Feature
 		Vector3 vAim;
 		VectorAngles( vDirection, vAim );
 
-		ApplyRecoilCompensation( vAim );
-
-		// Стендалон-RCS: трекинг панча каждый тик доводки (рейдж не читает).
-		m_vOldPunch = m_pLocal->m_vecPunchAngle();
-
 		ApplyCurveHumanize( vAim );
 
 		if( cfg->Smooth == 1 ) // Step
 			ApplyStepSmooth( vAim );
 		else if( cfg->Smooth == 2 ) // Linear
 			ApplyLinearSmooth( vAim );
+
+		// Компенсация отдачи применяется ПОСЛЕ сглаживания. Раньше она шла до
+		// него, и сглаживание гасило поправку в те же несколько процентов:
+		// при Smooth != Off управление отдачей фактически не работало и ствол
+		// уводило вверх. Теперь поправка добавляется к итоговому углу.
+		ApplyRecoilCompensation( vAim );
+
+		// Стендалон-RCS: трекинг панча каждый тик доводки (рейдж не читает).
+		m_vOldPunch = m_pLocal->m_vecPunchAngle();
 
 		vAim.z = 0.0f;
 		ClampAngles( vAim );
@@ -328,16 +372,22 @@ namespace Feature
 
 		if( cfg->AutoFire && !bNeedScope )
 		{
-			// Легит: огонь только когда смуз почти довёлся до точки — иначе
-			// стреляем в стены раньше прицела. SMAC-режим мимо: там углы не
-			// двигаем (доводка мышью), остаточный угол не показатель.
+			// Огонь разрешаем, только когда ствол реально довёлся до точки.
+			// Раньше остаточный угол проверялся исключительно в легит-стиле —
+			// рейдж со сглаживанием жал IN_ATTACK с первого же тика захвата и
+			// высаживал магазин мимо цели. Порог берём разный: легиту нужна
+			// точность прицела, рейджу достаточно попадания в хитбокс.
+			// SMAC-режим мимо: там углы не двигаем (доводка мышью), остаточный
+			// угол не показатель.
 			bool bHoldFire = false;
 
-			if( Config::Main->AimbotStyle == 1 && Config::Misc->Restriction != 1 )
+			if( Config::Misc->Restriction != 1 )
 			{
 				const float flResidual = GetFOV( pCmd->viewangles + m_pLocal->m_vecPunchAngle() * 2.0f, m_pLocal->EyePosition(), vPoint );
 
-				if( flResidual > 2.0f )
+				const float flAllowed = ( Config::Main->AimbotStyle == 1 ) ? 2.0f : 5.0f;
+
+				if( flResidual > flAllowed )
 					bHoldFire = true;
 			}
 
@@ -352,6 +402,13 @@ namespace Feature
 			{
 				pCmd->buttons &= ~IN_RELOAD;
 				pCmd->buttons |= IN_ATTACK;
+			}
+			else
+			{
+				// Пока ствол не доведён, снимаем и «ручной» огонь: иначе игрок с
+				// зажатой ЛКМ стреляет в молоко, пока аимбот ещё доводится.
+				if( Config::Main->AimbotStyle == 1 )
+					pCmd->buttons &= ~IN_ATTACK;
 			}
 		}
 
@@ -370,10 +427,28 @@ namespace Feature
 	{
 		( void )lParam;
 
-		if( Config::Current->Aimbot->Mode != 2 )
+		if( !Config::Current || !Config::Current->Aimbot )
 			return;
 
+		// Раньше при Mode != 2 функция выходила сразу, не сбрасывая флаг:
+		// если клавишу отпускали после переключения режима (или оружия, у
+		// которого свой конфиг), m_bKeyPressed навсегда оставался true и
+		// режим On Press работал как Always On.
+		if( Config::Current->Aimbot->Mode != 2 )
+		{
+			m_bKeyPressed = false;
+			return;
+		}
+
 		const int iKey = Config::Current->Aimbot->Key;
+
+		// Клавиша не назначена — иначе wParam == 0 никогда не совпадёт и
+		// аимбот молча не работает в режиме On Press.
+		if( iKey <= 0 )
+		{
+			m_bKeyPressed = false;
+			return;
+		}
 
 		if( iKey == 1 || iKey == 2 || iKey == 4 || iKey == 5 || iKey == 6 )
 		{
@@ -408,6 +483,13 @@ namespace Feature
 		Vector3 vBestPoint;
 		float flBest = 0.0f;
 		bool bFirst = true;
+
+		// Перебор кандидатов не должен рушить кэш уже захваченной цели:
+		// IsTargetGood пишет точку в m_vTarget, поэтому при неудачном поиске
+		// восстанавливаем исходное значение — иначе следующий тик целился бы
+		// в точку последнего проверенного (и отвергнутого) игрока.
+		C_CSPlayer* const pPrevTarget = m_pTarget;
+		const Vector3 vPrevPoint = m_vTarget;
 
 		for( int i = 1; i <= iMaxClients; i++ )
 		{
@@ -463,7 +545,15 @@ namespace Feature
 				int iDmg = 0;
 
 				// IsTargetGood точку уже нашёл — досчитываем только урон.
-				IsPointHittable( pTarget, m_vTarget, &iDmg );
+				// Без AutoWall прострел не считается и урон остаётся 0: тогда
+				// «максимальный урон» вырождался в «первый живой». Берём
+				// расчётный урон по дистанции, чтобы сравнение целей имело
+				// смысл и с выключенным AutoWall.
+				if( !IsPointHittable( pTarget, m_vTarget, &iDmg ) )
+					continue;
+
+				if( !cfg->AutoWall )
+					iDmg = EstimateDamage( pTarget, m_vTarget );
 
 				if( bFirst || ( float )iDmg > flBest )
 				{
@@ -482,21 +572,77 @@ namespace Feature
 			bFirst = false;
 		}
 
-		if( pBest )
+		if( !pBest )
 		{
-			m_pTarget = pBest;
-			m_vTarget = vBestPoint;
-			m_bChangeTarget = false;
+			// Цель не найдена — возвращаем кэш как был до перебора.
+			m_pTarget = pPrevTarget;
+			m_vTarget = vPrevPoint;
+			return;
+		}
 
-			// Delay / Duration / SwitchDelay считаются от момента захвата.
+		const bool bSameTarget = ( pBest == pPrevTarget );
+
+		m_pTarget = pBest;
+		m_vTarget = vBestPoint;
+		m_bChangeTarget = false;
+
+		// Delay / Duration / SwitchDelay считаются от момента захвата.
+		// Таймер сбрасываем только при СМЕНЕ цели: раньше он обнулялся при
+		// каждом перезахвате той же цели, поэтому Elapsed() почти всегда был
+		// меньше Delay (аимбот с задержкой не доводился вообще), а Duration,
+		// наоборот, никогда не истекал.
+		if( !bSameTarget )
+		{
 			m_Timer.Reset();
 
 			// Легит: гуманизация задержки — реакция плавает от Delay до 1.5x.
+			// Пересчитывается только при смене цели: иначе «случайная реакция»
+			// менялась каждый тик и задержка не выдерживалась.
 			if( Config::Main->AimbotStyle == 1 && cfg->HumanizeDelay && cfg->Delay > 0 )
-			m_iLegitDelay = cfg->Delay + ( int )( GetTickCount() % ( ( unsigned )cfg->Delay / 2 + 1 ) );
+				m_iLegitDelay = cfg->Delay + ( int )( GetTickCount() % ( ( unsigned )cfg->Delay / 2 + 1 ) );
 			else
-			m_iLegitDelay = cfg->Delay;
+				m_iLegitDelay = cfg->Delay;
 		}
+	}
+
+	// Быстрая проверка захваченной цели между тиками: указатель на игрока
+	// остаётся валидным и после его смерти/ухода в дормант, поэтому без
+	// неё аимбот продолжал держать труп.
+	bool Aimbot::IsTargetAlive( C_CSPlayer* pTarget )
+	{
+		if( !pTarget || !m_pLocal || pTarget == m_pLocal )
+			return false;
+
+		if( pTarget->IsDormant() )
+			return false;
+
+		return pTarget->m_lifeState() == LIFE_ALIVE;
+	}
+
+	// Оценка урона по цели без трассы прострела (AutoWall выключен):
+	// базовый урон оружия с затуханием по дистанции, как в движке.
+	int Aimbot::EstimateDamage( C_CSPlayer* pTarget, const Vector3& vPoint )
+	{
+		if( !m_pData || !m_pLocal || !pTarget )
+			return 0;
+
+		const float flDistance = vPoint.DistTo( m_pLocal->EyePosition() );
+
+		float flDamage = ( float )m_pData->m_iDamage;
+
+		// Затухание: damage * range_modifier ^ (distance / 500).
+		if( m_pData->m_flRangeModifier > 0.0f && m_pData->m_flRangeModifier < 1.0f )
+			flDamage *= powf( m_pData->m_flRangeModifier, flDistance / 500.0f );
+
+		// Броня забирает часть урона — иначе цели в броне переоцениваются.
+		// Коэффициент берём из данных оружия (у каждого ствола свой).
+		if( pTarget->m_ArmorValue() > 0 && m_pData->m_flArmorRatio > 0.0f )
+			flDamage *= m_pData->m_flArmorRatio;
+
+		if( flDamage < 0.0f )
+			flDamage = 0.0f;
+
+		return ( int )flDamage;
 	}
 
 	bool Aimbot::IsTargetGood( C_CSPlayer* pTarget )
@@ -989,6 +1135,11 @@ namespace Feature
 		Vector3 vDelta = vAim - m_pCmd->viewangles;
 		AnglesNormalize( vDelta );
 
+		// Шаг задаётся в процентах от оставшейся дистанции до цели, а не в
+		// сотых долях градуса: прежняя формула (Step/100 градуса за тик) на
+		// 100 % давала ровно 1 градус за тик — доводка на 40 градусов занимала
+		// 40 тиков (больше полусекунды), из-за чего казалось, что аимбот
+		// «не наводится». Теперь 100 % = мгновенная доводка.
 		const float flStep[ 2 ] = { cfg->StepX / 100.0f, cfg->StepY / 100.0f };
 
 		for( int i = 0; i < 2; i++ )
@@ -996,13 +1147,17 @@ namespace Feature
 			if( flStep[ i ] <= 0.0f )
 				continue;
 
-			float flMove = flStep[ i ];
+			float flFraction = flStep[ i ];
 
-			if( fabsf( vDelta[ i ] ) < flMove )
-				flMove = fabsf( vDelta[ i ] );
+			if( flFraction > 1.0f )
+				flFraction = 1.0f;
 
-			vAim[ i ] = m_pCmd->viewangles[ i ] + ( vDelta[ i ] < 0.0f ? -flMove : flMove );
+			vAim[ i ] = m_pCmd->viewangles[ i ] + vDelta[ i ] * flFraction;
 		}
+
+		// Итог мог выйти за [-180, 180] после сложения — нормализуем,
+		// иначе ClampAngles обрежет yaw в крайнее значение.
+		AnglesNormalize( vAim );
 	}
 
 	void Aimbot::ApplyLinearSmooth( Vector3& vAim )
@@ -1031,6 +1186,9 @@ namespace Feature
 
 			vAim.y = m_pCmd->viewangles.y - vDelta.y / flFactorY;
 		}
+
+		// Тот же случай, что и в Step: yaw мог уйти за границы диапазона.
+		AnglesNormalize( vAim );
 	}
 
 	bool Aimbot::NearestZonePoint( C_CSPlayer* pTarget, Vector3& vPoint )
