@@ -34,8 +34,6 @@ namespace Feature
 		// Одна проверка: прострел (AutoWall) или прямая видимость.
 		// В pDamage (если не nullptr) кладёт урон прострела.
 		bool				IsPointHittable( C_CSPlayer* pTarget, const Vector3& vPoint, int* pDamage );
-		// Safe Fire: попадёт ли симуляция точного спреда тика в цель.
-		bool				WillShotHit();
 
 		// Хитскан по центрам хитбоксов / по углам боксов / мультипойнты.
 		bool				HitScanCenter( C_CSPlayer* pTarget, Vector3& vPoint );

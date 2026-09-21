@@ -576,7 +576,9 @@ const char* BodyAimList[ ] =
 {
 	"Off",
 	"Lethal",
-	"Always"
+	"Always",
+	"Prefer",
+	"Forced"
 };
 
 const char* SmoothList[ ] =
@@ -1107,12 +1109,6 @@ namespace Feature
 			AW::KeyBox( XorStr( "Key" ), &aim->Key );
 
 		AW::Checkbox( XorStr( "Auto Fire" ), &aim->AutoFire );
-
-		if( Config::Main->AimbotStyle == 0 )
-		{
-			AW::Checkbox( XorStr( "Safe Point" ), &aim->SafePoint );
-			AW::Checkbox( XorStr( "Safe Fire" ), &aim->SafeFire );
-		}
 		AW::Checkbox( XorStr( "Auto Stop" ), &aim->AutoStop );
 		AW::Checkbox( XorStr( "Auto Crouch" ), &aim->AutoCrouch );
 		AW::Checkbox( XorStr( "Auto Reload" ), &aim->AutoReload );
