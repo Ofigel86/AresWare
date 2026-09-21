@@ -579,7 +579,7 @@ namespace Config
 		AntiAim->AtTarget				= LoadInt( main, XorStr( "antiaim.at.target" ) );
 		AntiAim->PitchStand				= LoadInt( main, XorStr( "antiaim.pitch.stand" ) );
 		AntiAim->YawStand					= LoadInt( main, XorStr( "antiaim.yaw.stand" ) );
-		AntiAim->StandChokedPackets = LoadInt(main, XorStr("antiaim.choked.packets.stand"));
+		AntiAim->StandChokedPackets = LoadIntDef(main, XorStr("antiaim.choked.packets.stand"), 2);
 		AntiAim->StandCustomAnglePitch = LoadFloat(main, XorStr("antiaim.custom.pitch.stand"));
 		AntiAim->StandCustomAngleFakePitch = LoadFloat(main, XorStr("antiaim.custom.fakepitch.stand"));
 		AntiAim->StandCustomAngleYaw = LoadFloat(main, XorStr("antiaim.custom.yaw.stand"));
@@ -587,7 +587,7 @@ namespace Config
 		AntiAim->StandSpinSpeed = LoadInt(main, XorStr("antiaim.spinspeed.stand"));
 		AntiAim->PitchMove = LoadInt(main, XorStr("antiaim.pitch.move"));
 		AntiAim->YawMove = LoadInt(main, XorStr("antiaim.yaw.move"));
-		AntiAim->MoveChokedPackets = LoadInt(main, XorStr("antiaim.choked.packets.move"));
+		AntiAim->MoveChokedPackets = LoadIntDef(main, XorStr("antiaim.choked.packets.move"), 2);
 		AntiAim->MoveCustomAnglePitch = LoadFloat(main, XorStr("antiaim.custom.pitch.move"));
 		AntiAim->MoveCustomAngleFakePitch = LoadFloat(main, XorStr("antiaim.custom.fakepitch.move"));
 		AntiAim->MoveCustomAngleYaw = LoadFloat(main, XorStr("antiaim.custom.yaw.move"));

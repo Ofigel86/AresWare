@@ -284,8 +284,11 @@ namespace Config
 		int		YawStand = 0;
 		int		PitchMove = 0;
 		int		YawMove = 0;
-		int		StandChokedPackets = 0;		// 1 - 15
-		int		MoveChokedPackets = 0;		// 1 - 15
+		// 0 = без чока. Для анти-аима это означает отсутствие фейка вообще,
+		// поэтому по умолчанию ставим 2 (логика всё равно поднимает до 1,
+		// если режим включён, но пустой конфиг не должен выглядеть сломанным).
+		int		StandChokedPackets = 2;		// 0 - 15
+		int		MoveChokedPackets = 2;		// 0 - 15
 		float		MoveCustomAnglePitch = 0;		// 0 - 180
 		float		MoveCustomAngleYaw = 0;		// 0 - 360
 		float		MoveCustomAngleFakePitch = 0;		// 0 - 180

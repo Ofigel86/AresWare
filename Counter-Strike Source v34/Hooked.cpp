@@ -1092,38 +1092,55 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 	// момент" и рейдж переставал стрелять (реальный угол мог никогда не
 	// уехать на сервер).
 	//
-	// Теперь решение принимается РОВНО в одном месте:
-	//   choke-тики  -> уходит ФЕЙКОВЫЙ угол (сервер его видит и по нему
-	//                  считает нашу модель для врагов);
-	//   send-тик    -> уходит РЕАЛЬНЫЙ угол (по нему стреляем мы).
-	// Именно разница между ними и есть десинк — то, чего не хватало
-	// джиттерам: без send/choke-разделения "фейка" просто нет.
+	// Теперь решение принимается РОВНО в одном месте.
+	//
+	// Механика Source: чокнутые команды не пропадают — они копятся и
+	// уходят одним пакетом на send-тике. Сервер проигрывает их по порядку,
+	// и НА ВИДУ остаётся состояние ПОСЛЕДНЕЙ команды, то есть той, что
+	// отправлена (bSendPacket == true). Значит:
+	//   send-тик    -> сюда ставим ФЕЙКОВЫЙ угол: именно его увидят враги
+	//                  и по нему сервер построит нашу модель;
+	//   choke-тики  -> РЕАЛЬНЫЙ угол, он отрабатывает на сервере, но тут же
+	//                  перекрывается следующими командами.
+	// Выстрел — исключение: там мы выходим раньше, оставляя реальные углы
+	// и форсируя отправку, иначе пуля улетела бы по фейку.
 	// ------------------------------------------------------------------
 	static int s_iChokeLeft = 0;
 
-	bool bRealTick;
+	bool bSendTick;
 
-	if (iChoke <= 0)
+	// Без чока анти-аима физически не существует: если каждый тик уходит
+	// на сервер, то фейкового угла просто нет и враг видит нас как есть.
+	// Поэтому при включённом режиме yaw держим минимум 1 чокнутый тик
+	// (раньше при Choked Packets = 0 — а это значение по умолчанию —
+	// анти-аим "работал" только когда пакеты чокал кто-то другой,
+	// например фейк-волк).
+	int iChokeUse = iChoke;
+
+	if (iChokeUse < 1 && iYawMode > 0)
+		iChokeUse = 1;
+
+	if (iChokeUse <= 0)
 	{
-		// Чок выключен — десинка нет, каждый тик реальный.
-		bRealTick = true;
+		// Режимы выключены — не вмешиваемся в отправку пакетов.
+		bSendTick = true;
 		s_iChokeLeft = 0;
 	}
 	else if (s_iChokeLeft > 0)
 	{
 		--s_iChokeLeft;
-		bRealTick = false;
+		bSendTick = false;
 	}
 	else
 	{
-		s_iChokeLeft = iChoke;
-		bRealTick = true;
+		s_iChokeLeft = iChokeUse;
+		bSendTick = true;
 	}
 
 	// Страховка: движок рвёт соединение примерно на 62 чоках подряд.
 	static int s_iChokeRun = 0;
 
-	if (bRealTick)
+	if (bSendTick)
 	{
 		s_iChokeRun = 0;
 	}
@@ -1131,10 +1148,13 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 	{
 		s_iChokeRun = 0;
 		s_iChokeLeft = 0;
-		bRealTick = true;
+		bSendTick = true;
 	}
 
-	bSendPacket = bRealTick;
+	bSendPacket = bSendTick;
+
+	// Отправляемая команда остаётся видимой для сервера -> на ней фейк.
+	const bool bFakeTick = bSendTick;
 
 	// --------------------------- PITCH --------------------------------
 	// 0 Off | 1 Down | 2 Up | 3 Zero | 4 Jitter | 5 Custom
@@ -1152,14 +1172,14 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 		cmd->viewangles.x = 0.0f;
 		break;
 
-	case 4:		// Jitter — реал вниз, фейк вверх (разные питчи в снапшотах)
-		cmd->viewangles.x = bRealTick ? 89.0f : -89.0f;
+	case 4:		// Jitter — видимый питч скачет между снимками
+		cmd->viewangles.x = bFakeTick ? -89.0f : 89.0f;
 		break;
 
 	case 5:		// Custom
-		cmd->viewangles.x = bRealTick
-			? (bMoving ? Config::AntiAim->MoveCustomAnglePitch : Config::AntiAim->StandCustomAnglePitch)
-			: (bMoving ? Config::AntiAim->MoveCustomAngleFakePitch : Config::AntiAim->StandCustomAngleFakePitch);
+		cmd->viewangles.x = bFakeTick
+			? (bMoving ? Config::AntiAim->MoveCustomAngleFakePitch : Config::AntiAim->StandCustomAngleFakePitch)
+			: (bMoving ? Config::AntiAim->MoveCustomAnglePitch : Config::AntiAim->StandCustomAnglePitch);
 		break;
 
 	default:
@@ -1240,7 +1260,8 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 			break;
 		}
 
-		cmd->viewangles.y = bRealTick ? flRealYaw : flFakeYaw;
+		// На отправляемом тике — фейк (его видят), на чокнутых — реал.
+		cmd->viewangles.y = bFakeTick ? flFakeYaw : flRealYaw;
 	}
 
 	// Углы вне допустимого диапазона сервер отбрасывает вместе со всей
