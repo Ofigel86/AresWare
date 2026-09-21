@@ -1461,6 +1461,8 @@ namespace Feature
 
 		AW::SliderInt( XorStr( "Duration" ), &legit->Duration, 0, 5000, XorStr( "%d" ) );
 		AW::SliderInt( XorStr( "Delay" ), &legit->Delay, 0, 5000, XorStr( "%d" ) );
+		AW::Checkbox( XorStr( "Backtrack" ), &legit->Backtrack );
+		AW::Checkbox( XorStr( "Humanize Delay" ), &legit->HumanizeDelay );
 		AW::EndPanel();
 		AW::BeginPanel( XorStr( "Target" ), ImVec2( pos.x + 14.0f, pos.y + 426.0f ), ImVec2( 380.0f, 226.0f ) );
 		AW::Checkbox( XorStr( "RCS Active" ), &legit->RCS );
@@ -1470,9 +1472,12 @@ namespace Feature
 			AW::SliderInt( XorStr( "RCS Delay" ), &legit->RCSDelay, 0, 10, XorStr( "%d" ) );
 			AW::SliderInt( XorStr( "RCS Amount X" ), &legit->RCSAmountX, 0, 100, XorStr( "%.0f%%" ) );
 			AW::SliderInt( XorStr( "RCS Amount Y" ), &legit->RCSAmountY, 0, 100, XorStr( "%.0f%%" ) );
+			AW::Checkbox( XorStr( "Standalone RCS" ), &legit->RCSStandalone );
 		}
 
 		AW::Combo( XorStr( "Target" ), &legit->Target, AimTargetList, ARRAYSIZE( AimTargetList ) );
+		AW::Checkbox( XorStr( "Flash Check" ), &legit->FlashCheck );
+		AW::Checkbox( XorStr( "Auto Scope" ), &legit->AutoScope );
 		AW::EndPanel();
 		Config::Legitbot->Clamp();
 		AW::BeginPanel( XorStr( "Aimbot" ), ImVec2( pos.x + 402.0f, pos.y + 100.0f ), ImVec2( 394.0f, 140.0f ) );

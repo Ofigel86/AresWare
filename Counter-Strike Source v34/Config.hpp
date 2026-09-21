@@ -68,6 +68,9 @@ namespace Config
 		int		RCSDelay = 0;			// bullets ( 0 - 10 )
 		int		RCSAmountX = 0;			// percents ( 0 - 100 )
 		int		RCSAmountY = 0;			// percents ( 0 - 100 )
+		bool	RCSStandalone = false;	// legit: spray control without target
+		bool	FlashCheck = false;	// legit: hold aim while flashed
+		bool	HumanizeDelay = false;	// legit: reaction jitter on Delay
 		bool	AutoWall = false;		// Aim Through Penetrable Walls
 		int		MinDamage = 0;			// Minimum Damage To Deal Through Wall
 		int		HitScan = 0;			// 0 - Off | 1 - Normal | 2 - Corners | 3 - Multipoint
@@ -145,6 +148,11 @@ namespace Config
 		int		Target = 1;			// 0 - Everyone | 1 - Enemies | 2 - Friends
 		bool	AutoFire = false;	//
 		bool	AutoStop = false;	//
+		bool	RCSStandalone = false;	// spray control without target
+		bool	FlashCheck = false;	// hold aim while flashed
+		bool	Backtrack = false;	// legit backtrack (server-valid window)
+		bool	HumanizeDelay = false;	// reaction jitter on Delay
+		bool	AutoScope = false;	// zoom scoped rifles when target found
 
 		void	Clamp()
 		{

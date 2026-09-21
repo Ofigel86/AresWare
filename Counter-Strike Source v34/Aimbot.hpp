@@ -74,6 +74,10 @@ namespace Feature
 		C_CSPlayer*			m_pTarget;
 		Vector3				m_vTarget;
 
+		// Легит: трекинг панча для стендалон-RCS + гуманизированная задержка.
+		Vector3				m_vOldPunch;
+		int					m_iLegitDelay;
+
 		Shared::Timer		m_Timer;
 	};
 }

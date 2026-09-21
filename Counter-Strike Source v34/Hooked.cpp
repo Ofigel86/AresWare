@@ -2836,7 +2836,8 @@ void Crosshair()
 	}
 	if (Config::ESP->Fov)
 	{
-		if (Config::Current->Aimbot->TargetSelection != 2)
+		// В легите FOV-лимит действует при любом TargetSelection — круг тоже.
+		if (Config::Current->Aimbot->TargetSelection != 2 && Config::Main->AimbotStyle != 1)
 			return;
 		if (Config::Current->Aimbot->FieldOfView < 0.005)
 			return;

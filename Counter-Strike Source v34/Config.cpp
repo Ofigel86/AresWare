@@ -272,6 +272,11 @@ namespace Config
 		Legitbot->Target			= LoadInt( main, XorStr( "legitbot.target" ) );
 		Legitbot->AutoFire			= LoadBool( main, XorStr( "legitbot.auto.fire" ) );
 		Legitbot->AutoStop			= LoadBool( main, XorStr( "legitbot.auto.stop" ) );
+		Legitbot->RCSStandalone	= LoadBool( main, XorStr( "legitbot.rcs.standalone" ) );
+		Legitbot->FlashCheck	= LoadBool( main, XorStr( "legitbot.flash.check" ) );
+		Legitbot->Backtrack		= LoadBool( main, XorStr( "legitbot.backtrack" ) );
+		Legitbot->HumanizeDelay	= LoadBool( main, XorStr( "legitbot.delay.humanize" ) );
+		Legitbot->AutoScope		= LoadBool( main, XorStr( "legitbot.auto.scope" ) );
 
 		Legitbot->Clamp();
 
@@ -557,6 +562,11 @@ namespace Config
 		SaveInt( main, XorStr( "legitbot.target" ), Legitbot->Target );
 		SaveBool( main, XorStr( "legitbot.auto.fire" ), Legitbot->AutoFire );
 		SaveBool( main, XorStr( "legitbot.auto.stop" ), Legitbot->AutoStop );
+		SaveBool( main, XorStr( "legitbot.rcs.standalone" ), Legitbot->RCSStandalone );
+		SaveBool( main, XorStr( "legitbot.flash.check" ), Legitbot->FlashCheck );
+		SaveBool( main, XorStr( "legitbot.backtrack" ), Legitbot->Backtrack );
+		SaveBool( main, XorStr( "legitbot.delay.humanize" ), Legitbot->HumanizeDelay );
+		SaveBool( main, XorStr( "legitbot.auto.scope" ), Legitbot->AutoScope );
 
 		Main->Triggerbot->Clamp();
 
@@ -813,6 +823,10 @@ namespace Config
 			Current->Aimbot->Target				= Legitbot->Target;
 			Current->Aimbot->AutoFire			= Legitbot->AutoFire;
 			Current->Aimbot->AutoStop			= Legitbot->AutoStop;
+			Current->Aimbot->RCSStandalone		= Legitbot->RCSStandalone;
+			Current->Aimbot->FlashCheck			= Legitbot->FlashCheck;
+			Current->Aimbot->HumanizeDelay		= Legitbot->HumanizeDelay;
+			Current->Aimbot->AutoScope			= Legitbot->AutoScope;
 
 			// Рейдж-фичи в легите недоступны.
 			Current->Aimbot->AutoCrouch			= false;
@@ -832,10 +846,10 @@ namespace Config
 			Current->Aimbot->Silent				= false;
 			Current->Aimbot->NoSpreadActive		= false;
 			Current->Aimbot->NoSpread			= 0;
-			Current->Aimbot->LagCompensation		= 0;
+			Current->Aimbot->LagCompensation		= Legitbot->Backtrack ? 1 : 0; // legit backtrack
 			Current->Aimbot->LastTick			= false;
 			Current->Aimbot->SetAbs				= false;
-			Current->Aimbot->UpdateAnim			= false;
+			Current->Aimbot->UpdateAnim			= Legitbot->Backtrack;
 			Current->Aimbot->Resolver			= false;
 			Current->Aimbot->ResvolerBullets		= 0;
 			Current->Aimbot->ResvolerBulletsDelay	= 0;

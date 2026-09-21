@@ -102,7 +102,9 @@ namespace Feature
 		m_pLocal( nullptr ),
 		m_pWeapon( nullptr ),
 		m_pData( nullptr ),
-		m_pTarget( nullptr )
+		m_pTarget( nullptr ),
+		m_vOldPunch( 0.0f, 0.0f, 0.0f ),
+		m_iLegitDelay( 0 )
 	{
 	}
 
@@ -180,6 +182,27 @@ namespace Feature
 				}
 			}
 
+			// Легит: стендалон-RCS — держим спрей без захваченной цели.
+			// Старый панч обновляем всегда, чтобы дельта не протухала.
+			const Vector3& vPunchNow = m_pLocal->m_vecPunchAngle();
+
+			if( Config::Main->AimbotStyle == 1 && cfg->RCS && cfg->RCSStandalone
+			&& Config::Misc->Restriction != 1
+			&& ( pCmd->buttons & IN_ATTACK )
+			&& m_pLocal->m_iShotsFired() > cfg->RCSDelay
+			&& !( cfg->FlashCheck && m_pLocal->m_flFlashMaxAlpha() > 40.0f ) )
+			{
+			Vector3 vComp = pCmd->viewangles;
+			vComp.x -= ( vPunchNow.x - m_vOldPunch.x ) * ( cfg->RCSAmountX / 50.0f );
+			vComp.y -= ( vPunchNow.y - m_vOldPunch.y ) * ( cfg->RCSAmountY / 50.0f );
+			vComp.z = 0.0f;
+			ClampAngles( vComp );
+			VectorCopy( vComp, pCmd->viewangles );
+			Source::m_pEngine->SetViewAngles( pCmd->viewangles );
+			}
+
+			m_vOldPunch = vPunchNow;
+
 			if( cfg->NoSwitch )
 				return;
 
@@ -204,7 +227,9 @@ namespace Feature
 			bNeedScope = true;
 		}
 
-		if( cfg->Delay && m_Timer.Elapsed() < cfg->Delay )
+		const int iAimDelay = ( Config::Main->AimbotStyle == 1 && cfg->HumanizeDelay ) ? m_iLegitDelay : cfg->Delay;
+
+		if( iAimDelay && m_Timer.Elapsed() < iAimDelay )
 			return;
 
 		if( cfg->Duration && m_Timer.Elapsed() > cfg->Duration )
@@ -239,6 +264,9 @@ namespace Feature
 		VectorAngles( vDirection, vAim );
 
 		ApplyRecoilCompensation( vAim );
+
+		// Стендалон-RCS: трекинг панча каждый тик доводки (рейдж не читает).
+		m_vOldPunch = m_pLocal->m_vecPunchAngle();
 
 		if( cfg->Smooth == 1 ) // Step
 			ApplyStepSmooth( vAim );
@@ -401,6 +429,12 @@ namespace Feature
 
 			// Delay / Duration / SwitchDelay считаются от момента захвата.
 			m_Timer.Reset();
+
+			// Легит: гуманизация задержки — реакция плавает от Delay до 1.5x.
+			if( Config::Main->AimbotStyle == 1 && cfg->HumanizeDelay && cfg->Delay > 0 )
+			m_iLegitDelay = cfg->Delay + ( int )( GetTickCount() % ( ( unsigned )cfg->Delay / 2 + 1 ) );
+			else
+			m_iLegitDelay = cfg->Delay;
 		}
 	}
 
@@ -430,6 +464,10 @@ namespace Feature
 			return false;
 
 		if( cfg->Target == 2 && iTargetTeam != iLocalTeam ) // только свои
+			return false;
+
+		// Легит: во флешке не целимся (по видимой белизне — с NoFlash работает).
+		if( Config::Main->AimbotStyle == 1 && cfg->FlashCheck && m_pLocal->m_flFlashMaxAlpha() > 40.0f )
 			return false;
 
 		// Точка прицеливания: хитбокс с учётом лаг-компенсации.
