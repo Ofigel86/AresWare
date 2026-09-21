@@ -789,11 +789,11 @@ const char* PitchStandList[ ] =
 {
 	"Off",
 	"Emotion",
-	"FakeUp",
+	"Fake Down",
 	"Custom",
 	"Flip",
 	"Switch",
-	"Jitter",
+	"Send Jitter",
 	"Random"
 };
 
@@ -801,11 +801,11 @@ const char* PitchMoveList[ ] =
 {
 	"Off",
 	"Emotion",
-	"FakeUp",
+	"Fake Down",
 	"Custom",
 	"Flip",
 	"Switch",
-	"Jitter",
+	"Send Jitter",
 	"Random"
 };
 
@@ -814,18 +814,18 @@ const char* YawStandList[ ] =
 	"Off",
 	"Backward",
 	"Legit",
-	"Fake Sideway Left",
-	"Fake Sideway Right",
+	"Fake Sideways Left",
+	"Fake Sideways Right",
 	"Spin",
-	"Custom Double Fake",
+	"Double Fake (Jitter)",
 	"Custom Static Jitter",
 	"Custom Jitter",
 	"Custom Static",
 	"Custom Fake",
-	"Custom Static Fake",
+	"Static FakeLag",
 	"Fake Spin",
-	"Fake Spin 2",
-	"Unbalanced",
+	"Fake Spin (Back)",
+	"Unbalanced Jitter",
 	"Back Jitter"
 };
 
@@ -834,18 +834,18 @@ const char* YawMoveList[ ] =
 	"Off",
 	"Backward",
 	"Legit",
-	"Fake Sideway Left",
-	"Fake Sideway Right",
+	"Fake Sideways Left",
+	"Fake Sideways Right",
 	"Spin",
-	"Custom Double Fake",
+	"Double Fake (Jitter)",
 	"Custom Static Jitter",
 	"Custom Jitter",
 	"Custom Static",
 	"Custom Fake",
-	"Custom Static Fake",
+	"Static FakeLag",
 	"Fake Spin",
-	"Fake Spin 2",
-	"Unbalanced",
+	"Fake Spin (Back)",
+	"Unbalanced Jitter",
 	"Back Jitter"
 };
 
@@ -887,6 +887,15 @@ const char* Crashlist[ ] =
 	"Mass Disconnect",
 	"Crash Server",
 	"Custom Packets"
+};
+
+const char* FakeLagModeList[ ] =
+{
+	"Static",
+	"Adaptive",
+	"Random",
+	"On Peek",
+	"On Shot"
 };
 
 const char* Laglist[ ] =
@@ -1379,26 +1388,35 @@ namespace Feature
 		if( aim->TargetSelection == 2 )
 			AW::SliderFloat( XorStr( "Field Of View" ), &aim->FieldOfView, 0.0f, 180.0f, XorStr( "%.1f" ) );
 
-		AW::Combo( XorStr( "Smooth" ), &aim->Smooth, SmoothList, ARRAYSIZE( SmoothList ) );
+		// Сглаживание, задержки и RCS — чисто легитовые настройки.
+		// В рейдж-боте они не нужны (и вредны: доводка режет мгновенный
+		// снап), поэтому в режиме Rage их не показываем вообще.
+		const bool bLegitStyle = ( Config::Main->AimbotStyle != 0 );
 
-		if( aim->Smooth == 1 )
+		if( bLegitStyle )
 		{
-			AW::SliderFloat( XorStr( "Vertical" ), &aim->StepX, 0.0f, 100.0f, XorStr( "%.1f" ) );
-			AW::SliderFloat( XorStr( "Horizontal" ), &aim->StepY, 0.0f, 100.0f, XorStr( "%.1f" ) );
-		}
-		else if( aim->Smooth == 2 )
-		{
-			AW::SliderFloat( XorStr( "Vertical" ), &aim->SmoothX, 0.0f, 100.0f, XorStr( "%.1f" ) );
-			AW::SliderFloat( XorStr( "Horizontal" ), &aim->SmoothY, 0.0f, 100.0f, XorStr( "%.1f" ) );
+			AW::Combo( XorStr( "Smooth" ), &aim->Smooth, SmoothList, ARRAYSIZE( SmoothList ) );
+
+			if( aim->Smooth == 1 )
+			{
+				AW::SliderFloat( XorStr( "Vertical" ), &aim->StepX, 0.0f, 100.0f, XorStr( "%.1f" ) );
+				AW::SliderFloat( XorStr( "Horizontal" ), &aim->StepY, 0.0f, 100.0f, XorStr( "%.1f" ) );
+			}
+			else if( aim->Smooth == 2 )
+			{
+				AW::SliderFloat( XorStr( "Vertical" ), &aim->SmoothX, 0.0f, 100.0f, XorStr( "%.1f" ) );
+				AW::SliderFloat( XorStr( "Horizontal" ), &aim->SmoothY, 0.0f, 100.0f, XorStr( "%.1f" ) );
+			}
+
+			AW::SliderInt( XorStr( "Duration" ), &aim->Duration, 0, 5000, XorStr( "%d" ) );
+			AW::SliderInt( XorStr( "Delay" ), &aim->Delay, 0, 5000, XorStr( "%d" ) );
+			AW::SliderInt( XorStr( "Switch Delay" ), &aim->SwitchDelay, 0, 5000, XorStr( "%d" ) );
+			AW::Checkbox( XorStr( "RCS Active" ), &aim->RCS );
 		}
 
-		AW::SliderInt( XorStr( "Duration" ), &aim->Duration, 0, 5000, XorStr( "%d" ) );
-		AW::SliderInt( XorStr( "Delay" ), &aim->Delay, 0, 5000, XorStr( "%d" ) );
-		AW::SliderInt( XorStr( "Switch Delay" ), &aim->SwitchDelay, 0, 5000, XorStr( "%d" ) );
-		AW::Checkbox( XorStr( "RCS Active" ), &aim->RCS );
 		AW::Checkbox( XorStr( "NoSpread Active" ), &aim->NoSpreadActive );
 
-		if( aim->RCS )
+		if( bLegitStyle && aim->RCS )
 		{
 			AW::SliderInt( XorStr( "RCS Delay" ), &aim->RCSDelay, 0, 10, XorStr( "%d" ) );
 			AW::SliderInt( XorStr( "RCS Amount X" ), &aim->RCSAmountX, 0, 100, XorStr( "%d%%" ) );
@@ -1677,11 +1695,20 @@ namespace Feature
 					AW::Combo( XorStr( "No Enemy" ), &aa->NoEnemy, NoEnemyList, ARRAYSIZE( NoEnemyList ) );
 
 				AW::Checkbox( XorStr( "On Knife" ), &aa->OnKnife );
-				AW::Checkbox( XorStr( "FakeDuck" ), &aa->FakeDuck );
-				AW::Checkbox( XorStr( "FakeWalk" ), &aa->FakeWalk );
+				AW::Checkbox( XorStr( "Fake Duck" ), &aa->FakeDuck );
+
+				// Пустая клавиша = работать от обычного приседа игрока.
+				if( aa->FakeDuck )
+					AW::KeyBox( XorStr( "Fake Duck Key (empty = crouch)" ), &aa->FakeDuckKey );
+
+				AW::Checkbox( XorStr( "Fake Walk" ), &aa->FakeWalk );
 
 				if( aa->FakeWalk )
-					AW::KeyBox( XorStr( "FakeWalk Key" ), &aa->FakeWalkKey );
+				{
+					AW::KeyBox( XorStr( "Fake Walk Key" ), &aa->FakeWalkKey );
+					AW::Checkbox( XorStr( "Fake Walk Toggle" ), &aa->FakeWalkToggle );
+					AW::SliderInt( XorStr( "Fake Walk Speed" ), &aa->FakeWalkSpeed, 10, 90, XorStr( "%d%%" ) );
+				}
 
 				AW::Checkbox( XorStr( "Hit Reactive" ), &aa->HitReactive );
 				AW::Checkbox( XorStr( "Break LagComp" ), &aa->BreakLC );
@@ -1998,7 +2025,23 @@ namespace Feature
 		AW::Checkbox( XorStr( "Fake Lag" ), &Config::Misc->FakeLag );
 
 		if( Config::Misc->FakeLag )
-			AW::SliderInt( XorStr( "Amount" ), &Config::Misc->ChokedPackets, 1, 32, XorStr( "%d" ) );
+		{
+			AW::Combo( XorStr( "Fake Lag Mode" ), &Config::Misc->FakeLagMode, FakeLagModeList, ARRAYSIZE( FakeLagModeList ) );
+
+			// Random берёт длину чока из диапазона, остальные режимы — из Amount.
+			if( Config::Misc->FakeLagMode == 2 )
+			{
+				AW::SliderInt( XorStr( "Min Amount" ), &Config::Misc->FakeLagMin, 1, 32, XorStr( "%d" ) );
+				AW::SliderInt( XorStr( "Max Amount" ), &Config::Misc->FakeLagMax, 1, 32, XorStr( "%d" ) );
+			}
+			else
+			{
+				AW::SliderInt( XorStr( "Amount" ), &Config::Misc->ChokedPackets, 1, 32, XorStr( "%d" ) );
+			}
+
+			AW::Checkbox( XorStr( "Only On Ground" ), &Config::Misc->FakeLagOnGroundOnly );
+			AW::Checkbox( XorStr( "Break On Shot" ), &Config::Misc->FakeLagBreakOnShot );
+		}
 
 		if( Config::Misc->Restriction != 1 )
 		{

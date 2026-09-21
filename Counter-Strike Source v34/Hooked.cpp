@@ -485,22 +485,126 @@ void AntiKAC( CUserCmd* cmd )
 }
 
 
+// Сколько тиков подряд уже зажато. Нужно и фейк-лагу, и защите от
+// разрыва соединения: движок дропает клиента после 62 подряд чоков.
+static int g_iChokedInARow = 0;
+
+// Выбирает лимит чока для текущего тика в зависимости от режима.
+static int FakeLagPickAmount(CUserCmd* cmd, C_CSPlayer* pLocal)
+{
+	const int iStatic = Config::Misc->ChokedPackets;
+
+	switch (Config::Misc->FakeLagMode)
+	{
+	default:
+	case 0:		// Static — постоянная величина
+		return iStatic;
+
+	case 1:		// Adaptive — чем быстрее едем, тем длиннее разрыв
+	{
+		if (!pLocal)
+			return iStatic;
+
+		const float flSpeed = pLocal->m_vecVelocity().Length2D();
+
+		// Стоя чокать почти нечего (фейк всё равно совпадает с реалом),
+		// на полной скорости растягиваем до заданного максимума.
+		if (flSpeed < 5.0f)
+			return 1;
+
+		const float flFrac = (flSpeed > 250.0f) ? 1.0f : (flSpeed / 250.0f);
+		const int iAmount = (int)(flFrac * (float)iStatic);
+
+		return (iAmount < 1) ? 1 : iAmount;
+	}
+
+	case 2:		// Random — случайная длина каждого цикла
+	{
+		const int iMin = Config::Misc->FakeLagMin;
+		const int iMax = Config::Misc->FakeLagMax;
+
+		if (iMax <= iMin)
+			return iMin;
+
+		return iMin + (rand() % ((iMax - iMin) + 1));
+	}
+
+	case 3:		// On Peek — чокаем только в движении (выход из-за угла)
+	{
+		if (!pLocal)
+			return iStatic;
+
+		const float flSpeed = pLocal->m_vecVelocity().Length2D();
+
+		return (flSpeed > 40.0f) ? iStatic : 0;
+	}
+
+	case 4:		// On Shot — копим разрыв, пока не стреляем
+		return (cmd->buttons & IN_ATTACK) ? 0 : iStatic;
+	}
+}
+
 void FakeLag(CUserCmd* cmd)
 {
-	static int fake_tick_count = 0;
+	static int s_iChokeLeft = 0;
 
-	if (fake_tick_count == 0)
+	C_CSPlayer* pLocal = C_CSPlayer::GetLocalPlayer();
+
+	// Мёртвым и в паник-режиме чокать нечего — иначе после респауна
+	// первый пакет уходит с задержкой.
+	if (!pLocal || pLocal->m_lifeState() != LIFE_ALIVE || Shared::m_bPanic)
 	{
-		fake_tick_count = Config::Misc->ChokedPackets;
-
+		s_iChokeLeft = 0;
+		g_iChokedInARow = 0;
 		bSendPacket = true;
+		return;
 	}
-	else
+
+	// В воздухе чок ломает стрейф — по желанию отключаем.
+	if (Config::Misc->FakeLagOnGroundOnly && !(pLocal->m_fFlags() & FL_ONGROUND))
 	{
-		fake_tick_count--;
+		s_iChokeLeft = 0;
+		g_iChokedInARow = 0;
+		bSendPacket = true;
+		return;
+	}
+
+	// Выстрел должен уехать на сервер немедленно, иначе пуля улетает
+	// по устаревшим углам и рейдж "не стреляет".
+	if (Config::Misc->FakeLagBreakOnShot && (cmd->buttons & IN_ATTACK))
+	{
+		s_iChokeLeft = 0;
+		g_iChokedInARow = 0;
+		bSendPacket = true;
+		return;
+	}
+
+	if (s_iChokeLeft > 0)
+	{
+		--s_iChokeLeft;
+
+		++g_iChokedInARow;
+
+		// Страховка от дисконнекта: движок рвёт связь на 62 чоках подряд.
+		if (g_iChokedInARow >= 60)
+		{
+			s_iChokeLeft = 0;
+			g_iChokedInARow = 0;
+			bSendPacket = true;
+			return;
+		}
 
 		bSendPacket = false;
+		return;
 	}
+
+	s_iChokeLeft = FakeLagPickAmount(cmd, pLocal);
+
+	if (s_iChokeLeft < 0)
+		s_iChokeLeft = 0;
+
+	g_iChokedInARow = 0;
+	bSendPacket = true;
 }
 
 void DefensiveChoke(CUserCmd* cmd)
@@ -606,26 +710,81 @@ void Speed(C_CSPlayer* player, CUserCmd* cmd, Vector3& Originalview)
 
 void FakeWalk(CUserCmd* cmd, C_CSPlayer* player)
 {
-	(void)player;
+	static int s_iChoked = 0;
+	static bool s_bToggled = false;
+	static bool s_bKeyWasDown = false;
 
-	if (!GetAsyncKeyState(Config::AntiAim->FakeWalkKey))
-		return;
+	const int iKey = Config::AntiAim->FakeWalkKey;
 
-	// On-demand fakelag: move in choked commands, send stationary snapshots.
-	// (Original did pointer arithmetic on cmd and corrupted frametime.)
-	static int iChoked = 0;
-
-	if (iChoked < 3)
+	// Клавиша не назначена — молча выходим. Раньше GetAsyncKeyState(0)
+	// давал неопределённое поведение, и фейк-волк "иногда" включался сам.
+	if (iKey <= 0)
 	{
+		s_iChoked = 0;
+		s_bToggled = false;
+		return;
+	}
+
+	const bool bKeyDown = (GetAsyncKeyState(iKey) & 0x8000) != 0;
+
+	bool bActive = bKeyDown;
+
+	if (Config::AntiAim->FakeWalkToggle)
+	{
+		// Переключение по фронту нажатия, а не по удержанию.
+		if (bKeyDown && !s_bKeyWasDown)
+			s_bToggled = !s_bToggled;
+
+		bActive = s_bToggled;
+	}
+
+	s_bKeyWasDown = bKeyDown;
+
+	if (!bActive)
+	{
+		s_iChoked = 0;
+		return;
+	}
+
+	if (!player || player->m_lifeState() != LIFE_ALIVE)
+	{
+		s_iChoked = 0;
+		return;
+	}
+
+	// В воздухе гасить движение нельзя: потеряем управление в прыжке,
+	// а красться всё равно незачем.
+	if (!(player->m_fFlags() & FL_ONGROUND))
+	{
+		s_iChoked = 0;
+		return;
+	}
+
+	// Идея: двигаться в чокнутых командах и отправлять серверу
+	// "стоячие" снимки. Доля отправляемых тиков задаёт видимую скорость:
+	// чем меньше процент, тем медленнее нас видят.
+	int iSendEvery = (int)(100.0f / (float)Config::AntiAim->FakeWalkSpeed);
+
+	if (iSendEvery < 2)
+		iSendEvery = 2;
+
+	if (iSendEvery > 14)
+		iSendEvery = 14;
+
+	if (s_iChoked < (iSendEvery - 1))
+	{
+		++s_iChoked;
 		bSendPacket = false;
-		iChoked++;
 	}
 	else
 	{
+		s_iChoked = 0;
 		bSendPacket = true;
-		iChoked = 0;
+
+		// Отправляем кадр без ввода движения — сервер считает, что стоим.
 		cmd->forwardmove = 0.0f;
 		cmd->sidemove = 0.0f;
+		cmd->upmove = 0.0f;
 	}
 }
 
@@ -1651,21 +1810,32 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 		}
 	}
 
-	// FakeDuck: дёргаем бит приседания на SEND-тиках — сервер видит
-	// мерцающий хитбокс, а модель клиента стоит. Только на земле:
-	// в воздухе дёрганье ломает движение и ничего не даёт.
+	// FakeDuck: дёргаем бит приседания КАЖДЫЙ тик — сервер видит
+	// мерцающий хитбокс, а модель клиента почти не приседает.
+	// Раньше бит переключался только на send-тиках, поэтому при чоке N
+	// период был N+1 тиков и фейк-дак работал заметно медленно.
+	// Активен только пока игрок реально жмёт присед (или назначенную
+	// клавишу) — сам по себе больше не включается.
 	if (Config::AntiAim->FakeDuck && player->m_MoveType() != MOVETYPE_LADDER &&
 		(player->m_fFlags() & FL_ONGROUND))
 	{
-		static bool bDuckFlip = false;
+		const int iKey = Config::AntiAim->FakeDuckKey;
 
-		if (bSendPacket)
+		const bool bWantDuck = (iKey > 0)
+			? ((GetAsyncKeyState(iKey) & 0x8000) != 0)
+			: ((cmd->buttons & IN_DUCK) != 0);
+
+		if (bWantDuck)
+		{
+			static bool bDuckFlip = false;
+
 			bDuckFlip = !bDuckFlip;
 
-		if (bDuckFlip)
-			cmd->buttons |= IN_DUCK;
-		else
-			cmd->buttons &= ~IN_DUCK;
+			if (bDuckFlip)
+				cmd->buttons |= IN_DUCK;
+			else
+				cmd->buttons &= ~IN_DUCK;
+		}
 	}
 }
 
@@ -2017,9 +2187,6 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 						if (Config::Misc->FakeLag)
 							FakeLag(cmd);
 
-						if (Config::AntiAim->FakeWalk)
-							FakeWalk(cmd, player);
-
 						if (Config::Current->Aimbot->NoSpreadActive)
 						{
 							if (Config::Current->Aimbot->NoSpread)
@@ -2056,6 +2223,13 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 							// Defensive: после выстрела чокаем N тиков.
 							if (Config::AntiAim->DefensiveTicks)
 								DefensiveChoke(cmd);
+
+							// ВАЖНО: фейк-волк идёт ПОСЛЕ анти-аима и defensive.
+							// Ветки AA сами пишут bSendPacket, и при старом порядке
+							// (до AntiAim) они затирали чок фейк-волка — из-за этого
+							// он не работал при включённом анти-аиме.
+							if (Config::AntiAim->FakeWalk)
+								FakeWalk(cmd, player);
 							if (Config::Misc->LagExploit)
 								Lag(cmd);
 

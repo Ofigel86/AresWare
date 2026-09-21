@@ -276,15 +276,13 @@ namespace Config
 		float MoveCustomAngleYaw2 = 0.0f;
 		int StandSwitchPitchDelay = 20;
 		int MoveSwitchPitchDelay = 20;
-		int YawMoveJitterSpeed = 0;
-		int YawRealMove = 0;
-		int YawFakeMove = 0;
-		int YawRealStand = 0;
-		int YawFakeStand = 0;
-		float test1 = 0;
-		float test2 = 0;
-		float test3 = 0;
+		// Удалены неиспользуемые поля: YawMoveJitterSpeed, YawRealMove,
+		// YawFakeMove, YawRealStand, YawFakeStand, test1..test3 — их не читали
+		// ни логика, ни меню, и они не сохранялись в конфиг.
 		bool FakeDuck = false;
+		int FakeDuckKey = 0;			// 0 = работать при обычном приседании
+		bool FakeWalkToggle = false;	// клавиша-переключатель вместо удержания
+		int FakeWalkSpeed = 33;			// % от обычной скорости
 		int	AtTarget = 0;		// 
 		int NoEnemy = 0;
 		bool NoEnemyEnabled = false;
@@ -344,6 +342,8 @@ namespace Config
 			LimitValue(MoveFakeSpinAngle, -999999.f, 9999999.f);
 			LimitValue(MoveFakeSpinSpeed, -9999, 9999);
 				LimitValue(DefensiveTicks, 0, 10);
+				LimitValue(FakeDuckKey, 0, 128);
+				LimitValue(FakeWalkSpeed, 10, 90);
 				LimitValue(ManualLeftKey, 0, 128);
 				LimitValue(ManualRightKey, 0, 128);
 				LimitValue(ManualBackKey, 0, 128);
@@ -414,7 +414,12 @@ namespace Config
 		bool	ShowRecoil = false;		// 
 		float SpeedMod = 0.0f;
 		bool	FakeLag = false;		// 
-		int		ChokedPackets = 1;		// 1 - 15
+		int		FakeLagMode = 0;		// 0 Static|1 Adaptive|2 Random|3 On Peek|4 On Shot
+		int		ChokedPackets = 1;		// 1 - 15 (Static: постоянный чок)
+		int		FakeLagMin = 2;			// Random: нижняя граница
+		int		FakeLagMax = 8;			// Random: верхняя граница
+		bool	FakeLagOnGroundOnly = false;	// не чокать в воздухе
+		bool	FakeLagBreakOnShot = true;	// отпускать чок в момент выстрела
 
 		bool	AirStuck = false;		// 
 		int		StuckKey = 0;			// 
@@ -431,6 +436,17 @@ namespace Config
 		void Clamp()
 		{
 			LimitValue( ChokedPackets, 1, 32 );
+			LimitValue( FakeLagMode, 0, 4 );
+			LimitValue( FakeLagMin, 1, 32 );
+			LimitValue( FakeLagMax, 1, 32 );
+
+			// Перепутанные границы дали бы пустой диапазон случайного чока.
+			if( FakeLagMin > FakeLagMax )
+			{
+				const int iTmp = FakeLagMin;
+				FakeLagMin = FakeLagMax;
+				FakeLagMax = iTmp;
+			}
 			LimitValue( SpeedKey, 0, 128 );
 			LimitValue( SpeedFactor, 1, 15 );
 			LimitValue( AutoPeekKey, 0, 128 );

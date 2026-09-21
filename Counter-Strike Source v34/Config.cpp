@@ -616,6 +616,12 @@ namespace Config
 		AntiAim->ManualBackKey = LoadInt(main, XorStr("antiaim.manual.back"));
 		AntiAim->FakeWalk = LoadBool(main, XorStr("antiaim.fakewalk"));
 		AntiAim->FakeWalkKey = LoadInt(main, XorStr("antiaim.fakewalk.key"));
+		// Новые поля читаются через *Def: в старых конфигах этих ключей нет,
+		// и обычный LoadInt вернул бы 0, обнулив разумные значения по умолчанию.
+		AntiAim->FakeWalkToggle = LoadBoolDef(main, XorStr("antiaim.fakewalk.toggle"), false);
+		AntiAim->FakeWalkSpeed = LoadIntDef(main, XorStr("antiaim.fakewalk.speed"), 33);
+		AntiAim->FakeDuck = LoadBoolDef(main, XorStr("antiaim.fakeduck"), false);
+		AntiAim->FakeDuckKey = LoadIntDef(main, XorStr("antiaim.fakeduck.key"), 0);
 		AntiAim->Clamp();
 		Removals->NoRecoil				= LoadBool( main, XorStr( "removals.no.recoil" ) );
 		Removals->NoVisualRecoil		= LoadBool( main, XorStr( "removals.no.visual.recoil" ) );
@@ -641,6 +647,11 @@ namespace Config
 		Misc->ShowRecoil				= LoadBool( main, XorStr( "misc.crosshair.show.recoil" ) );
 		Misc->FakeLag					= LoadBool( main, XorStr( "misc.fakelag" ) );
 		Misc->ChokedPackets				= LoadInt( main, XorStr( "misc.fakelag.choked.packets" ) );
+		Misc->FakeLagMode				= LoadIntDef( main, XorStr( "misc.fakelag.mode" ), 0 );
+		Misc->FakeLagMin				= LoadIntDef( main, XorStr( "misc.fakelag.min" ), 2 );
+		Misc->FakeLagMax				= LoadIntDef( main, XorStr( "misc.fakelag.max" ), 8 );
+		Misc->FakeLagOnGroundOnly		= LoadBoolDef( main, XorStr( "misc.fakelag.onground" ), false );
+		Misc->FakeLagBreakOnShot		= LoadBoolDef( main, XorStr( "misc.fakelag.breakonshot" ), true );
 		Misc->AirStuck					= LoadBool( main, XorStr( "misc.airstuck" ) );
 		Misc->StuckKey					= LoadInt( main, XorStr( "misc.airstuck.key" ) );
 		Misc->Speed						= LoadBool( main, XorStr( "misc.cstrafer" ) );
@@ -1154,6 +1165,11 @@ namespace Config
 		SaveBool(main, XorStr("antiaim.on.knife"), AntiAim->OnKnife);
 		SaveBool(main, XorStr("antiaim.fakewalk"), AntiAim->FakeWalk);
 		SaveInt(main, XorStr("antiaim.fakewalk.key"), AntiAim->FakeWalkKey);
+		SaveBool(main, XorStr("antiaim.fakewalk.toggle"), AntiAim->FakeWalkToggle);
+		SaveInt(main, XorStr("antiaim.fakewalk.speed"), AntiAim->FakeWalkSpeed);
+		// FakeDuck раньше вообще не сохранялся и слетал при перезапуске.
+		SaveBool(main, XorStr("antiaim.fakeduck"), AntiAim->FakeDuck);
+		SaveInt(main, XorStr("antiaim.fakeduck.key"), AntiAim->FakeDuckKey);
 		SaveFloat(main, XorStr("antiaim.stand.breaker.real.first"), AntiAim->StandCustomAngleYaw1);
 		SaveFloat(main, XorStr("antiaim.stand.breaker.real.second"), AntiAim->StandCustomAngleYaw2);
 		SaveFloat(main, XorStr("antiaim.stand.breaker.fake.first"), AntiAim->StandCustomAngleFakeYaw1);
@@ -1194,6 +1210,11 @@ namespace Config
 		SaveBool( main, XorStr( "misc.crosshair.show.recoil" ), Misc->ShowRecoil );
 		SaveBool( main, XorStr( "misc.fakelag" ), Misc->FakeLag );
 		SaveInt( main, XorStr( "misc.fakelag.choked.packets" ), Misc->ChokedPackets );
+		SaveInt( main, XorStr( "misc.fakelag.mode" ), Misc->FakeLagMode );
+		SaveInt( main, XorStr( "misc.fakelag.min" ), Misc->FakeLagMin );
+		SaveInt( main, XorStr( "misc.fakelag.max" ), Misc->FakeLagMax );
+		SaveBool( main, XorStr( "misc.fakelag.onground" ), Misc->FakeLagOnGroundOnly );
+		SaveBool( main, XorStr( "misc.fakelag.breakonshot" ), Misc->FakeLagBreakOnShot );
 		SaveBool( main, XorStr( "misc.airstuck" ), Misc->AirStuck );
 		SaveInt( main, XorStr( "misc.airstuck.key" ), Misc->StuckKey );
 		SaveBool( main, XorStr( "misc.cstrafer" ), Misc->Speed );

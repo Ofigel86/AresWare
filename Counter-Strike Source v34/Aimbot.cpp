@@ -343,10 +343,16 @@ namespace Feature
 
 		ApplyCurveHumanize( vAim );
 
-		if( cfg->Smooth == 1 ) // Step
-			ApplyStepSmooth( vAim );
-		else if( cfg->Smooth == 2 ) // Linear
-			ApplyLinearSmooth( vAim );
+		// Сглаживание — легитовая механика. В рейдже доводка ломает всю суть
+		// (нужен мгновенный снап в тот же тик), а в старых конфигах Smooth мог
+		// остаться включённым, и рейдж-бот "мазал". Игнорируем его при Rage.
+		if( Config::Main->AimbotStyle != 0 )
+		{
+			if( cfg->Smooth == 1 ) // Step
+				ApplyStepSmooth( vAim );
+			else if( cfg->Smooth == 2 ) // Linear
+				ApplyLinearSmooth( vAim );
+		}
 
 		// Компенсация отдачи применяется ПОСЛЕ сглаживания. Раньше она шла до
 		// него, и сглаживание гасило поправку в те же несколько процентов:
@@ -1114,6 +1120,11 @@ namespace Feature
 	void Aimbot::ApplyRecoilCompensation( Vector3& vAim )
 	{
 		auto cfg = Config::Current->Aimbot;
+
+		// RCS тоже относится к легиту: рейдж и так целится по актуальному
+		// punch-углу, а повторная поправка только уводит прицел.
+		if( Config::Main->AimbotStyle == 0 )
+			return;
 
 		if( !cfg->RCS )
 			return;

@@ -206,23 +206,39 @@ namespace Feature
 		if (record_data.empty())
 			return false;
 
-		auto record_recent = record_data.front();
-		auto record_previous = LagRecord{};
+		// Раньше бралась ТОЛЬКО самая свежая запись: если она успела протухнуть
+		// (или игрок телепортировался), бектрек возвращал false и цель терялась
+		// на весь тик. Теперь протухшие записи отбрасываются, а перебор идёт
+		// дальше по истории до первой пригодной.
+		auto record_recent = LagRecord{};
+		bool bFound = false;
 
-		if (record_data.size() > 1u)
-			record_previous = record_data[1u];
-
-		if (!IsRecordGood(record_recent))
+		while (!record_data.empty())
 		{
-			record_data.pop_front();
-			return false;
+			const auto record_candidate = record_data.front();
+
+			if (!IsRecordGood(record_candidate))
+			{
+				record_data.pop_front();
+				continue;
+			}
+
+			// Прыжок позиции между соседними записями = телепорт/новый спаун.
+			// Стрелять по такой истории нельзя — сервер её не подтвердит.
+			if (record_data.size() > 1u &&
+				(record_candidate.m_vecOrigin - record_data[1u].m_vecOrigin).LengthSqr() > 4096.f)
+			{
+				record_data.pop_front();
+				continue;
+			}
+
+			record_recent = record_candidate;
+			bFound = true;
+			break;
 		}
 
-		if ((record_data.size() > 1u) && (record_recent.m_vecOrigin - record_previous.m_vecOrigin).LengthSqr() > 4096.f)
-		{
-			record_data.pop_front();
+		if (!bFound)
 			return false;
-		}
 
 		player->InvalidateBoneCache();
 
@@ -373,6 +389,11 @@ namespace Feature
 		if (record.m_flSimulationTime == 0.f)
 			return false;
 
+		// FindVar может вернуть nullptr (кастомный сервер/ранний вызов) —
+		// без проверки дальше шёл вызов по нулевому указателю.
+		if (!sv_maxunlag)
+			return false;
+
 		auto net_channel = Source::m_pEngine->GetNetChannelInfo();
 
 		if (!net_channel)
@@ -403,7 +424,20 @@ namespace Feature
 		static auto sv_client_min_interp_ratio = Source::m_pCvar->FindVar(XorStr("sv_client_min_interp_ratio"));
 		static auto sv_client_max_interp_ratio = Source::m_pCvar->FindVar(XorStr("sv_client_max_interp_ratio"));
 
-		auto updaterate = std::clamp(cl_updaterate->GetFloat(), sv_minupdaterate->GetFloat(), sv_maxupdaterate->GetFloat());
+		// Любой из этих cvar'ов может отсутствовать — тогда используем
+		// значения по умолчанию CS:S вместо разыменования nullptr.
+		if (!cl_updaterate || !cl_interp || !cl_interp_ratio)
+			return 0.1f;
+
+		auto updaterate = cl_updaterate->GetFloat();
+
+		if (sv_minupdaterate && sv_maxupdaterate)
+			updaterate = std::clamp(updaterate, sv_minupdaterate->GetFloat(), sv_maxupdaterate->GetFloat());
+
+		// Деление на updaterate ниже: нулевой рейт дал бы inf/NaN и увёл бы
+		// tick_count в мусор.
+		if (updaterate <= 0.f)
+			updaterate = 66.f;
 
 		auto interp = cl_interp->GetFloat();
 		auto interp_ratio = cl_interp_ratio->GetFloat();
@@ -411,7 +445,8 @@ namespace Feature
 		if (interp_ratio == 0.f)
 			interp_ratio = 1.f;
 
-		interp_ratio = std::clamp(interp_ratio, sv_client_min_interp_ratio->GetFloat(), sv_client_max_interp_ratio->GetFloat());
+		if (sv_client_min_interp_ratio && sv_client_max_interp_ratio)
+			interp_ratio = std::clamp(interp_ratio, sv_client_min_interp_ratio->GetFloat(), sv_client_max_interp_ratio->GetFloat());
 
 		return std::max(interp, (interp_ratio / updaterate));
 	}
@@ -783,6 +818,10 @@ namespace Feature
 		if (record1.m_flSimulationTime == 0.f)
 			return false;
 
+		// Тот же null-guard, что и в основном классе.
+		if (!sv_maxunlag)
+			return false;
+
 		auto net_channel = Source::m_pEngine->GetNetChannelInfo();
 
 		if (!net_channel)
@@ -813,7 +852,20 @@ namespace Feature
 		static auto sv_client_min_interp_ratio = Source::m_pCvar->FindVar(XorStr("sv_client_min_interp_ratio"));
 		static auto sv_client_max_interp_ratio = Source::m_pCvar->FindVar(XorStr("sv_client_max_interp_ratio"));
 
-		auto updaterate = std::clamp(cl_updaterate->GetFloat(), sv_minupdaterate->GetFloat(), sv_maxupdaterate->GetFloat());
+		// Любой из этих cvar'ов может отсутствовать — тогда используем
+		// значения по умолчанию CS:S вместо разыменования nullptr.
+		if (!cl_updaterate || !cl_interp || !cl_interp_ratio)
+			return 0.1f;
+
+		auto updaterate = cl_updaterate->GetFloat();
+
+		if (sv_minupdaterate && sv_maxupdaterate)
+			updaterate = std::clamp(updaterate, sv_minupdaterate->GetFloat(), sv_maxupdaterate->GetFloat());
+
+		// Деление на updaterate ниже: нулевой рейт дал бы inf/NaN и увёл бы
+		// tick_count в мусор.
+		if (updaterate <= 0.f)
+			updaterate = 66.f;
 
 		auto interp = cl_interp->GetFloat();
 		auto interp_ratio = cl_interp_ratio->GetFloat();
@@ -821,7 +873,8 @@ namespace Feature
 		if (interp_ratio == 0.f)
 			interp_ratio = 1.f;
 
-		interp_ratio = std::clamp(interp_ratio, sv_client_min_interp_ratio->GetFloat(), sv_client_max_interp_ratio->GetFloat());
+		if (sv_client_min_interp_ratio && sv_client_max_interp_ratio)
+			interp_ratio = std::clamp(interp_ratio, sv_client_min_interp_ratio->GetFloat(), sv_client_max_interp_ratio->GetFloat());
 
 		return std::max(interp, (interp_ratio / updaterate));
 	}
