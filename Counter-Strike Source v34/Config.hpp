@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "Valve.hpp"
 
@@ -165,7 +165,7 @@ namespace Config
 		bool Hitbox = false;
 		bool Filled = false;
 		bool Spread = false;
-		int		Box = 0;			// 0 - Off | 1 - Normal | 2 - Corners | 3 - Multipoint
+	int		Box = 0;		// 0 - Off | 1 - Normal | 2 - Corners
 		bool	Outlined = false;	// Draw Black Outline
 		int viewfov = 0;
 		bool	Name = false;		// Draw Player Name

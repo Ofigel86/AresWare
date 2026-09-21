@@ -55,8 +55,10 @@ void Eject()
 }
 
 // Основной поток чита: инициализация + обработка запросов на Load/Save конфига.
-static void CheatThread( HMODULE hMod )
+static DWORD WINAPI CheatThread( LPVOID lpParam )
 {
+	HMODULE hMod = ( HMODULE )lpParam;
+
 	Config::Startup( hMod );
 	g_bConfigReady = true;
 
@@ -66,7 +68,7 @@ static void CheatThread( HMODULE hMod )
 
 		Eject();
 		FreeLibraryAndExitThread( hMod, EXIT_SUCCESS );
-		return;
+		return 1;
 	}
 
 	while( !Shared::m_bEject )
@@ -90,34 +92,36 @@ static void CheatThread( HMODULE hMod )
 
 	Eject();
 	FreeLibraryAndExitThread( hMod, EXIT_SUCCESS );
+	return 0;
 }
 
-static int Startup( HMODULE hMod )
+static BOOL Startup( HMODULE hMod )
 {
 #ifdef PRIVATE_BUILD
 	if( !License::Check() )
 	{
 		DPRINT( XorStr( "[Startup] License check failed, unloading." ) );
-		FreeLibraryAndExitThread( hMod, EXIT_FAILURE );
-		return 1;
+		return FALSE;
 	}
 #endif
 
 	CreateWorkDirectories();
 
 	DisableThreadLibraryCalls( hMod );
-	CreateThread( nullptr, 0, ( LPTHREAD_START_ROUTINE )CheatThread, hMod, 0, nullptr );
+	CreateThread( nullptr, 0, CheatThread, hMod, 0, nullptr );
 
-	return 0;
+	return TRUE;
 }
 
-void OnProcessAttach( HMODULE hMod, LPVOID lpReserved )
+BOOL OnProcessAttach( HMODULE hMod, LPVOID lpReserved )
 {
 	( void )lpReserved;
 
 	Shared::m_pVars = &g_Vars;
 
-	Startup( hMod );
+	// FALSE из DllMain при DLL_PROCESS_ATTACH: загрузчик сам выгрузит DLL.
+	// (FreeLibraryAndExitThread здесь вызывать нельзя — loader lock.)
+	return Startup( hMod );
 }
 
 void OnProcessDetach()
@@ -130,8 +134,7 @@ BOOL WINAPI DllMain( HMODULE hMod, DWORD dwReason, LPVOID lpReserved )
 	switch( dwReason )
 	{
 	case DLL_PROCESS_ATTACH:
-		OnProcessAttach( hMod, lpReserved );
-		break;
+		return OnProcessAttach( hMod, lpReserved );
 
 	case DLL_PROCESS_DETACH:
 		OnProcessDetach();
