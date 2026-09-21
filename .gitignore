@@ -1,0 +1,24 @@
+# Visual Studio temporary files and build artifacts
+*.sdf
+*.suo
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.user
+*.aps
+*.ncb
+*.ilk
+*.idb
+*.exp
+*.log
+*.tlog
+
+# Directories
+.vs/
+Debug/
+Release/
+x64/
+x86/
+ipch/
+[Bb]in/
+[Oo]bj/
