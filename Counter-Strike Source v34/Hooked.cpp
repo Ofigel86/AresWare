@@ -292,7 +292,25 @@ void AutoPistol( CUserCmd* cmd, C_WeaponCSBaseGun* weapon )
 		return;
 
 	if( !weapon->IsFireTime() )
+	{
 		cmd->buttons &= ~IN_ATTACK;
+		return;
+	}
+
+	// AutoPistol refire delay: минимальный интервал между выстрелами.
+	const int iDelay = Config::Misc->AutoPistolDelay;
+
+	if( iDelay > 0 && ( cmd->buttons & IN_ATTACK ) )
+	{
+		static float s_flLastShot = 0.0f;
+
+		const float flNow = Source::m_pGlobalVars->curtime;
+
+		if( flNow - s_flLastShot < ( float )iDelay / 1000.0f )
+			cmd->buttons &= ~IN_ATTACK;
+		else
+			s_flLastShot = flNow;
+	}
 }
 
 void NoSpread( CUserCmd* cmd, C_WeaponCSBaseGun* weapon )

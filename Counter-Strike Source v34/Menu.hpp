@@ -52,6 +52,7 @@ namespace Feature
 		int		m_iRageClass;
 		int		m_iLegitClass;
 		int		m_iRageSub;
+		int		m_iLegitSub;
 		int		m_iVisPart;
 
 		int		m_iConfig;

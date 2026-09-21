@@ -57,6 +57,7 @@ namespace Source
 	extern void*									QueryInterface(const char* szMod, const char* szName, bool bCustom = false);
 	extern void										MovementFix(CUserCmd* cmd, const Vector3& va, bool aa = false);
 	extern bool										TraceLine(const Vector3& vEnd, C_BaseEntity* pEnt = nullptr);
+	extern bool										LineThroughSmoke(const Vector3& vFrom, const Vector3& vTo);
 	extern bool										WorldToScreen(const Vector3& vPoint, Vector3& vOut);
 
 }

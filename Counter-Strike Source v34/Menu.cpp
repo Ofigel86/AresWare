@@ -828,6 +828,27 @@ const char* VisPartList[ ] =
 	"Part 2"
 };
 
+const char* LegitSubList[ ] =
+{
+	"Aimbot",
+	"Extra"
+};
+
+const char* HitboxPriorityList[ ] =
+{
+	"Head",
+	"Chest",
+	"Stomach",
+	"Arms",
+	"Legs"
+};
+
+const char* HitboxSelectionList[ ] =
+{
+	"Priority",
+	"Nearest"
+};
+
 const char* TeamList[ ] =
 {
 	"None",
@@ -878,6 +899,7 @@ namespace Feature
 			m_iRageClass( 0 ),
 			m_iLegitClass( 0 ),
 			m_iRageSub( 0 ),
+			m_iLegitSub( 0 ),
 			m_iVisPart( 0 ),
 			m_iConfig( -1 ),
 			m_bAimbot( false ),
@@ -1180,6 +1202,7 @@ namespace Feature
 		if( trigger->AutoWall )
 			AW::SliderInt( XorStr( "Min Damage" ), &trigger->MinDamage, 0, 100, XorStr( "%d" ) );
 
+		AW::Checkbox( XorStr( "Through Smoke" ), &trigger->ThroughSmoke );
 		AW::Combo( XorStr( "Target" ), &trigger->Target, AimTargetList, ARRAYSIZE( AimTargetList ) );
 		trigger->Clamp();
 	}
@@ -1430,7 +1453,10 @@ namespace Feature
 			ImGui::InvisibleButton( "##wpn", ImVec2( x1 - x0, 48.0f ) );
 
 			if( ImGui::IsItemClicked() )
+			{
 				m_iLegitClass = i;
+				Config::Legitbot = Config::LegitbotClasses[ i ];
+			}
 
 			ImGui::PopID();
 		}
@@ -1443,7 +1469,6 @@ namespace Feature
 
 		Config::LegitbotList* legit = Config::Legitbot;
 		AW::BeginPanel( XorStr( "Accuracy" ), ImVec2( pos.x + 14.0f, pos.y + 152.0f ), ImVec2( 380.0f, 270.0f ) );
-		AW::Combo( XorStr( "Spot" ), &legit->Spot, SpotList, ARRAYSIZE( SpotList ) );
 		AW::Combo( XorStr( "Target Selection" ), &legit->TargetSelection, TargetSelectionList, ARRAYSIZE( TargetSelectionList ) );
 		AW::SliderFloat( XorStr( "Field Of View" ), &legit->FieldOfView, 0.0f, 30.0f, XorStr( "%.1f" ) );
 		AW::Combo( XorStr( "Smooth" ), &legit->Smooth, SmoothList, ARRAYSIZE( SmoothList ) );
@@ -1480,39 +1505,73 @@ namespace Feature
 		AW::Checkbox( XorStr( "Auto Scope" ), &legit->AutoScope );
 		AW::EndPanel();
 		Config::Legitbot->Clamp();
-		AW::BeginPanel( XorStr( "Aimbot" ), ImVec2( pos.x + 402.0f, pos.y + 100.0f ), ImVec2( 394.0f, 140.0f ) );
-		AW::Combo( XorStr( "Style" ), &Config::Main->AimbotStyle, AimbotStyleList, ARRAYSIZE( AimbotStyleList ) );
+		AW::SubTabs( LegitSubList, 2, &m_iLegitSub, ImVec2( pos.x + 402.0f, pos.y + 70.0f ), ImVec2( 394.0f, 26.0f ) );
 
-		if( Config::Main->AimbotStyle == 0 )
-			AW::Notice( XorStr( "Legit inactive: Rage style selected" ) );
+		if( m_iLegitSub == 0 )
+		{
+			AW::BeginPanel( XorStr( "Aimbot" ), ImVec2( pos.x + 402.0f, pos.y + 100.0f ), ImVec2( 394.0f, 140.0f ) );
+			AW::Combo( XorStr( "Style" ), &Config::Main->AimbotStyle, AimbotStyleList, ARRAYSIZE( AimbotStyleList ) );
+	
+			if( Config::Main->AimbotStyle == 0 )
+				AW::Notice( XorStr( "Legit inactive: Rage style selected" ) );
+	
+			AW::Checkbox( XorStr( "Auto Fire" ), &legit->AutoFire );
+			AW::Checkbox( XorStr( "Auto Stop" ), &legit->AutoStop );
+			AW::EndPanel();
+			int clsCount = AW::kClsCount[ m_iLegitClass ];
+			CSWeaponID twid = Config::GetWeaponID( Config::WeaponList[ m_iWeaponTriggerbot ] );
+			Config::TriggerbotList* shown = Config::Main->TriggerbotWeaponConfig ? Config::Weapon[ twid ]->Triggerbot : Config::Main->Triggerbot;
+			AW::BeginPanel( XorStr( "Triggerbot" ), ImVec2( pos.x + 402.0f, pos.y + 248.0f ), ImVec2( 394.0f, 258.0f ) );
+			AW::Checkbox( XorStr( "Weapon Config" ), &Config::Main->TriggerbotWeaponConfig );
+			const char* names[ 9 ];
+	
+			for( int j = 0; j < clsCount; j++ )
+				names[ j ] = Config::WeaponList[ AW::ClassWeapon( m_iLegitClass, j ) ];
+	
+			int j = AW::ClassIndex( m_iLegitClass, m_iWeaponTriggerbot );
+			AW::Combo( XorStr( "Weapon" ), &j, names, clsCount );
+			m_iWeaponTriggerbot = AW::ClassWeapon( m_iLegitClass, j );
+			twid = Config::GetWeaponID( Config::WeaponList[ m_iWeaponTriggerbot ] );
+			shown = Config::Main->TriggerbotWeaponConfig ? Config::Weapon[ twid ]->Triggerbot : Config::Main->Triggerbot;
+			DrawTriggerBlock( shown );
+			AW::EndPanel();
+			AW::BeginPanel( XorStr( "Filter" ), ImVec2( pos.x + 402.0f, pos.y + 510.0f ), ImVec2( 394.0f, 142.0f ) );
+			AW::Checkbox( XorStr( "Head" ), &shown->Head );
+			AW::Checkbox( XorStr( "Chest" ), &shown->Chest );
+			AW::Checkbox( XorStr( "Stomach" ), &shown->Stomach );
+			AW::Checkbox( XorStr( "Arms" ), &shown->Arms );
+			AW::Checkbox( XorStr( "Legs" ), &shown->Legs );
+			AW::EndPanel();
+		}
+		else
+		{
+			AW::BeginPanel( XorStr( "Hitboxes" ), ImVec2( pos.x + 402.0f, pos.y + 100.0f ), ImVec2( 394.0f, 232.0f ) );
+			AW::Checkbox( XorStr( "Head" ), &legit->ZoneHead );
+			AW::Checkbox( XorStr( "Chest" ), &legit->ZoneChest );
+			AW::Checkbox( XorStr( "Stomach" ), &legit->ZoneStomach );
+			AW::Checkbox( XorStr( "Arms" ), &legit->ZoneArms );
+			AW::Checkbox( XorStr( "Legs" ), &legit->ZoneLegs );
+			AW::Combo( XorStr( "Hitbox Priority" ), &legit->HitboxPriority, HitboxPriorityList, ARRAYSIZE( HitboxPriorityList ) );
+			AW::Combo( XorStr( "Hitbox Selection" ), &legit->HitboxSelection, HitboxSelectionList, ARRAYSIZE( HitboxSelectionList ) );
+			AW::EndPanel();
+			AW::BeginPanel( XorStr( "Humanize" ), ImVec2( pos.x + 402.0f, pos.y + 340.0f ), ImVec2( 394.0f, 312.0f ) );
+			AW::SliderFloat( XorStr( "Randomize" ), &legit->Randomize, 0.0f, 10.0f, XorStr( "%.1f" ) );
+			AW::SliderFloat( XorStr( "Curve" ), &legit->Curve, 0.0f, 1.0f, XorStr( "%.2f" ) );
+			AW::SliderInt( XorStr( "Switch Delay" ), &legit->TSD, 0, 5000, XorStr( "%d" ) );
+			AW::Checkbox( XorStr( "Through Smoke" ), &legit->ThroughSmoke );
+			AW::Checkbox( XorStr( "Auto Wall" ), &legit->AutoWall );
 
-		AW::Checkbox( XorStr( "Auto Fire" ), &legit->AutoFire );
-		AW::Checkbox( XorStr( "Auto Stop" ), &legit->AutoStop );
-		AW::EndPanel();
-		int clsCount = AW::kClsCount[ m_iLegitClass ];
-		CSWeaponID twid = Config::GetWeaponID( Config::WeaponList[ m_iWeaponTriggerbot ] );
-		Config::TriggerbotList* shown = Config::Main->TriggerbotWeaponConfig ? Config::Weapon[ twid ]->Triggerbot : Config::Main->Triggerbot;
-		AW::BeginPanel( XorStr( "Triggerbot" ), ImVec2( pos.x + 402.0f, pos.y + 248.0f ), ImVec2( 394.0f, 258.0f ) );
-		AW::Checkbox( XorStr( "Weapon Config" ), &Config::Main->TriggerbotWeaponConfig );
-		const char* names[ 9 ];
+			if( legit->AutoWall )
+				AW::SliderInt( XorStr( "Min Damage" ), &legit->MinDamage, 0, 100, XorStr( "%d" ) );
 
-		for( int j = 0; j < clsCount; j++ )
-			names[ j ] = Config::WeaponList[ AW::ClassWeapon( m_iLegitClass, j ) ];
+			AW::KeyBox( XorStr( "Toggle Key" ), &legit->ToggleKey );
+			AW::Checkbox( XorStr( "Fire on Key" ), &legit->FireOnKey );
 
-		int j = AW::ClassIndex( m_iLegitClass, m_iWeaponTriggerbot );
-		AW::Combo( XorStr( "Weapon" ), &j, names, clsCount );
-		m_iWeaponTriggerbot = AW::ClassWeapon( m_iLegitClass, j );
-		twid = Config::GetWeaponID( Config::WeaponList[ m_iWeaponTriggerbot ] );
-		shown = Config::Main->TriggerbotWeaponConfig ? Config::Weapon[ twid ]->Triggerbot : Config::Main->Triggerbot;
-		DrawTriggerBlock( shown );
-		AW::EndPanel();
-		AW::BeginPanel( XorStr( "Filter" ), ImVec2( pos.x + 402.0f, pos.y + 510.0f ), ImVec2( 394.0f, 142.0f ) );
-		AW::Checkbox( XorStr( "Head" ), &shown->Head );
-		AW::Checkbox( XorStr( "Chest" ), &shown->Chest );
-		AW::Checkbox( XorStr( "Stomach" ), &shown->Stomach );
-		AW::Checkbox( XorStr( "Arms" ), &shown->Arms );
-		AW::Checkbox( XorStr( "Legs" ), &shown->Legs );
-		AW::EndPanel();
+			if( legit->FireOnKey )
+				AW::KeyBox( XorStr( "Fire Key" ), &legit->FireKey );
+
+			AW::EndPanel();
+		}
 	}
 
 	void Menu::DrawVisualsTab()
@@ -1610,6 +1669,9 @@ namespace Feature
 
 			AW::Checkbox( XorStr( "BunnyHop" ), &Config::Misc->AutoJump );
 			AW::Checkbox( XorStr( "Auto Pistol" ), &Config::Misc->AutoPistol );
+
+			if( Config::Misc->AutoPistol )
+				AW::SliderInt( XorStr( "Refire Delay" ), &Config::Misc->AutoPistolDelay, 0, 500, XorStr( "%d ms" ) );
 			AW::Combo( XorStr( "Auto Strafe" ), &Config::Misc->AutoStrafe, AutoStrafeList, ARRAYSIZE( AutoStrafeList ) );
 		}
 

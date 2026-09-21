@@ -24,6 +24,9 @@ namespace Feature
 		// Точка прицеливания: хитбокс Spot с учётом лаг-компенсации.
 		bool				ComputeAimPoint( C_CSPlayer* pTarget, Vector3& vPoint );
 
+		// Легит: ближайшая кость из включённых зон.
+		bool				NearestZonePoint( C_CSPlayer* pTarget, Vector3& vPoint );
+
 		// Видимость/прострел точки. Если основная точка не бьётся,
 		// запускает хитскан (может подвинуть vPoint).
 		bool				CanHitPoint( C_CSPlayer* pTarget, Vector3& vPoint );
@@ -47,6 +50,7 @@ namespace Feature
 		void				ApplyRecoilCompensation( Vector3& vAim );
 		void				ApplyStepSmooth( Vector3& vAim );
 		void				ApplyLinearSmooth( Vector3& vAim );
+		void				ApplyCurveHumanize( Vector3& vAim );
 
 		// SMAC-режим (Restriction == 1): двигаем курсор вместо углов.
 		void				ApplyMouseAim( const Vector3& vAim, const Vector3& vPoint );
@@ -77,6 +81,8 @@ namespace Feature
 		// Легит: трекинг панча для стендалон-RCS + гуманизированная задержка.
 		Vector3				m_vOldPunch;
 		int					m_iLegitDelay;
+		bool				m_bLegitToggle;
+		bool				m_bLegitToggleWasDown;
 
 		Shared::Timer		m_Timer;
 	};

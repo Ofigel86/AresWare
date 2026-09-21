@@ -4,6 +4,7 @@
 #include "HitMarker.hpp"
 #include "Resolver.hpp"
 #include <cstdio>
+#include <cstring>
 class GameEventListener : public IGameEventListener2
 {
 public:
@@ -513,6 +514,54 @@ namespace Source
 			return ( tr.fraction == 1.0f || tr.m_pEnt == pEnt );
 
 		return ( tr.fraction == 1.0f );
+	}
+
+	// Легит ThroughSmoke: движок v34 LineGoesThroughSmoke не отдаёт — считаем сами:
+	// сегмент глаз→точка против сфер активного дыма (CParticleSmokeGrenade, ~130u).
+	bool LineThroughSmoke( const Vector3& vFrom, const Vector3& vTo )
+	{
+		Vector3 vDir = vTo - vFrom;
+
+		const float flLenSq = vDir.Dot( vDir );
+
+		if( flLenSq < 1.0f )
+			return false;
+
+		const int iMax = m_pEntList->GetHighestEntityIndex();
+
+		for( int i = 0; i <= iMax; i++ )
+		{
+			auto pEnt = m_pEntList->GetBaseEntity( i );
+
+			if( !pEnt || pEnt->IsDormant() )
+				continue;
+
+			auto pClass = pEnt->GetClientClass();
+
+			if( !pClass || !pClass->m_pNetworkName )
+				continue;
+
+			if( !strstr( pClass->m_pNetworkName, "ParticleSmoke" ) )
+				continue;
+
+			const Vector3 vSmoke = pEnt->m_vecOrigin();
+			const Vector3 vRel = vSmoke - vFrom;
+
+			float flT = vRel.Dot( vDir ) / flLenSq;
+
+			if( flT < 0.0f )
+				flT = 0.0f;
+			else if( flT > 1.0f )
+				flT = 1.0f;
+
+			const Vector3 vClosest = vFrom + vDir * flT;
+			const Vector3 vDiff = vSmoke - vClosest;
+
+			if( vDiff.Dot( vDiff ) < 130.0f * 130.0f )
+				return true;
+		}
+
+		return false;
 	}
 
 	bool WorldToScreen( const Vector3& vPoint, Vector3& vOut )

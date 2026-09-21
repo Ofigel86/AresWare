@@ -68,6 +68,19 @@ namespace Config
 		int		RCSDelay = 0;			// bullets ( 0 - 10 )
 		int		RCSAmountX = 0;			// percents ( 0 - 100 )
 		int		RCSAmountY = 0;			// percents ( 0 - 100 )
+		float	Randomize = 0.0f;	// legit: aim-point jitter (units)
+		float	Curve = 0.0f;		// legit: approach arc (0-1)
+		bool	ZoneHead = false;	// legit aim zones
+		bool	ZoneChest = false;
+		bool	ZoneStomach = false;
+		bool	ZoneArms = false;
+		bool	ZoneLegs = false;
+		int		HitboxPriority = 1;	// 0 Head|1 Chest|2 Stomach|3 Arms|4 Legs
+		int		HitboxSelection = 0;	// 0 Priority|1 Nearest
+		int		ToggleKey = 0;
+		bool	FireOnKey = false;
+		int		FireKey = 0;
+		bool	ThroughSmoke = false;
 		bool	RCSStandalone = false;	// legit: spray control without target
 		bool	FlashCheck = false;	// legit: hold aim while flashed
 		bool	HumanizeDelay = false;	// legit: reaction jitter on Delay
@@ -117,6 +130,7 @@ namespace Config
 		bool	AutoWall = false;		// 
 		int		MinDamage = 0;			// 0 - 100
 		int		Target = 0;				// 0 - Everyone | 1 - Enemy | 2 - Friendly
+		bool	ThroughSmoke = false;	// allow firing through smoke
 
 		void Clamp()
 		{
@@ -131,7 +145,6 @@ namespace Config
 	{
 		int		Mode = 0;			// 0 - Off | 1 - Auto | 2 - On Press
 		int		Key = 0;			//
-		int		Spot = 12;			// хитбокс (12 - Head)
 		int		TargetSelection = 2;// 0 - Fast | 1 - Distance | 2 - FOV
 		float	FieldOfView = 5.0f;	//
 		int		Smooth = 2;			// 0 - Off | 1 - Step | 2 - Linear
@@ -153,11 +166,26 @@ namespace Config
 		bool	Backtrack = false;	// legit backtrack (server-valid window)
 		bool	HumanizeDelay = false;	// reaction jitter on Delay
 		bool	AutoScope = false;	// zoom scoped rifles when target found
+		float	Randomize = 0.0f;	// aim-point jitter, units (0-10)
+		float	Curve = 0.0f;		// approach arc (0-1)
+		bool	ZoneHead = true;	// aim zones
+		bool	ZoneChest = true;
+		bool	ZoneStomach = true;
+		bool	ZoneArms = false;
+		bool	ZoneLegs = false;
+		int		HitboxPriority = 1;	// 0 Head|1 Chest|2 Stomach|3 Arms|4 Legs
+		int		HitboxSelection = 1;	// 0 Priority|1 Nearest
+		int		ToggleKey = 0;		// master toggle key
+		bool	FireOnKey = false;	// fire only with FireKey held
+		int		FireKey = 0;
+		int		TSD = 0;			// target switch delay, ms
+		bool	ThroughSmoke = false;	// allow aiming through smoke
+		bool	AutoWall = false;	// legit wallbang (off = safer)
+		int		MinDamage = 0;		// for legit wallbang
 
 		void	Clamp()
 		{
 			LimitValue( Key, 0, 128 );
-			LimitValue( Spot, 0, 19 );
 			LimitValue( TargetSelection, 0, 2 );
 			LimitValue( FieldOfView, 0.0f, 180.0f );
 			LimitValue( Smooth, 0, 2 );
@@ -171,6 +199,14 @@ namespace Config
 			LimitValue( RCSAmountX, 0, 100 );
 			LimitValue( RCSAmountY, 0, 100 );
 			LimitValue( Target, 0, 2 );
+			LimitValue( Randomize, 0.0f, 10.0f );
+			LimitValue( Curve, 0.0f, 1.0f );
+			LimitValue( HitboxPriority, 0, 4 );
+			LimitValue( HitboxSelection, 0, 1 );
+			LimitValue( ToggleKey, 0, 128 );
+			LimitValue( FireKey, 0, 128 );
+			LimitValue( TSD, 0, 5000 );
+			LimitValue( MinDamage, 0, 100 );
 		}
 	};
 
@@ -336,7 +372,8 @@ namespace Config
 		int Crash = 0;
 		bool Lag = false;
 		bool	AutoJump = false;		// 
-		bool	AutoPistol = false;		// 
+		bool	AutoPistol = false;
+	int	AutoPistolDelay = 0;	// ms between refires, 0 = engine rate		// 
 		int		AutoStrafe = 0;			// 0 - Off | 1 - Optimal | 2 - Optimal + WASD
 		bool	BombWarning = false;	// 
 		float viewfov = 0;
@@ -406,6 +443,7 @@ namespace Config
 	extern CurrentList*		Weapon[ WEAPON_MAX ];
 
 	extern LegitbotList*	Legitbot;
+	extern LegitbotList*	LegitbotClasses[ 5 ]; // per-class: 0 Pistol|1 SMG|2 Rifle|3 Shotgun|4 Sniper
 
 	extern ESPList*			ESP;
 	extern RenderList*		Render;

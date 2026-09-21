@@ -21,6 +21,7 @@ namespace Config
 	ColorsList*		Colors = nullptr;
 	BindsList*		Binds = nullptr;
 	LegitbotList*	Legitbot = nullptr;
+	LegitbotList*	LegitbotClasses[ 5 ] = { nullptr, nullptr, nullptr, nullptr, nullptr };
 
 	std::string		m_config;
 	std::string		m_current;
@@ -51,7 +52,10 @@ namespace Config
 			Misc = new MiscList();
 			Colors = new ColorsList();
 			Binds = new BindsList();
-			Legitbot = new LegitbotList();
+			for( int i = 0; i < 5; i++ )
+				LegitbotClasses[ i ] = new LegitbotList();
+
+			Legitbot = LegitbotClasses[ 0 ];
 
 			m_config = Shared::m_pVars->m_loader;
 			m_config.append(XorStr("\\v34\\"));
@@ -87,7 +91,10 @@ namespace Config
 		Memory::SafeDelete( Misc );
 		Memory::SafeDelete( Colors );
 		Memory::SafeDelete( Binds );
-		Memory::SafeDelete( Legitbot );
+		for( int i = 0; i < 5; i++ )
+			Memory::SafeDelete( LegitbotClasses[ i ] );
+
+		Legitbot = nullptr;
 	}
 
 	bool LoadBool( const std::string& strSection, const std::string& strName )
@@ -253,32 +260,213 @@ namespace Config
 		if( Main->AimbotStyle < 0 || Main->AimbotStyle > 1 )
 			Main->AimbotStyle = 0;
 
-		Legitbot->Mode				= LoadInt( main, XorStr( "legitbot.mode" ) );
-		Legitbot->Key				= LoadInt( main, XorStr( "legitbot.key" ) );
-		Legitbot->Spot				= LoadInt( main, XorStr( "legitbot.spot" ) );
-		Legitbot->TargetSelection	= LoadInt( main, XorStr( "legitbot.target.selection" ) );
-		Legitbot->FieldOfView		= LoadFloat( main, XorStr( "legitbot.fov" ) );
-		Legitbot->Smooth			= LoadInt( main, XorStr( "legitbot.smooth" ) );
-		Legitbot->StepX			= LoadFloat( main, XorStr( "legitbot.step.vertical" ) );
-		Legitbot->StepY			= LoadFloat( main, XorStr( "legitbot.step.horizontal" ) );
-		Legitbot->SmoothX			= LoadFloat( main, XorStr( "legitbot.smooth.vertical" ) );
-		Legitbot->SmoothY			= LoadFloat( main, XorStr( "legitbot.smooth.horizontal" ) );
-		Legitbot->Delay			= LoadInt( main, XorStr( "legitbot.delay" ) );
-		Legitbot->Duration			= LoadInt( main, XorStr( "legitbot.duration" ) );
-		Legitbot->RCS				= LoadBool( main, XorStr( "legitbot.rcs" ) );
-		Legitbot->RCSDelay			= LoadInt( main, XorStr( "legitbot.rcs.delay" ) );
-		Legitbot->RCSAmountX		= LoadInt( main, XorStr( "legitbot.rcs.amount.vertical" ) );
-		Legitbot->RCSAmountY		= LoadInt( main, XorStr( "legitbot.rcs.amount.horizontal" ) );
-		Legitbot->Target			= LoadInt( main, XorStr( "legitbot.target" ) );
-		Legitbot->AutoFire			= LoadBool( main, XorStr( "legitbot.auto.fire" ) );
-		Legitbot->AutoStop			= LoadBool( main, XorStr( "legitbot.auto.stop" ) );
-		Legitbot->RCSStandalone	= LoadBool( main, XorStr( "legitbot.rcs.standalone" ) );
-		Legitbot->FlashCheck	= LoadBool( main, XorStr( "legitbot.flash.check" ) );
-		Legitbot->Backtrack		= LoadBool( main, XorStr( "legitbot.backtrack" ) );
-		Legitbot->HumanizeDelay	= LoadBool( main, XorStr( "legitbot.delay.humanize" ) );
-		Legitbot->AutoScope		= LoadBool( main, XorStr( "legitbot.auto.scope" ) );
+		// Legit class: pistol
+		LegitbotClasses[ 0 ]->Mode = LoadInt( main, XorStr( "legitbot.pistol.mode" ) );
+		LegitbotClasses[ 0 ]->Key = LoadInt( main, XorStr( "legitbot.pistol.key" ) );
+		LegitbotClasses[ 0 ]->TargetSelection = LoadInt( main, XorStr( "legitbot.pistol.target.selection" ) );
+		LegitbotClasses[ 0 ]->FieldOfView = LoadFloat( main, XorStr( "legitbot.pistol.fov" ) );
+		LegitbotClasses[ 0 ]->Smooth = LoadInt( main, XorStr( "legitbot.pistol.smooth" ) );
+		LegitbotClasses[ 0 ]->StepX = LoadFloat( main, XorStr( "legitbot.pistol.step.vertical" ) );
+		LegitbotClasses[ 0 ]->StepY = LoadFloat( main, XorStr( "legitbot.pistol.step.horizontal" ) );
+		LegitbotClasses[ 0 ]->SmoothX = LoadFloat( main, XorStr( "legitbot.pistol.smooth.vertical" ) );
+		LegitbotClasses[ 0 ]->SmoothY = LoadFloat( main, XorStr( "legitbot.pistol.smooth.horizontal" ) );
+		LegitbotClasses[ 0 ]->Delay = LoadInt( main, XorStr( "legitbot.pistol.delay" ) );
+		LegitbotClasses[ 0 ]->Duration = LoadInt( main, XorStr( "legitbot.pistol.duration" ) );
+		LegitbotClasses[ 0 ]->RCS = LoadBool( main, XorStr( "legitbot.pistol.rcs" ) );
+		LegitbotClasses[ 0 ]->RCSDelay = LoadInt( main, XorStr( "legitbot.pistol.rcs.delay" ) );
+		LegitbotClasses[ 0 ]->RCSAmountX = LoadInt( main, XorStr( "legitbot.pistol.rcs.amount.vertical" ) );
+		LegitbotClasses[ 0 ]->RCSAmountY = LoadInt( main, XorStr( "legitbot.pistol.rcs.amount.horizontal" ) );
+		LegitbotClasses[ 0 ]->Target = LoadInt( main, XorStr( "legitbot.pistol.target" ) );
+		LegitbotClasses[ 0 ]->AutoFire = LoadBool( main, XorStr( "legitbot.pistol.auto.fire" ) );
+		LegitbotClasses[ 0 ]->AutoStop = LoadBool( main, XorStr( "legitbot.pistol.auto.stop" ) );
+		LegitbotClasses[ 0 ]->RCSStandalone = LoadBool( main, XorStr( "legitbot.pistol.rcs.standalone" ) );
+		LegitbotClasses[ 0 ]->FlashCheck = LoadBool( main, XorStr( "legitbot.pistol.flash.check" ) );
+		LegitbotClasses[ 0 ]->Backtrack = LoadBool( main, XorStr( "legitbot.pistol.backtrack" ) );
+		LegitbotClasses[ 0 ]->HumanizeDelay = LoadBool( main, XorStr( "legitbot.pistol.delay.humanize" ) );
+		LegitbotClasses[ 0 ]->AutoScope = LoadBool( main, XorStr( "legitbot.pistol.auto.scope" ) );
+		LegitbotClasses[ 0 ]->Randomize = LoadFloat( main, XorStr( "legitbot.pistol.randomize" ) );
+		LegitbotClasses[ 0 ]->Curve = LoadFloat( main, XorStr( "legitbot.pistol.curve" ) );
+		LegitbotClasses[ 0 ]->ZoneHead = LoadBool( main, XorStr( "legitbot.pistol.zone.head" ) );
+		LegitbotClasses[ 0 ]->ZoneChest = LoadBool( main, XorStr( "legitbot.pistol.zone.chest" ) );
+		LegitbotClasses[ 0 ]->ZoneStomach = LoadBool( main, XorStr( "legitbot.pistol.zone.stomach" ) );
+		LegitbotClasses[ 0 ]->ZoneArms = LoadBool( main, XorStr( "legitbot.pistol.zone.arms" ) );
+		LegitbotClasses[ 0 ]->ZoneLegs = LoadBool( main, XorStr( "legitbot.pistol.zone.legs" ) );
+		LegitbotClasses[ 0 ]->HitboxPriority = LoadInt( main, XorStr( "legitbot.pistol.hitbox.priority" ) );
+		LegitbotClasses[ 0 ]->HitboxSelection = LoadInt( main, XorStr( "legitbot.pistol.hitbox.selection" ) );
+		LegitbotClasses[ 0 ]->ToggleKey = LoadInt( main, XorStr( "legitbot.pistol.toggle.key" ) );
+		LegitbotClasses[ 0 ]->FireOnKey = LoadBool( main, XorStr( "legitbot.pistol.fire.on.key" ) );
+		LegitbotClasses[ 0 ]->FireKey = LoadInt( main, XorStr( "legitbot.pistol.fire.key" ) );
+		LegitbotClasses[ 0 ]->TSD = LoadInt( main, XorStr( "legitbot.pistol.switch.delay" ) );
+		LegitbotClasses[ 0 ]->ThroughSmoke = LoadBool( main, XorStr( "legitbot.pistol.through.smoke" ) );
+		LegitbotClasses[ 0 ]->AutoWall = LoadBool( main, XorStr( "legitbot.pistol.auto.wall" ) );
+		LegitbotClasses[ 0 ]->MinDamage = LoadInt( main, XorStr( "legitbot.pistol.min.damage" ) );
 
-		Legitbot->Clamp();
+		// Legit class: smg
+		LegitbotClasses[ 1 ]->Mode = LoadInt( main, XorStr( "legitbot.smg.mode" ) );
+		LegitbotClasses[ 1 ]->Key = LoadInt( main, XorStr( "legitbot.smg.key" ) );
+		LegitbotClasses[ 1 ]->TargetSelection = LoadInt( main, XorStr( "legitbot.smg.target.selection" ) );
+		LegitbotClasses[ 1 ]->FieldOfView = LoadFloat( main, XorStr( "legitbot.smg.fov" ) );
+		LegitbotClasses[ 1 ]->Smooth = LoadInt( main, XorStr( "legitbot.smg.smooth" ) );
+		LegitbotClasses[ 1 ]->StepX = LoadFloat( main, XorStr( "legitbot.smg.step.vertical" ) );
+		LegitbotClasses[ 1 ]->StepY = LoadFloat( main, XorStr( "legitbot.smg.step.horizontal" ) );
+		LegitbotClasses[ 1 ]->SmoothX = LoadFloat( main, XorStr( "legitbot.smg.smooth.vertical" ) );
+		LegitbotClasses[ 1 ]->SmoothY = LoadFloat( main, XorStr( "legitbot.smg.smooth.horizontal" ) );
+		LegitbotClasses[ 1 ]->Delay = LoadInt( main, XorStr( "legitbot.smg.delay" ) );
+		LegitbotClasses[ 1 ]->Duration = LoadInt( main, XorStr( "legitbot.smg.duration" ) );
+		LegitbotClasses[ 1 ]->RCS = LoadBool( main, XorStr( "legitbot.smg.rcs" ) );
+		LegitbotClasses[ 1 ]->RCSDelay = LoadInt( main, XorStr( "legitbot.smg.rcs.delay" ) );
+		LegitbotClasses[ 1 ]->RCSAmountX = LoadInt( main, XorStr( "legitbot.smg.rcs.amount.vertical" ) );
+		LegitbotClasses[ 1 ]->RCSAmountY = LoadInt( main, XorStr( "legitbot.smg.rcs.amount.horizontal" ) );
+		LegitbotClasses[ 1 ]->Target = LoadInt( main, XorStr( "legitbot.smg.target" ) );
+		LegitbotClasses[ 1 ]->AutoFire = LoadBool( main, XorStr( "legitbot.smg.auto.fire" ) );
+		LegitbotClasses[ 1 ]->AutoStop = LoadBool( main, XorStr( "legitbot.smg.auto.stop" ) );
+		LegitbotClasses[ 1 ]->RCSStandalone = LoadBool( main, XorStr( "legitbot.smg.rcs.standalone" ) );
+		LegitbotClasses[ 1 ]->FlashCheck = LoadBool( main, XorStr( "legitbot.smg.flash.check" ) );
+		LegitbotClasses[ 1 ]->Backtrack = LoadBool( main, XorStr( "legitbot.smg.backtrack" ) );
+		LegitbotClasses[ 1 ]->HumanizeDelay = LoadBool( main, XorStr( "legitbot.smg.delay.humanize" ) );
+		LegitbotClasses[ 1 ]->AutoScope = LoadBool( main, XorStr( "legitbot.smg.auto.scope" ) );
+		LegitbotClasses[ 1 ]->Randomize = LoadFloat( main, XorStr( "legitbot.smg.randomize" ) );
+		LegitbotClasses[ 1 ]->Curve = LoadFloat( main, XorStr( "legitbot.smg.curve" ) );
+		LegitbotClasses[ 1 ]->ZoneHead = LoadBool( main, XorStr( "legitbot.smg.zone.head" ) );
+		LegitbotClasses[ 1 ]->ZoneChest = LoadBool( main, XorStr( "legitbot.smg.zone.chest" ) );
+		LegitbotClasses[ 1 ]->ZoneStomach = LoadBool( main, XorStr( "legitbot.smg.zone.stomach" ) );
+		LegitbotClasses[ 1 ]->ZoneArms = LoadBool( main, XorStr( "legitbot.smg.zone.arms" ) );
+		LegitbotClasses[ 1 ]->ZoneLegs = LoadBool( main, XorStr( "legitbot.smg.zone.legs" ) );
+		LegitbotClasses[ 1 ]->HitboxPriority = LoadInt( main, XorStr( "legitbot.smg.hitbox.priority" ) );
+		LegitbotClasses[ 1 ]->HitboxSelection = LoadInt( main, XorStr( "legitbot.smg.hitbox.selection" ) );
+		LegitbotClasses[ 1 ]->ToggleKey = LoadInt( main, XorStr( "legitbot.smg.toggle.key" ) );
+		LegitbotClasses[ 1 ]->FireOnKey = LoadBool( main, XorStr( "legitbot.smg.fire.on.key" ) );
+		LegitbotClasses[ 1 ]->FireKey = LoadInt( main, XorStr( "legitbot.smg.fire.key" ) );
+		LegitbotClasses[ 1 ]->TSD = LoadInt( main, XorStr( "legitbot.smg.switch.delay" ) );
+		LegitbotClasses[ 1 ]->ThroughSmoke = LoadBool( main, XorStr( "legitbot.smg.through.smoke" ) );
+		LegitbotClasses[ 1 ]->AutoWall = LoadBool( main, XorStr( "legitbot.smg.auto.wall" ) );
+		LegitbotClasses[ 1 ]->MinDamage = LoadInt( main, XorStr( "legitbot.smg.min.damage" ) );
+
+		// Legit class: rifle
+		LegitbotClasses[ 2 ]->Mode = LoadInt( main, XorStr( "legitbot.rifle.mode" ) );
+		LegitbotClasses[ 2 ]->Key = LoadInt( main, XorStr( "legitbot.rifle.key" ) );
+		LegitbotClasses[ 2 ]->TargetSelection = LoadInt( main, XorStr( "legitbot.rifle.target.selection" ) );
+		LegitbotClasses[ 2 ]->FieldOfView = LoadFloat( main, XorStr( "legitbot.rifle.fov" ) );
+		LegitbotClasses[ 2 ]->Smooth = LoadInt( main, XorStr( "legitbot.rifle.smooth" ) );
+		LegitbotClasses[ 2 ]->StepX = LoadFloat( main, XorStr( "legitbot.rifle.step.vertical" ) );
+		LegitbotClasses[ 2 ]->StepY = LoadFloat( main, XorStr( "legitbot.rifle.step.horizontal" ) );
+		LegitbotClasses[ 2 ]->SmoothX = LoadFloat( main, XorStr( "legitbot.rifle.smooth.vertical" ) );
+		LegitbotClasses[ 2 ]->SmoothY = LoadFloat( main, XorStr( "legitbot.rifle.smooth.horizontal" ) );
+		LegitbotClasses[ 2 ]->Delay = LoadInt( main, XorStr( "legitbot.rifle.delay" ) );
+		LegitbotClasses[ 2 ]->Duration = LoadInt( main, XorStr( "legitbot.rifle.duration" ) );
+		LegitbotClasses[ 2 ]->RCS = LoadBool( main, XorStr( "legitbot.rifle.rcs" ) );
+		LegitbotClasses[ 2 ]->RCSDelay = LoadInt( main, XorStr( "legitbot.rifle.rcs.delay" ) );
+		LegitbotClasses[ 2 ]->RCSAmountX = LoadInt( main, XorStr( "legitbot.rifle.rcs.amount.vertical" ) );
+		LegitbotClasses[ 2 ]->RCSAmountY = LoadInt( main, XorStr( "legitbot.rifle.rcs.amount.horizontal" ) );
+		LegitbotClasses[ 2 ]->Target = LoadInt( main, XorStr( "legitbot.rifle.target" ) );
+		LegitbotClasses[ 2 ]->AutoFire = LoadBool( main, XorStr( "legitbot.rifle.auto.fire" ) );
+		LegitbotClasses[ 2 ]->AutoStop = LoadBool( main, XorStr( "legitbot.rifle.auto.stop" ) );
+		LegitbotClasses[ 2 ]->RCSStandalone = LoadBool( main, XorStr( "legitbot.rifle.rcs.standalone" ) );
+		LegitbotClasses[ 2 ]->FlashCheck = LoadBool( main, XorStr( "legitbot.rifle.flash.check" ) );
+		LegitbotClasses[ 2 ]->Backtrack = LoadBool( main, XorStr( "legitbot.rifle.backtrack" ) );
+		LegitbotClasses[ 2 ]->HumanizeDelay = LoadBool( main, XorStr( "legitbot.rifle.delay.humanize" ) );
+		LegitbotClasses[ 2 ]->AutoScope = LoadBool( main, XorStr( "legitbot.rifle.auto.scope" ) );
+		LegitbotClasses[ 2 ]->Randomize = LoadFloat( main, XorStr( "legitbot.rifle.randomize" ) );
+		LegitbotClasses[ 2 ]->Curve = LoadFloat( main, XorStr( "legitbot.rifle.curve" ) );
+		LegitbotClasses[ 2 ]->ZoneHead = LoadBool( main, XorStr( "legitbot.rifle.zone.head" ) );
+		LegitbotClasses[ 2 ]->ZoneChest = LoadBool( main, XorStr( "legitbot.rifle.zone.chest" ) );
+		LegitbotClasses[ 2 ]->ZoneStomach = LoadBool( main, XorStr( "legitbot.rifle.zone.stomach" ) );
+		LegitbotClasses[ 2 ]->ZoneArms = LoadBool( main, XorStr( "legitbot.rifle.zone.arms" ) );
+		LegitbotClasses[ 2 ]->ZoneLegs = LoadBool( main, XorStr( "legitbot.rifle.zone.legs" ) );
+		LegitbotClasses[ 2 ]->HitboxPriority = LoadInt( main, XorStr( "legitbot.rifle.hitbox.priority" ) );
+		LegitbotClasses[ 2 ]->HitboxSelection = LoadInt( main, XorStr( "legitbot.rifle.hitbox.selection" ) );
+		LegitbotClasses[ 2 ]->ToggleKey = LoadInt( main, XorStr( "legitbot.rifle.toggle.key" ) );
+		LegitbotClasses[ 2 ]->FireOnKey = LoadBool( main, XorStr( "legitbot.rifle.fire.on.key" ) );
+		LegitbotClasses[ 2 ]->FireKey = LoadInt( main, XorStr( "legitbot.rifle.fire.key" ) );
+		LegitbotClasses[ 2 ]->TSD = LoadInt( main, XorStr( "legitbot.rifle.switch.delay" ) );
+		LegitbotClasses[ 2 ]->ThroughSmoke = LoadBool( main, XorStr( "legitbot.rifle.through.smoke" ) );
+		LegitbotClasses[ 2 ]->AutoWall = LoadBool( main, XorStr( "legitbot.rifle.auto.wall" ) );
+		LegitbotClasses[ 2 ]->MinDamage = LoadInt( main, XorStr( "legitbot.rifle.min.damage" ) );
+
+		// Legit class: shotgun
+		LegitbotClasses[ 3 ]->Mode = LoadInt( main, XorStr( "legitbot.shotgun.mode" ) );
+		LegitbotClasses[ 3 ]->Key = LoadInt( main, XorStr( "legitbot.shotgun.key" ) );
+		LegitbotClasses[ 3 ]->TargetSelection = LoadInt( main, XorStr( "legitbot.shotgun.target.selection" ) );
+		LegitbotClasses[ 3 ]->FieldOfView = LoadFloat( main, XorStr( "legitbot.shotgun.fov" ) );
+		LegitbotClasses[ 3 ]->Smooth = LoadInt( main, XorStr( "legitbot.shotgun.smooth" ) );
+		LegitbotClasses[ 3 ]->StepX = LoadFloat( main, XorStr( "legitbot.shotgun.step.vertical" ) );
+		LegitbotClasses[ 3 ]->StepY = LoadFloat( main, XorStr( "legitbot.shotgun.step.horizontal" ) );
+		LegitbotClasses[ 3 ]->SmoothX = LoadFloat( main, XorStr( "legitbot.shotgun.smooth.vertical" ) );
+		LegitbotClasses[ 3 ]->SmoothY = LoadFloat( main, XorStr( "legitbot.shotgun.smooth.horizontal" ) );
+		LegitbotClasses[ 3 ]->Delay = LoadInt( main, XorStr( "legitbot.shotgun.delay" ) );
+		LegitbotClasses[ 3 ]->Duration = LoadInt( main, XorStr( "legitbot.shotgun.duration" ) );
+		LegitbotClasses[ 3 ]->RCS = LoadBool( main, XorStr( "legitbot.shotgun.rcs" ) );
+		LegitbotClasses[ 3 ]->RCSDelay = LoadInt( main, XorStr( "legitbot.shotgun.rcs.delay" ) );
+		LegitbotClasses[ 3 ]->RCSAmountX = LoadInt( main, XorStr( "legitbot.shotgun.rcs.amount.vertical" ) );
+		LegitbotClasses[ 3 ]->RCSAmountY = LoadInt( main, XorStr( "legitbot.shotgun.rcs.amount.horizontal" ) );
+		LegitbotClasses[ 3 ]->Target = LoadInt( main, XorStr( "legitbot.shotgun.target" ) );
+		LegitbotClasses[ 3 ]->AutoFire = LoadBool( main, XorStr( "legitbot.shotgun.auto.fire" ) );
+		LegitbotClasses[ 3 ]->AutoStop = LoadBool( main, XorStr( "legitbot.shotgun.auto.stop" ) );
+		LegitbotClasses[ 3 ]->RCSStandalone = LoadBool( main, XorStr( "legitbot.shotgun.rcs.standalone" ) );
+		LegitbotClasses[ 3 ]->FlashCheck = LoadBool( main, XorStr( "legitbot.shotgun.flash.check" ) );
+		LegitbotClasses[ 3 ]->Backtrack = LoadBool( main, XorStr( "legitbot.shotgun.backtrack" ) );
+		LegitbotClasses[ 3 ]->HumanizeDelay = LoadBool( main, XorStr( "legitbot.shotgun.delay.humanize" ) );
+		LegitbotClasses[ 3 ]->AutoScope = LoadBool( main, XorStr( "legitbot.shotgun.auto.scope" ) );
+		LegitbotClasses[ 3 ]->Randomize = LoadFloat( main, XorStr( "legitbot.shotgun.randomize" ) );
+		LegitbotClasses[ 3 ]->Curve = LoadFloat( main, XorStr( "legitbot.shotgun.curve" ) );
+		LegitbotClasses[ 3 ]->ZoneHead = LoadBool( main, XorStr( "legitbot.shotgun.zone.head" ) );
+		LegitbotClasses[ 3 ]->ZoneChest = LoadBool( main, XorStr( "legitbot.shotgun.zone.chest" ) );
+		LegitbotClasses[ 3 ]->ZoneStomach = LoadBool( main, XorStr( "legitbot.shotgun.zone.stomach" ) );
+		LegitbotClasses[ 3 ]->ZoneArms = LoadBool( main, XorStr( "legitbot.shotgun.zone.arms" ) );
+		LegitbotClasses[ 3 ]->ZoneLegs = LoadBool( main, XorStr( "legitbot.shotgun.zone.legs" ) );
+		LegitbotClasses[ 3 ]->HitboxPriority = LoadInt( main, XorStr( "legitbot.shotgun.hitbox.priority" ) );
+		LegitbotClasses[ 3 ]->HitboxSelection = LoadInt( main, XorStr( "legitbot.shotgun.hitbox.selection" ) );
+		LegitbotClasses[ 3 ]->ToggleKey = LoadInt( main, XorStr( "legitbot.shotgun.toggle.key" ) );
+		LegitbotClasses[ 3 ]->FireOnKey = LoadBool( main, XorStr( "legitbot.shotgun.fire.on.key" ) );
+		LegitbotClasses[ 3 ]->FireKey = LoadInt( main, XorStr( "legitbot.shotgun.fire.key" ) );
+		LegitbotClasses[ 3 ]->TSD = LoadInt( main, XorStr( "legitbot.shotgun.switch.delay" ) );
+		LegitbotClasses[ 3 ]->ThroughSmoke = LoadBool( main, XorStr( "legitbot.shotgun.through.smoke" ) );
+		LegitbotClasses[ 3 ]->AutoWall = LoadBool( main, XorStr( "legitbot.shotgun.auto.wall" ) );
+		LegitbotClasses[ 3 ]->MinDamage = LoadInt( main, XorStr( "legitbot.shotgun.min.damage" ) );
+
+		// Legit class: sniper
+		LegitbotClasses[ 4 ]->Mode = LoadInt( main, XorStr( "legitbot.sniper.mode" ) );
+		LegitbotClasses[ 4 ]->Key = LoadInt( main, XorStr( "legitbot.sniper.key" ) );
+		LegitbotClasses[ 4 ]->TargetSelection = LoadInt( main, XorStr( "legitbot.sniper.target.selection" ) );
+		LegitbotClasses[ 4 ]->FieldOfView = LoadFloat( main, XorStr( "legitbot.sniper.fov" ) );
+		LegitbotClasses[ 4 ]->Smooth = LoadInt( main, XorStr( "legitbot.sniper.smooth" ) );
+		LegitbotClasses[ 4 ]->StepX = LoadFloat( main, XorStr( "legitbot.sniper.step.vertical" ) );
+		LegitbotClasses[ 4 ]->StepY = LoadFloat( main, XorStr( "legitbot.sniper.step.horizontal" ) );
+		LegitbotClasses[ 4 ]->SmoothX = LoadFloat( main, XorStr( "legitbot.sniper.smooth.vertical" ) );
+		LegitbotClasses[ 4 ]->SmoothY = LoadFloat( main, XorStr( "legitbot.sniper.smooth.horizontal" ) );
+		LegitbotClasses[ 4 ]->Delay = LoadInt( main, XorStr( "legitbot.sniper.delay" ) );
+		LegitbotClasses[ 4 ]->Duration = LoadInt( main, XorStr( "legitbot.sniper.duration" ) );
+		LegitbotClasses[ 4 ]->RCS = LoadBool( main, XorStr( "legitbot.sniper.rcs" ) );
+		LegitbotClasses[ 4 ]->RCSDelay = LoadInt( main, XorStr( "legitbot.sniper.rcs.delay" ) );
+		LegitbotClasses[ 4 ]->RCSAmountX = LoadInt( main, XorStr( "legitbot.sniper.rcs.amount.vertical" ) );
+		LegitbotClasses[ 4 ]->RCSAmountY = LoadInt( main, XorStr( "legitbot.sniper.rcs.amount.horizontal" ) );
+		LegitbotClasses[ 4 ]->Target = LoadInt( main, XorStr( "legitbot.sniper.target" ) );
+		LegitbotClasses[ 4 ]->AutoFire = LoadBool( main, XorStr( "legitbot.sniper.auto.fire" ) );
+		LegitbotClasses[ 4 ]->AutoStop = LoadBool( main, XorStr( "legitbot.sniper.auto.stop" ) );
+		LegitbotClasses[ 4 ]->RCSStandalone = LoadBool( main, XorStr( "legitbot.sniper.rcs.standalone" ) );
+		LegitbotClasses[ 4 ]->FlashCheck = LoadBool( main, XorStr( "legitbot.sniper.flash.check" ) );
+		LegitbotClasses[ 4 ]->Backtrack = LoadBool( main, XorStr( "legitbot.sniper.backtrack" ) );
+		LegitbotClasses[ 4 ]->HumanizeDelay = LoadBool( main, XorStr( "legitbot.sniper.delay.humanize" ) );
+		LegitbotClasses[ 4 ]->AutoScope = LoadBool( main, XorStr( "legitbot.sniper.auto.scope" ) );
+		LegitbotClasses[ 4 ]->Randomize = LoadFloat( main, XorStr( "legitbot.sniper.randomize" ) );
+		LegitbotClasses[ 4 ]->Curve = LoadFloat( main, XorStr( "legitbot.sniper.curve" ) );
+		LegitbotClasses[ 4 ]->ZoneHead = LoadBool( main, XorStr( "legitbot.sniper.zone.head" ) );
+		LegitbotClasses[ 4 ]->ZoneChest = LoadBool( main, XorStr( "legitbot.sniper.zone.chest" ) );
+		LegitbotClasses[ 4 ]->ZoneStomach = LoadBool( main, XorStr( "legitbot.sniper.zone.stomach" ) );
+		LegitbotClasses[ 4 ]->ZoneArms = LoadBool( main, XorStr( "legitbot.sniper.zone.arms" ) );
+		LegitbotClasses[ 4 ]->ZoneLegs = LoadBool( main, XorStr( "legitbot.sniper.zone.legs" ) );
+		LegitbotClasses[ 4 ]->HitboxPriority = LoadInt( main, XorStr( "legitbot.sniper.hitbox.priority" ) );
+		LegitbotClasses[ 4 ]->HitboxSelection = LoadInt( main, XorStr( "legitbot.sniper.hitbox.selection" ) );
+		LegitbotClasses[ 4 ]->ToggleKey = LoadInt( main, XorStr( "legitbot.sniper.toggle.key" ) );
+		LegitbotClasses[ 4 ]->FireOnKey = LoadBool( main, XorStr( "legitbot.sniper.fire.on.key" ) );
+		LegitbotClasses[ 4 ]->FireKey = LoadInt( main, XorStr( "legitbot.sniper.fire.key" ) );
+		LegitbotClasses[ 4 ]->TSD = LoadInt( main, XorStr( "legitbot.sniper.switch.delay" ) );
+		LegitbotClasses[ 4 ]->ThroughSmoke = LoadBool( main, XorStr( "legitbot.sniper.through.smoke" ) );
+		LegitbotClasses[ 4 ]->AutoWall = LoadBool( main, XorStr( "legitbot.sniper.auto.wall" ) );
+		LegitbotClasses[ 4 ]->MinDamage = LoadInt( main, XorStr( "legitbot.sniper.min.damage" ) );
+
+		for( int i = 0; i < 5; i++ )
+			LegitbotClasses[ i ]->Clamp();
 
 		Main->TriggerbotWeaponConfig	= LoadBool( main, XorStr( "triggerbot.weapon.config" ) );
 		Main->Triggerbot->Mode			= LoadInt( main, XorStr( "triggerbot.mode" ) );
@@ -294,6 +482,7 @@ namespace Config
 		Main->Triggerbot->AutoWall		= LoadBool( main, XorStr( "triggerbot.autowall" ) );
 		Main->Triggerbot->MinDamage		= LoadInt( main, XorStr( "triggerbot.min.damage" ) );
 		Main->Triggerbot->Target		= LoadInt( main, XorStr( "triggerbot.target" ) );
+		Main->Triggerbot->ThroughSmoke	= LoadBool( main, XorStr( "triggerbot.through.smoke" ) );
 
 		Main->Triggerbot->Clamp();
 
@@ -370,6 +559,7 @@ namespace Config
 		Misc->HitmarkerEnabled = LoadBool(main, XorStr("misc.hitmarker"));
 		Misc->HitmarkerHP = LoadBool(main, XorStr("misc.hitmarker.hp"));
 		Misc->AutoPistol				= LoadBool( main, XorStr( "misc.auto.pistol" ) );
+		Misc->AutoPistolDelay		= LoadInt( main, XorStr( "misc.auto.pistol.delay" ) );
 		Misc->AutoStrafe				= LoadInt( main, XorStr( "misc.auto.strafe" ) );
 		Misc->BombWarning				= LoadBool( main, XorStr( "misc.bomb.warning" ) );
 		Misc->Crosshair					= LoadInt( main, XorStr( "misc.crosshair" ) );
@@ -470,6 +660,7 @@ namespace Config
 			Weapon[ index ]->Triggerbot->AutoWall		= LoadBool( weapon, XorStr( "triggerbot.autowall" ) );
 			Weapon[ index ]->Triggerbot->MinDamage		= LoadInt( weapon, XorStr( "triggerbot.min.damage" ) );
 			Weapon[ index ]->Triggerbot->Target			= LoadInt( weapon, XorStr( "triggerbot.target" ) );
+			Weapon[ index ]->Triggerbot->ThroughSmoke	= LoadBool( weapon, XorStr( "triggerbot.through.smoke" ) );
 
 			Weapon[ index ]->Triggerbot->Clamp();
 		}
@@ -541,32 +732,213 @@ namespace Config
 
 		SaveInt( main, XorStr( "aimbot.style" ), Main->AimbotStyle );
 
-		Legitbot->Clamp();
+		for( int i = 0; i < 5; i++ )
+			LegitbotClasses[ i ]->Clamp();
 
-		SaveInt( main, XorStr( "legitbot.mode" ), Legitbot->Mode );
-		SaveInt( main, XorStr( "legitbot.key" ), Legitbot->Key );
-		SaveInt( main, XorStr( "legitbot.spot" ), Legitbot->Spot );
-		SaveInt( main, XorStr( "legitbot.target.selection" ), Legitbot->TargetSelection );
-		SaveFloat( main, XorStr( "legitbot.fov" ), Legitbot->FieldOfView );
-		SaveInt( main, XorStr( "legitbot.smooth" ), Legitbot->Smooth );
-		SaveFloat( main, XorStr( "legitbot.step.vertical" ), Legitbot->StepX );
-		SaveFloat( main, XorStr( "legitbot.step.horizontal" ), Legitbot->StepY );
-		SaveFloat( main, XorStr( "legitbot.smooth.vertical" ), Legitbot->SmoothX );
-		SaveFloat( main, XorStr( "legitbot.smooth.horizontal" ), Legitbot->SmoothY );
-		SaveInt( main, XorStr( "legitbot.delay" ), Legitbot->Delay );
-		SaveInt( main, XorStr( "legitbot.duration" ), Legitbot->Duration );
-		SaveBool( main, XorStr( "legitbot.rcs" ), Legitbot->RCS );
-		SaveInt( main, XorStr( "legitbot.rcs.delay" ), Legitbot->RCSDelay );
-		SaveInt( main, XorStr( "legitbot.rcs.amount.vertical" ), Legitbot->RCSAmountX );
-		SaveInt( main, XorStr( "legitbot.rcs.amount.horizontal" ), Legitbot->RCSAmountY );
-		SaveInt( main, XorStr( "legitbot.target" ), Legitbot->Target );
-		SaveBool( main, XorStr( "legitbot.auto.fire" ), Legitbot->AutoFire );
-		SaveBool( main, XorStr( "legitbot.auto.stop" ), Legitbot->AutoStop );
-		SaveBool( main, XorStr( "legitbot.rcs.standalone" ), Legitbot->RCSStandalone );
-		SaveBool( main, XorStr( "legitbot.flash.check" ), Legitbot->FlashCheck );
-		SaveBool( main, XorStr( "legitbot.backtrack" ), Legitbot->Backtrack );
-		SaveBool( main, XorStr( "legitbot.delay.humanize" ), Legitbot->HumanizeDelay );
-		SaveBool( main, XorStr( "legitbot.auto.scope" ), Legitbot->AutoScope );
+		// Legit class: pistol
+		SaveInt( main, XorStr( "legitbot.pistol.mode" ), LegitbotClasses[ 0 ]->Mode );
+		SaveInt( main, XorStr( "legitbot.pistol.key" ), LegitbotClasses[ 0 ]->Key );
+		SaveInt( main, XorStr( "legitbot.pistol.target.selection" ), LegitbotClasses[ 0 ]->TargetSelection );
+		SaveFloat( main, XorStr( "legitbot.pistol.fov" ), LegitbotClasses[ 0 ]->FieldOfView );
+		SaveInt( main, XorStr( "legitbot.pistol.smooth" ), LegitbotClasses[ 0 ]->Smooth );
+		SaveFloat( main, XorStr( "legitbot.pistol.step.vertical" ), LegitbotClasses[ 0 ]->StepX );
+		SaveFloat( main, XorStr( "legitbot.pistol.step.horizontal" ), LegitbotClasses[ 0 ]->StepY );
+		SaveFloat( main, XorStr( "legitbot.pistol.smooth.vertical" ), LegitbotClasses[ 0 ]->SmoothX );
+		SaveFloat( main, XorStr( "legitbot.pistol.smooth.horizontal" ), LegitbotClasses[ 0 ]->SmoothY );
+		SaveInt( main, XorStr( "legitbot.pistol.delay" ), LegitbotClasses[ 0 ]->Delay );
+		SaveInt( main, XorStr( "legitbot.pistol.duration" ), LegitbotClasses[ 0 ]->Duration );
+		SaveBool( main, XorStr( "legitbot.pistol.rcs" ), LegitbotClasses[ 0 ]->RCS );
+		SaveInt( main, XorStr( "legitbot.pistol.rcs.delay" ), LegitbotClasses[ 0 ]->RCSDelay );
+		SaveInt( main, XorStr( "legitbot.pistol.rcs.amount.vertical" ), LegitbotClasses[ 0 ]->RCSAmountX );
+		SaveInt( main, XorStr( "legitbot.pistol.rcs.amount.horizontal" ), LegitbotClasses[ 0 ]->RCSAmountY );
+		SaveInt( main, XorStr( "legitbot.pistol.target" ), LegitbotClasses[ 0 ]->Target );
+		SaveBool( main, XorStr( "legitbot.pistol.auto.fire" ), LegitbotClasses[ 0 ]->AutoFire );
+		SaveBool( main, XorStr( "legitbot.pistol.auto.stop" ), LegitbotClasses[ 0 ]->AutoStop );
+		SaveBool( main, XorStr( "legitbot.pistol.rcs.standalone" ), LegitbotClasses[ 0 ]->RCSStandalone );
+		SaveBool( main, XorStr( "legitbot.pistol.flash.check" ), LegitbotClasses[ 0 ]->FlashCheck );
+		SaveBool( main, XorStr( "legitbot.pistol.backtrack" ), LegitbotClasses[ 0 ]->Backtrack );
+		SaveBool( main, XorStr( "legitbot.pistol.delay.humanize" ), LegitbotClasses[ 0 ]->HumanizeDelay );
+		SaveBool( main, XorStr( "legitbot.pistol.auto.scope" ), LegitbotClasses[ 0 ]->AutoScope );
+		SaveFloat( main, XorStr( "legitbot.pistol.randomize" ), LegitbotClasses[ 0 ]->Randomize );
+		SaveFloat( main, XorStr( "legitbot.pistol.curve" ), LegitbotClasses[ 0 ]->Curve );
+		SaveBool( main, XorStr( "legitbot.pistol.zone.head" ), LegitbotClasses[ 0 ]->ZoneHead );
+		SaveBool( main, XorStr( "legitbot.pistol.zone.chest" ), LegitbotClasses[ 0 ]->ZoneChest );
+		SaveBool( main, XorStr( "legitbot.pistol.zone.stomach" ), LegitbotClasses[ 0 ]->ZoneStomach );
+		SaveBool( main, XorStr( "legitbot.pistol.zone.arms" ), LegitbotClasses[ 0 ]->ZoneArms );
+		SaveBool( main, XorStr( "legitbot.pistol.zone.legs" ), LegitbotClasses[ 0 ]->ZoneLegs );
+		SaveInt( main, XorStr( "legitbot.pistol.hitbox.priority" ), LegitbotClasses[ 0 ]->HitboxPriority );
+		SaveInt( main, XorStr( "legitbot.pistol.hitbox.selection" ), LegitbotClasses[ 0 ]->HitboxSelection );
+		SaveInt( main, XorStr( "legitbot.pistol.toggle.key" ), LegitbotClasses[ 0 ]->ToggleKey );
+		SaveBool( main, XorStr( "legitbot.pistol.fire.on.key" ), LegitbotClasses[ 0 ]->FireOnKey );
+		SaveInt( main, XorStr( "legitbot.pistol.fire.key" ), LegitbotClasses[ 0 ]->FireKey );
+		SaveInt( main, XorStr( "legitbot.pistol.switch.delay" ), LegitbotClasses[ 0 ]->TSD );
+		SaveBool( main, XorStr( "legitbot.pistol.through.smoke" ), LegitbotClasses[ 0 ]->ThroughSmoke );
+		SaveBool( main, XorStr( "legitbot.pistol.auto.wall" ), LegitbotClasses[ 0 ]->AutoWall );
+		SaveInt( main, XorStr( "legitbot.pistol.min.damage" ), LegitbotClasses[ 0 ]->MinDamage );
+
+		// Legit class: smg
+		SaveInt( main, XorStr( "legitbot.smg.mode" ), LegitbotClasses[ 1 ]->Mode );
+		SaveInt( main, XorStr( "legitbot.smg.key" ), LegitbotClasses[ 1 ]->Key );
+		SaveInt( main, XorStr( "legitbot.smg.target.selection" ), LegitbotClasses[ 1 ]->TargetSelection );
+		SaveFloat( main, XorStr( "legitbot.smg.fov" ), LegitbotClasses[ 1 ]->FieldOfView );
+		SaveInt( main, XorStr( "legitbot.smg.smooth" ), LegitbotClasses[ 1 ]->Smooth );
+		SaveFloat( main, XorStr( "legitbot.smg.step.vertical" ), LegitbotClasses[ 1 ]->StepX );
+		SaveFloat( main, XorStr( "legitbot.smg.step.horizontal" ), LegitbotClasses[ 1 ]->StepY );
+		SaveFloat( main, XorStr( "legitbot.smg.smooth.vertical" ), LegitbotClasses[ 1 ]->SmoothX );
+		SaveFloat( main, XorStr( "legitbot.smg.smooth.horizontal" ), LegitbotClasses[ 1 ]->SmoothY );
+		SaveInt( main, XorStr( "legitbot.smg.delay" ), LegitbotClasses[ 1 ]->Delay );
+		SaveInt( main, XorStr( "legitbot.smg.duration" ), LegitbotClasses[ 1 ]->Duration );
+		SaveBool( main, XorStr( "legitbot.smg.rcs" ), LegitbotClasses[ 1 ]->RCS );
+		SaveInt( main, XorStr( "legitbot.smg.rcs.delay" ), LegitbotClasses[ 1 ]->RCSDelay );
+		SaveInt( main, XorStr( "legitbot.smg.rcs.amount.vertical" ), LegitbotClasses[ 1 ]->RCSAmountX );
+		SaveInt( main, XorStr( "legitbot.smg.rcs.amount.horizontal" ), LegitbotClasses[ 1 ]->RCSAmountY );
+		SaveInt( main, XorStr( "legitbot.smg.target" ), LegitbotClasses[ 1 ]->Target );
+		SaveBool( main, XorStr( "legitbot.smg.auto.fire" ), LegitbotClasses[ 1 ]->AutoFire );
+		SaveBool( main, XorStr( "legitbot.smg.auto.stop" ), LegitbotClasses[ 1 ]->AutoStop );
+		SaveBool( main, XorStr( "legitbot.smg.rcs.standalone" ), LegitbotClasses[ 1 ]->RCSStandalone );
+		SaveBool( main, XorStr( "legitbot.smg.flash.check" ), LegitbotClasses[ 1 ]->FlashCheck );
+		SaveBool( main, XorStr( "legitbot.smg.backtrack" ), LegitbotClasses[ 1 ]->Backtrack );
+		SaveBool( main, XorStr( "legitbot.smg.delay.humanize" ), LegitbotClasses[ 1 ]->HumanizeDelay );
+		SaveBool( main, XorStr( "legitbot.smg.auto.scope" ), LegitbotClasses[ 1 ]->AutoScope );
+		SaveFloat( main, XorStr( "legitbot.smg.randomize" ), LegitbotClasses[ 1 ]->Randomize );
+		SaveFloat( main, XorStr( "legitbot.smg.curve" ), LegitbotClasses[ 1 ]->Curve );
+		SaveBool( main, XorStr( "legitbot.smg.zone.head" ), LegitbotClasses[ 1 ]->ZoneHead );
+		SaveBool( main, XorStr( "legitbot.smg.zone.chest" ), LegitbotClasses[ 1 ]->ZoneChest );
+		SaveBool( main, XorStr( "legitbot.smg.zone.stomach" ), LegitbotClasses[ 1 ]->ZoneStomach );
+		SaveBool( main, XorStr( "legitbot.smg.zone.arms" ), LegitbotClasses[ 1 ]->ZoneArms );
+		SaveBool( main, XorStr( "legitbot.smg.zone.legs" ), LegitbotClasses[ 1 ]->ZoneLegs );
+		SaveInt( main, XorStr( "legitbot.smg.hitbox.priority" ), LegitbotClasses[ 1 ]->HitboxPriority );
+		SaveInt( main, XorStr( "legitbot.smg.hitbox.selection" ), LegitbotClasses[ 1 ]->HitboxSelection );
+		SaveInt( main, XorStr( "legitbot.smg.toggle.key" ), LegitbotClasses[ 1 ]->ToggleKey );
+		SaveBool( main, XorStr( "legitbot.smg.fire.on.key" ), LegitbotClasses[ 1 ]->FireOnKey );
+		SaveInt( main, XorStr( "legitbot.smg.fire.key" ), LegitbotClasses[ 1 ]->FireKey );
+		SaveInt( main, XorStr( "legitbot.smg.switch.delay" ), LegitbotClasses[ 1 ]->TSD );
+		SaveBool( main, XorStr( "legitbot.smg.through.smoke" ), LegitbotClasses[ 1 ]->ThroughSmoke );
+		SaveBool( main, XorStr( "legitbot.smg.auto.wall" ), LegitbotClasses[ 1 ]->AutoWall );
+		SaveInt( main, XorStr( "legitbot.smg.min.damage" ), LegitbotClasses[ 1 ]->MinDamage );
+
+		// Legit class: rifle
+		SaveInt( main, XorStr( "legitbot.rifle.mode" ), LegitbotClasses[ 2 ]->Mode );
+		SaveInt( main, XorStr( "legitbot.rifle.key" ), LegitbotClasses[ 2 ]->Key );
+		SaveInt( main, XorStr( "legitbot.rifle.target.selection" ), LegitbotClasses[ 2 ]->TargetSelection );
+		SaveFloat( main, XorStr( "legitbot.rifle.fov" ), LegitbotClasses[ 2 ]->FieldOfView );
+		SaveInt( main, XorStr( "legitbot.rifle.smooth" ), LegitbotClasses[ 2 ]->Smooth );
+		SaveFloat( main, XorStr( "legitbot.rifle.step.vertical" ), LegitbotClasses[ 2 ]->StepX );
+		SaveFloat( main, XorStr( "legitbot.rifle.step.horizontal" ), LegitbotClasses[ 2 ]->StepY );
+		SaveFloat( main, XorStr( "legitbot.rifle.smooth.vertical" ), LegitbotClasses[ 2 ]->SmoothX );
+		SaveFloat( main, XorStr( "legitbot.rifle.smooth.horizontal" ), LegitbotClasses[ 2 ]->SmoothY );
+		SaveInt( main, XorStr( "legitbot.rifle.delay" ), LegitbotClasses[ 2 ]->Delay );
+		SaveInt( main, XorStr( "legitbot.rifle.duration" ), LegitbotClasses[ 2 ]->Duration );
+		SaveBool( main, XorStr( "legitbot.rifle.rcs" ), LegitbotClasses[ 2 ]->RCS );
+		SaveInt( main, XorStr( "legitbot.rifle.rcs.delay" ), LegitbotClasses[ 2 ]->RCSDelay );
+		SaveInt( main, XorStr( "legitbot.rifle.rcs.amount.vertical" ), LegitbotClasses[ 2 ]->RCSAmountX );
+		SaveInt( main, XorStr( "legitbot.rifle.rcs.amount.horizontal" ), LegitbotClasses[ 2 ]->RCSAmountY );
+		SaveInt( main, XorStr( "legitbot.rifle.target" ), LegitbotClasses[ 2 ]->Target );
+		SaveBool( main, XorStr( "legitbot.rifle.auto.fire" ), LegitbotClasses[ 2 ]->AutoFire );
+		SaveBool( main, XorStr( "legitbot.rifle.auto.stop" ), LegitbotClasses[ 2 ]->AutoStop );
+		SaveBool( main, XorStr( "legitbot.rifle.rcs.standalone" ), LegitbotClasses[ 2 ]->RCSStandalone );
+		SaveBool( main, XorStr( "legitbot.rifle.flash.check" ), LegitbotClasses[ 2 ]->FlashCheck );
+		SaveBool( main, XorStr( "legitbot.rifle.backtrack" ), LegitbotClasses[ 2 ]->Backtrack );
+		SaveBool( main, XorStr( "legitbot.rifle.delay.humanize" ), LegitbotClasses[ 2 ]->HumanizeDelay );
+		SaveBool( main, XorStr( "legitbot.rifle.auto.scope" ), LegitbotClasses[ 2 ]->AutoScope );
+		SaveFloat( main, XorStr( "legitbot.rifle.randomize" ), LegitbotClasses[ 2 ]->Randomize );
+		SaveFloat( main, XorStr( "legitbot.rifle.curve" ), LegitbotClasses[ 2 ]->Curve );
+		SaveBool( main, XorStr( "legitbot.rifle.zone.head" ), LegitbotClasses[ 2 ]->ZoneHead );
+		SaveBool( main, XorStr( "legitbot.rifle.zone.chest" ), LegitbotClasses[ 2 ]->ZoneChest );
+		SaveBool( main, XorStr( "legitbot.rifle.zone.stomach" ), LegitbotClasses[ 2 ]->ZoneStomach );
+		SaveBool( main, XorStr( "legitbot.rifle.zone.arms" ), LegitbotClasses[ 2 ]->ZoneArms );
+		SaveBool( main, XorStr( "legitbot.rifle.zone.legs" ), LegitbotClasses[ 2 ]->ZoneLegs );
+		SaveInt( main, XorStr( "legitbot.rifle.hitbox.priority" ), LegitbotClasses[ 2 ]->HitboxPriority );
+		SaveInt( main, XorStr( "legitbot.rifle.hitbox.selection" ), LegitbotClasses[ 2 ]->HitboxSelection );
+		SaveInt( main, XorStr( "legitbot.rifle.toggle.key" ), LegitbotClasses[ 2 ]->ToggleKey );
+		SaveBool( main, XorStr( "legitbot.rifle.fire.on.key" ), LegitbotClasses[ 2 ]->FireOnKey );
+		SaveInt( main, XorStr( "legitbot.rifle.fire.key" ), LegitbotClasses[ 2 ]->FireKey );
+		SaveInt( main, XorStr( "legitbot.rifle.switch.delay" ), LegitbotClasses[ 2 ]->TSD );
+		SaveBool( main, XorStr( "legitbot.rifle.through.smoke" ), LegitbotClasses[ 2 ]->ThroughSmoke );
+		SaveBool( main, XorStr( "legitbot.rifle.auto.wall" ), LegitbotClasses[ 2 ]->AutoWall );
+		SaveInt( main, XorStr( "legitbot.rifle.min.damage" ), LegitbotClasses[ 2 ]->MinDamage );
+
+		// Legit class: shotgun
+		SaveInt( main, XorStr( "legitbot.shotgun.mode" ), LegitbotClasses[ 3 ]->Mode );
+		SaveInt( main, XorStr( "legitbot.shotgun.key" ), LegitbotClasses[ 3 ]->Key );
+		SaveInt( main, XorStr( "legitbot.shotgun.target.selection" ), LegitbotClasses[ 3 ]->TargetSelection );
+		SaveFloat( main, XorStr( "legitbot.shotgun.fov" ), LegitbotClasses[ 3 ]->FieldOfView );
+		SaveInt( main, XorStr( "legitbot.shotgun.smooth" ), LegitbotClasses[ 3 ]->Smooth );
+		SaveFloat( main, XorStr( "legitbot.shotgun.step.vertical" ), LegitbotClasses[ 3 ]->StepX );
+		SaveFloat( main, XorStr( "legitbot.shotgun.step.horizontal" ), LegitbotClasses[ 3 ]->StepY );
+		SaveFloat( main, XorStr( "legitbot.shotgun.smooth.vertical" ), LegitbotClasses[ 3 ]->SmoothX );
+		SaveFloat( main, XorStr( "legitbot.shotgun.smooth.horizontal" ), LegitbotClasses[ 3 ]->SmoothY );
+		SaveInt( main, XorStr( "legitbot.shotgun.delay" ), LegitbotClasses[ 3 ]->Delay );
+		SaveInt( main, XorStr( "legitbot.shotgun.duration" ), LegitbotClasses[ 3 ]->Duration );
+		SaveBool( main, XorStr( "legitbot.shotgun.rcs" ), LegitbotClasses[ 3 ]->RCS );
+		SaveInt( main, XorStr( "legitbot.shotgun.rcs.delay" ), LegitbotClasses[ 3 ]->RCSDelay );
+		SaveInt( main, XorStr( "legitbot.shotgun.rcs.amount.vertical" ), LegitbotClasses[ 3 ]->RCSAmountX );
+		SaveInt( main, XorStr( "legitbot.shotgun.rcs.amount.horizontal" ), LegitbotClasses[ 3 ]->RCSAmountY );
+		SaveInt( main, XorStr( "legitbot.shotgun.target" ), LegitbotClasses[ 3 ]->Target );
+		SaveBool( main, XorStr( "legitbot.shotgun.auto.fire" ), LegitbotClasses[ 3 ]->AutoFire );
+		SaveBool( main, XorStr( "legitbot.shotgun.auto.stop" ), LegitbotClasses[ 3 ]->AutoStop );
+		SaveBool( main, XorStr( "legitbot.shotgun.rcs.standalone" ), LegitbotClasses[ 3 ]->RCSStandalone );
+		SaveBool( main, XorStr( "legitbot.shotgun.flash.check" ), LegitbotClasses[ 3 ]->FlashCheck );
+		SaveBool( main, XorStr( "legitbot.shotgun.backtrack" ), LegitbotClasses[ 3 ]->Backtrack );
+		SaveBool( main, XorStr( "legitbot.shotgun.delay.humanize" ), LegitbotClasses[ 3 ]->HumanizeDelay );
+		SaveBool( main, XorStr( "legitbot.shotgun.auto.scope" ), LegitbotClasses[ 3 ]->AutoScope );
+		SaveFloat( main, XorStr( "legitbot.shotgun.randomize" ), LegitbotClasses[ 3 ]->Randomize );
+		SaveFloat( main, XorStr( "legitbot.shotgun.curve" ), LegitbotClasses[ 3 ]->Curve );
+		SaveBool( main, XorStr( "legitbot.shotgun.zone.head" ), LegitbotClasses[ 3 ]->ZoneHead );
+		SaveBool( main, XorStr( "legitbot.shotgun.zone.chest" ), LegitbotClasses[ 3 ]->ZoneChest );
+		SaveBool( main, XorStr( "legitbot.shotgun.zone.stomach" ), LegitbotClasses[ 3 ]->ZoneStomach );
+		SaveBool( main, XorStr( "legitbot.shotgun.zone.arms" ), LegitbotClasses[ 3 ]->ZoneArms );
+		SaveBool( main, XorStr( "legitbot.shotgun.zone.legs" ), LegitbotClasses[ 3 ]->ZoneLegs );
+		SaveInt( main, XorStr( "legitbot.shotgun.hitbox.priority" ), LegitbotClasses[ 3 ]->HitboxPriority );
+		SaveInt( main, XorStr( "legitbot.shotgun.hitbox.selection" ), LegitbotClasses[ 3 ]->HitboxSelection );
+		SaveInt( main, XorStr( "legitbot.shotgun.toggle.key" ), LegitbotClasses[ 3 ]->ToggleKey );
+		SaveBool( main, XorStr( "legitbot.shotgun.fire.on.key" ), LegitbotClasses[ 3 ]->FireOnKey );
+		SaveInt( main, XorStr( "legitbot.shotgun.fire.key" ), LegitbotClasses[ 3 ]->FireKey );
+		SaveInt( main, XorStr( "legitbot.shotgun.switch.delay" ), LegitbotClasses[ 3 ]->TSD );
+		SaveBool( main, XorStr( "legitbot.shotgun.through.smoke" ), LegitbotClasses[ 3 ]->ThroughSmoke );
+		SaveBool( main, XorStr( "legitbot.shotgun.auto.wall" ), LegitbotClasses[ 3 ]->AutoWall );
+		SaveInt( main, XorStr( "legitbot.shotgun.min.damage" ), LegitbotClasses[ 3 ]->MinDamage );
+
+		// Legit class: sniper
+		SaveInt( main, XorStr( "legitbot.sniper.mode" ), LegitbotClasses[ 4 ]->Mode );
+		SaveInt( main, XorStr( "legitbot.sniper.key" ), LegitbotClasses[ 4 ]->Key );
+		SaveInt( main, XorStr( "legitbot.sniper.target.selection" ), LegitbotClasses[ 4 ]->TargetSelection );
+		SaveFloat( main, XorStr( "legitbot.sniper.fov" ), LegitbotClasses[ 4 ]->FieldOfView );
+		SaveInt( main, XorStr( "legitbot.sniper.smooth" ), LegitbotClasses[ 4 ]->Smooth );
+		SaveFloat( main, XorStr( "legitbot.sniper.step.vertical" ), LegitbotClasses[ 4 ]->StepX );
+		SaveFloat( main, XorStr( "legitbot.sniper.step.horizontal" ), LegitbotClasses[ 4 ]->StepY );
+		SaveFloat( main, XorStr( "legitbot.sniper.smooth.vertical" ), LegitbotClasses[ 4 ]->SmoothX );
+		SaveFloat( main, XorStr( "legitbot.sniper.smooth.horizontal" ), LegitbotClasses[ 4 ]->SmoothY );
+		SaveInt( main, XorStr( "legitbot.sniper.delay" ), LegitbotClasses[ 4 ]->Delay );
+		SaveInt( main, XorStr( "legitbot.sniper.duration" ), LegitbotClasses[ 4 ]->Duration );
+		SaveBool( main, XorStr( "legitbot.sniper.rcs" ), LegitbotClasses[ 4 ]->RCS );
+		SaveInt( main, XorStr( "legitbot.sniper.rcs.delay" ), LegitbotClasses[ 4 ]->RCSDelay );
+		SaveInt( main, XorStr( "legitbot.sniper.rcs.amount.vertical" ), LegitbotClasses[ 4 ]->RCSAmountX );
+		SaveInt( main, XorStr( "legitbot.sniper.rcs.amount.horizontal" ), LegitbotClasses[ 4 ]->RCSAmountY );
+		SaveInt( main, XorStr( "legitbot.sniper.target" ), LegitbotClasses[ 4 ]->Target );
+		SaveBool( main, XorStr( "legitbot.sniper.auto.fire" ), LegitbotClasses[ 4 ]->AutoFire );
+		SaveBool( main, XorStr( "legitbot.sniper.auto.stop" ), LegitbotClasses[ 4 ]->AutoStop );
+		SaveBool( main, XorStr( "legitbot.sniper.rcs.standalone" ), LegitbotClasses[ 4 ]->RCSStandalone );
+		SaveBool( main, XorStr( "legitbot.sniper.flash.check" ), LegitbotClasses[ 4 ]->FlashCheck );
+		SaveBool( main, XorStr( "legitbot.sniper.backtrack" ), LegitbotClasses[ 4 ]->Backtrack );
+		SaveBool( main, XorStr( "legitbot.sniper.delay.humanize" ), LegitbotClasses[ 4 ]->HumanizeDelay );
+		SaveBool( main, XorStr( "legitbot.sniper.auto.scope" ), LegitbotClasses[ 4 ]->AutoScope );
+		SaveFloat( main, XorStr( "legitbot.sniper.randomize" ), LegitbotClasses[ 4 ]->Randomize );
+		SaveFloat( main, XorStr( "legitbot.sniper.curve" ), LegitbotClasses[ 4 ]->Curve );
+		SaveBool( main, XorStr( "legitbot.sniper.zone.head" ), LegitbotClasses[ 4 ]->ZoneHead );
+		SaveBool( main, XorStr( "legitbot.sniper.zone.chest" ), LegitbotClasses[ 4 ]->ZoneChest );
+		SaveBool( main, XorStr( "legitbot.sniper.zone.stomach" ), LegitbotClasses[ 4 ]->ZoneStomach );
+		SaveBool( main, XorStr( "legitbot.sniper.zone.arms" ), LegitbotClasses[ 4 ]->ZoneArms );
+		SaveBool( main, XorStr( "legitbot.sniper.zone.legs" ), LegitbotClasses[ 4 ]->ZoneLegs );
+		SaveInt( main, XorStr( "legitbot.sniper.hitbox.priority" ), LegitbotClasses[ 4 ]->HitboxPriority );
+		SaveInt( main, XorStr( "legitbot.sniper.hitbox.selection" ), LegitbotClasses[ 4 ]->HitboxSelection );
+		SaveInt( main, XorStr( "legitbot.sniper.toggle.key" ), LegitbotClasses[ 4 ]->ToggleKey );
+		SaveBool( main, XorStr( "legitbot.sniper.fire.on.key" ), LegitbotClasses[ 4 ]->FireOnKey );
+		SaveInt( main, XorStr( "legitbot.sniper.fire.key" ), LegitbotClasses[ 4 ]->FireKey );
+		SaveInt( main, XorStr( "legitbot.sniper.switch.delay" ), LegitbotClasses[ 4 ]->TSD );
+		SaveBool( main, XorStr( "legitbot.sniper.through.smoke" ), LegitbotClasses[ 4 ]->ThroughSmoke );
+		SaveBool( main, XorStr( "legitbot.sniper.auto.wall" ), LegitbotClasses[ 4 ]->AutoWall );
+		SaveInt( main, XorStr( "legitbot.sniper.min.damage" ), LegitbotClasses[ 4 ]->MinDamage );
 
 		Main->Triggerbot->Clamp();
 
@@ -584,6 +956,7 @@ namespace Config
 		SaveBool( main, XorStr( "triggerbot.autowall" ), Main->Triggerbot->AutoWall );
 		SaveInt( main, XorStr( "triggerbot.min.damage" ), Main->Triggerbot->MinDamage );
 		SaveInt( main, XorStr( "triggerbot.target" ), Main->Triggerbot->Target );
+		SaveBool( main, XorStr( "triggerbot.through.smoke" ), Main->Triggerbot->ThroughSmoke );
 
 		SaveInt(main, XorStr("esp.box"), ESP->Box);
 		SaveBool(main, XorStr("esp.outlined"), ESP->Outlined);
@@ -661,6 +1034,7 @@ namespace Config
 		SaveBool(main, XorStr("misc.hitmarker"), Misc->HitmarkerEnabled);
 		SaveBool(main, XorStr("misc.hitmarker.hp"), Misc->HitmarkerHP);
 		SaveBool( main, XorStr( "misc.auto.pistol" ), Misc->AutoPistol );
+		SaveInt( main, XorStr( "misc.auto.pistol.delay" ), Misc->AutoPistolDelay );
 		SaveInt( main, XorStr( "misc.auto.strafe" ), Misc->AutoStrafe );
 		SaveBool( main, XorStr( "misc.bomb.warning" ), Misc->BombWarning );
 		SaveInt( main, XorStr( "misc.crosshair" ), Misc->Crosshair );
@@ -757,6 +1131,7 @@ namespace Config
 			SaveBool( weapon, XorStr( "triggerbot.autowall" ), Weapon[ index ]->Triggerbot->AutoWall );
 			SaveInt( weapon, XorStr( "triggerbot.min.damage" ), Weapon[ index ]->Triggerbot->MinDamage );
 			SaveInt( weapon, XorStr( "triggerbot.target" ), Weapon[ index ]->Triggerbot->Target );
+			SaveBool( weapon, XorStr( "triggerbot.through.smoke" ), Weapon[ index ]->Triggerbot->ThroughSmoke );
 		}
 	}
 
@@ -770,6 +1145,36 @@ namespace Config
 		m_current = m_config + current;
 
 		DeleteFileA( m_current.c_str() );
+	}
+
+	// Легит: класс конфига по оружию (0 Pistol|1 SMG|2 Rifle|3 Shotgun|4 Sniper).
+	static int LegitClassForWeapon( int iWeaponID )
+	{
+		switch( iWeaponID )
+		{
+		case WEAPON_P228:
+		case WEAPON_GLOCK:
+		case WEAPON_ELITE:
+		case WEAPON_FIVESEVEN:
+		case WEAPON_USP:
+		case WEAPON_DEAGLE:
+			return 0;
+		case WEAPON_MAC10:
+		case WEAPON_UMP45:
+		case WEAPON_MP5NAVY:
+		case WEAPON_TMP:
+		case WEAPON_P90:
+			return 1;
+		case WEAPON_XM1014:
+		case WEAPON_M3:
+			return 3;
+		case WEAPON_SCOUT:
+		case WEAPON_AWP:
+		case WEAPON_G3SG1:
+			return 4;
+		default: // rifles, M249, misc
+			return 2;
+		}
 	}
 
 	void OnCreateMove()
@@ -802,57 +1207,76 @@ namespace Config
 		// Legit-стиль: поверх текущего конфига кладём легитные настройки,
 		// а рейдж-фичи принудительно гасим. Вся логика (Aimbot/Hooked)
 		// читает только Current->Aimbot, поэтому переключение атомарно.
-		if( Main->AimbotStyle == 1 && Legitbot )
+		auto legit = LegitbotClasses[ LegitClassForWeapon( i ) ];
+
+		if( Main->AimbotStyle == 1 && legit )
 		{
-			Current->Aimbot->Mode				= Legitbot->Mode;
-			Current->Aimbot->Key				= Legitbot->Key;
-			Current->Aimbot->Spot				= Legitbot->Spot;
-			Current->Aimbot->TargetSelection	= Legitbot->TargetSelection;
-			Current->Aimbot->FieldOfView		= Legitbot->FieldOfView;
-			Current->Aimbot->Smooth			= Legitbot->Smooth;
-			Current->Aimbot->StepX				= Legitbot->StepX;
-			Current->Aimbot->StepY				= Legitbot->StepY;
-			Current->Aimbot->SmoothX			= Legitbot->SmoothX;
-			Current->Aimbot->SmoothY			= Legitbot->SmoothY;
-			Current->Aimbot->Delay				= Legitbot->Delay;
-			Current->Aimbot->Duration			= Legitbot->Duration;
-			Current->Aimbot->RCS				= Legitbot->RCS;
-			Current->Aimbot->RCSDelay			= Legitbot->RCSDelay;
-			Current->Aimbot->RCSAmountX		= Legitbot->RCSAmountX;
-			Current->Aimbot->RCSAmountY		= Legitbot->RCSAmountY;
-			Current->Aimbot->Target				= Legitbot->Target;
-			Current->Aimbot->AutoFire			= Legitbot->AutoFire;
-			Current->Aimbot->AutoStop			= Legitbot->AutoStop;
-			Current->Aimbot->RCSStandalone		= Legitbot->RCSStandalone;
-			Current->Aimbot->FlashCheck			= Legitbot->FlashCheck;
-			Current->Aimbot->HumanizeDelay		= Legitbot->HumanizeDelay;
-			Current->Aimbot->AutoScope			= Legitbot->AutoScope;
+			Current->Aimbot->Mode				= legit->Mode;
+			Current->Aimbot->Key				= legit->Key;
+			// Легит: Spot заменён зонами — сюда кость приоритета (нужна бектреку).
+			static const int iPrioBone[ 5 ] = { 12, 10, 0, 13, 1 };
+			Current->Aimbot->Spot = ( legit->HitboxPriority >= 0 && legit->HitboxPriority < 5 ) ? iPrioBone[ legit->HitboxPriority ] : 12;
+			Current->Aimbot->TargetSelection	= legit->TargetSelection;
+			Current->Aimbot->FieldOfView		= legit->FieldOfView;
+			Current->Aimbot->Smooth			= legit->Smooth;
+			Current->Aimbot->StepX				= legit->StepX;
+			Current->Aimbot->StepY				= legit->StepY;
+			Current->Aimbot->SmoothX			= legit->SmoothX;
+			Current->Aimbot->SmoothY			= legit->SmoothY;
+			Current->Aimbot->Delay				= legit->Delay;
+			Current->Aimbot->Duration			= legit->Duration;
+			Current->Aimbot->RCS				= legit->RCS;
+			Current->Aimbot->RCSDelay			= legit->RCSDelay;
+			Current->Aimbot->RCSAmountX		= legit->RCSAmountX;
+			Current->Aimbot->RCSAmountY		= legit->RCSAmountY;
+			Current->Aimbot->Target				= legit->Target;
+			Current->Aimbot->AutoFire			= legit->AutoFire;
+			Current->Aimbot->AutoStop			= legit->AutoStop;
+			Current->Aimbot->RCSStandalone		= legit->RCSStandalone;
+			Current->Aimbot->FlashCheck			= legit->FlashCheck;
+			Current->Aimbot->HumanizeDelay		= legit->HumanizeDelay;
+			Current->Aimbot->AutoScope			= legit->AutoScope;
+			Current->Aimbot->Randomize = legit->Randomize;
+			Current->Aimbot->Curve = legit->Curve;
+			Current->Aimbot->ZoneHead = legit->ZoneHead;
+			Current->Aimbot->ZoneChest = legit->ZoneChest;
+			Current->Aimbot->ZoneStomach = legit->ZoneStomach;
+			Current->Aimbot->ZoneArms = legit->ZoneArms;
+			Current->Aimbot->ZoneLegs = legit->ZoneLegs;
+			Current->Aimbot->HitboxPriority = legit->HitboxPriority;
+			Current->Aimbot->HitboxSelection = legit->HitboxSelection;
+			Current->Aimbot->ToggleKey = legit->ToggleKey;
+			Current->Aimbot->FireOnKey = legit->FireOnKey;
+			Current->Aimbot->FireKey = legit->FireKey;
+			Current->Aimbot->ThroughSmoke = legit->ThroughSmoke;
 
 			// Рейдж-фичи в легите недоступны.
 			Current->Aimbot->AutoCrouch			= false;
 			Current->Aimbot->AutoReload			= false;
 			Current->Aimbot->AntiSpawnProtection	= false;
-			Current->Aimbot->NoSwitch			= true;
+			Current->Aimbot->NoSwitch = ( legit->TSD <= 0 ); // TSD>0: ждём перед сменой вместо лока
 			Current->Aimbot->SpotRandomize			= false;
 			Current->Aimbot->Height				= false;
 			Current->Aimbot->HeightScale			= 0.0f;
 			Current->Aimbot->HeightScaleX			= 0.0f;
 			Current->Aimbot->HeightScaleY			= 0.0f;
-			Current->Aimbot->SwitchDelay			= 0;
-			Current->Aimbot->AutoWall			= false;
-			Current->Aimbot->MinDamage			= 0;
+			Current->Aimbot->SwitchDelay = legit->TSD;
+			Current->Aimbot->AutoWall = legit->AutoWall;
+			Current->Aimbot->MinDamage = legit->MinDamage;
 			Current->Aimbot->HitScan				= 0;
 			Current->Aimbot->HitScanScale			= 0.0f;
 			Current->Aimbot->Silent				= false;
 			Current->Aimbot->NoSpreadActive		= false;
 			Current->Aimbot->NoSpread			= 0;
-			Current->Aimbot->LagCompensation		= Legitbot->Backtrack ? 1 : 0; // legit backtrack
+			Current->Aimbot->LagCompensation		= legit->Backtrack ? 1 : 0; // legit backtrack
 			Current->Aimbot->LastTick			= false;
 			Current->Aimbot->SetAbs				= false;
-			Current->Aimbot->UpdateAnim			= Legitbot->Backtrack;
+			Current->Aimbot->UpdateAnim			= legit->Backtrack;
 			Current->Aimbot->Resolver			= false;
 			Current->Aimbot->ResvolerBullets		= 0;
 			Current->Aimbot->ResvolerBulletsDelay	= 0;
+			Current->Aimbot->MinDamageOverride = 0; // у легита нет оверрайда
+			Current->Aimbot->MinDamageOverrideKey = 0;
 		}
 	}
 

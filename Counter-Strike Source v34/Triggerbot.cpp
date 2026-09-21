@@ -228,6 +228,10 @@ namespace Feature
 				return false;
 		}
 
+		// Through Smoke: без разрешения сквозь дым не стреляем.
+		if( !Config::Current->Triggerbot->ThroughSmoke && Source::LineThroughSmoke( start, end ) )
+			return false;
+
 		if( ( Config::Current->Triggerbot->Head && hitgroup == 1 ) ||
 			( Config::Current->Triggerbot->Chest && hitgroup == 2 ) ||
 			( Config::Current->Triggerbot->Stomach && hitgroup == 3 ) ||

@@ -104,7 +104,9 @@ namespace Feature
 		m_pData( nullptr ),
 		m_pTarget( nullptr ),
 		m_vOldPunch( 0.0f, 0.0f, 0.0f ),
-		m_iLegitDelay( 0 )
+		m_iLegitDelay( 0 ),
+		m_bLegitToggle( true ),
+		m_bLegitToggleWasDown( false )
 	{
 	}
 
@@ -121,6 +123,20 @@ namespace Feature
 		m_pWeapon = pWeapon ? pWeapon : m_pLocal->GetActiveWeapon();
 
 		if( !m_pWeapon || m_pWeapon->IsMelee() )
+			return;
+
+		// Легит: тоггл мастер-свитча по фронту клавиши (мышь тоже).
+		if( Config::Main->AimbotStyle == 1 && cfg->ToggleKey > 0 )
+		{
+			const bool bDown = ( GetAsyncKeyState( cfg->ToggleKey ) & 0x8000 ) != 0;
+
+			if( bDown && !m_bLegitToggleWasDown )
+				m_bLegitToggle = !m_bLegitToggle;
+
+			m_bLegitToggleWasDown = bDown;
+		}
+
+		if( Config::Main->AimbotStyle == 1 && !m_bLegitToggle )
 			return;
 
 		if( !cfg->Mode ) // Off
@@ -246,6 +262,15 @@ namespace Feature
 			vPoint.z += Valve::RandomFloat( -1.5f, 1.5f );
 		}
 
+		// Легит: рандомизация точки (по AW — джиттер от костей вплоть до воздуха).
+		if( Config::Main->AimbotStyle == 1 && cfg->Randomize > 0.0f )
+		{
+			Valve::RandomSeed( ( pCmd->random_seed & 255 ) + 1 );
+			vPoint.x += Valve::RandomFloat( -cfg->Randomize, cfg->Randomize );
+			vPoint.y += Valve::RandomFloat( -cfg->Randomize, cfg->Randomize );
+			vPoint.z += Valve::RandomFloat( -cfg->Randomize, cfg->Randomize );
+		}
+
 		if( cfg->Height )
 		{
 			vPoint.x += cfg->HeightScaleX;
@@ -267,6 +292,8 @@ namespace Feature
 
 		// Стендалон-RCS: трекинг панча каждый тик доводки (рейдж не читает).
 		m_vOldPunch = m_pLocal->m_vecPunchAngle();
+
+		ApplyCurveHumanize( vAim );
 
 		if( cfg->Smooth == 1 ) // Step
 			ApplyStepSmooth( vAim );
@@ -298,6 +325,13 @@ namespace Feature
 				const float flResidual = GetFOV( pCmd->viewangles + m_pLocal->m_vecPunchAngle() * 2.0f, m_pLocal->EyePosition(), vPoint );
 
 				if( flResidual > 2.0f )
+					bHoldFire = true;
+			}
+
+			// Легит: огонь только с зажатой огневой клавишей.
+			if( Config::Main->AimbotStyle == 1 && cfg->FireOnKey )
+			{
+				if( cfg->FireKey <= 0 || !( GetAsyncKeyState( cfg->FireKey ) & 0x8000 ) )
 					bHoldFire = true;
 			}
 
@@ -489,6 +523,10 @@ namespace Feature
 				return false;
 		}
 
+		// Легит: без ThroughSmoke сквозь дым не целимся.
+		if( Config::Main->AimbotStyle == 1 && !cfg->ThroughSmoke && Source::LineThroughSmoke( vEye, m_vTarget ) )
+			return false;
+
 		// Видимость / прострел / хитскан. Может подвинуть m_vTarget.
 		return CanHitPoint( pTarget, m_vTarget );
 	}
@@ -496,6 +534,20 @@ namespace Feature
 	bool Aimbot::ComputeAimPoint( C_CSPlayer* pTarget, Vector3& vPoint )
 	{
 		auto cfg = Config::Current->Aimbot;
+
+		// Легит: ближайшая кость из включённых зон (бектрек — по приоритету).
+		if( Config::Main->AimbotStyle == 1 && cfg->HitboxSelection == 1 )
+		{
+			if( cfg->LagCompensation == 1 )
+			{
+				auto& lag = LagCompensation::Instance();
+
+				if( lag.BacktrackPlayer( pTarget, m_pCmd, vPoint ) )
+					return true;
+			}
+
+			return NearestZonePoint( pTarget, vPoint );
+		}
 
 		if( cfg->SetAbs )
 		{
@@ -921,6 +973,75 @@ namespace Feature
 
 			vAim.y = m_pCmd->viewangles.y - vDelta.y / flFactorY;
 		}
+	}
+
+	bool Aimbot::NearestZonePoint( C_CSPlayer* pTarget, Vector3& vPoint )
+	{
+		auto cfg = Config::Current->Aimbot;
+
+		static const int iHead[ ] = { 11, 12 };
+		static const int iChest[ ] = { 9, 10 };
+		static const int iStomach[ ] = { 0 };
+		static const int iArms[ ] = { 13, 14, 15, 16, 17, 18 };
+		static const int iLegs[ ] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+		const int* ppZones[ 5 ] = { iHead, iChest, iStomach, iArms, iLegs };
+		const int iCounts[ 5 ] = { 2, 2, 1, 6, 8 };
+		const bool bEnabled[ 5 ] = { cfg->ZoneHead, cfg->ZoneChest, cfg->ZoneStomach, cfg->ZoneArms, cfg->ZoneLegs };
+
+		const Vector3 vEye = m_pLocal->EyePosition();
+		const Vector3 vView = m_pCmd->viewangles + m_pLocal->m_vecPunchAngle() * 2.0f;
+
+		bool bFound = false;
+		float flBest = 0.0f;
+
+		for( int z = 0; z < 5; z++ )
+		{
+			if( !bEnabled[ z ] )
+				continue;
+
+			for( int b = 0; b < iCounts[ z ]; b++ )
+			{
+				Vector3 vCurrent;
+
+				if( !pTarget->GetHitboxVector( ppZones[ z ][ b ], vCurrent ) )
+					continue;
+
+				const float flFov = GetFOV( vView, vEye, vCurrent );
+
+				if( !bFound || flFov < flBest )
+				{
+					flBest = flFov;
+					vPoint = vCurrent;
+					bFound = true;
+				}
+			}
+		}
+
+		return bFound;
+	}
+
+	void Aimbot::ApplyCurveHumanize( Vector3& vAim )
+	{
+		auto cfg = Config::Current->Aimbot;
+
+		if( Config::Main->AimbotStyle != 1 || cfg->Curve <= 0.0f )
+			return;
+
+		Vector3 vDelta = vAim - m_pCmd->viewangles;
+		AnglesNormalize( vDelta );
+
+		const float flResidual = sqrtf( vDelta.x * vDelta.x + vDelta.y * vDelta.y );
+
+		if( flResidual < 0.01f )
+			return;
+
+		// Дуга в сторону (знак от индекса цели), гаснет к нулю у цели.
+		const float flSign = ( m_pTarget && ( m_pTarget->GetIndex() & 1 ) ) ? -1.0f : 1.0f;
+		const float flSide = flResidual * cfg->Curve * 0.5f * flSign;
+
+		vAim.x += ( -vDelta.y / flResidual ) * flSide;
+		vAim.y += ( vDelta.x / flResidual ) * flSide;
 	}
 
 	void Aimbot::ApplyMouseAim( const Vector3& vAim, const Vector3& vPoint )
