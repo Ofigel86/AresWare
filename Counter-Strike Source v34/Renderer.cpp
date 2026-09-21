@@ -4,6 +4,8 @@
 #include "Crypt.hpp"
 #include "ImGui.hpp"
 
+#include <cmath>
+
 #define M_PI ( float )3.14159265358979323846
 
 namespace Direct3D9
@@ -115,10 +117,12 @@ namespace Direct3D9
 	{
 		m_pFontList.emplace_back( std::make_unique< Font >( name.c_str(), size, flags ) );
 
-		HFont hRet = m_pFontList.size() - 1;
+		HFont hRet = ( HFont )( m_pFontList.size() - 1 );
 
-		m_pFontList[ hRet ]->Create( m_pDevice );
-		m_pFontList[ hRet ]->RestoreDeviceObjects();
+		Font* pFont = m_pFontList.back().get();
+
+		pFont->Create( m_pDevice );
+		pFont->RestoreDeviceObjects();
 		
 		return hRet;
 	}

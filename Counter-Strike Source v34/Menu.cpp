@@ -950,8 +950,8 @@ namespace Feature
 		ImGuiIO& io = ImGui::GetIO();
 		bad = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\badcache.ttf" ), 22.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
 		und = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\toma.ttf" ), 12.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
-		def = io.Fonts->AddFontFromFileTTF( XorStr( u8"C:\\\\Windows\\\\Fonts\\\\tahoma.ttf" ), 14.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
-		def1 = io.Fonts->AddFontFromFileTTF( XorStr( u8"C:\\\\Windows\\\\Fonts\\\\tahoma.ttf" ), 16.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
+		def = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\tahoma.ttf" ), 14.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
+		def1 = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\tahoma.ttf" ), 16.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
 		fntBody = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\verdana.ttf" ), 11.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
 		fntTitle = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\verdanab.ttf" ), 11.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
 

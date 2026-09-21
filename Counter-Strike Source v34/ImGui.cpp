@@ -5781,7 +5781,7 @@ bool ImGui::KeyButton( const char* label, int* key, const ImVec2& size_arg )
 			}
 		}
 
-		active_text = "...";
+		active_text = ( char* )"...";
 	}
 	else
 	{

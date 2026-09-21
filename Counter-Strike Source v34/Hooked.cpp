@@ -452,13 +452,13 @@ void DefensiveChoke(CUserCmd* cmd)
 
 	C_CSPlayer* pLocal = C_CSPlayer::GetLocalPlayer();
 
-	if (!pLocal || pLocal->IsDormant() || !pLocal->IsAlive())
+	if (!pLocal || pLocal->IsDormant() || pLocal->m_lifeState() != LIFE_ALIVE)
 	{
 		s_iChokeLeft = 0;
 		return;
 	}
 
-	C_BaseCombatWeapon* weapon = pLocal->GetActiveWeapon();
+	auto weapon = pLocal->GetActiveWeapon();
 
 	if (!weapon)
 		return;
@@ -1879,7 +1879,8 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 				if (player->m_lifeState() == LIFE_ALIVE)
 				{
 					if (Config::Misc->Speed)
-						Speed(player,cmd,Vector3());
+						Vector3 vOriginalView;
+						Speed(player,cmd,vOriginalView);
 
 					if (Config::Misc->Restriction != 1)
 					{
