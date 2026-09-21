@@ -2,6 +2,8 @@
 #include "Hooked.hpp"
 #include "Player.hpp"
 #include "HitMarker.hpp"
+#include "Resolver.hpp"
+#include <cstdio>
 class GameEventListener : public IGameEventListener2
 {
 public:
@@ -9,6 +11,8 @@ public:
 	{
 		auto& hitmarker = Feature::HitMarker::Instance();
 		hitmarker.FireGameEvent(game_event);
+		Feature::Resolver::OnGameEvent(game_event);
+		Hooked_GameEvent(game_event);
 	}
 };
 
@@ -63,6 +67,7 @@ namespace Source
 	RecvVarProxyFn								m_flSpawnTime = nullptr;
 	RecvVarProxyFn								m_angEyeAnglesX = nullptr;
 	RecvVarProxyFn								m_angEyeAnglesY = nullptr;
+	RecvVarProxyFn								m_flPoseParameter[ 24 ] = {};
 
 	bool Startup()
 	{
@@ -241,6 +246,9 @@ namespace Source
 		}
 
 		m_pGameEventManager->AddListener(&g_GameEventListener, "player_hurt", false);
+		m_pGameEventManager->AddListener(&g_GameEventListener, "weapon_fire", false);
+		m_pGameEventManager->AddListener(&g_GameEventListener, "player_death", false);
+		m_pGameEventManager->AddListener(&g_GameEventListener, "round_start", false);
 
 		m_pClientSwap = std::make_shared< Memory::VmtSwap >();
 		m_pPredictionSwap = std::make_shared< Memory::VmtSwap >();
@@ -316,6 +324,13 @@ namespace Source
 		m_angEyeAnglesX = m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), XorStr( "m_angEyeAngles[0]" ), DT_CSPlayer_m_angEyeAnglesX );
 		m_angEyeAnglesY = m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), XorStr( "m_angEyeAngles[1]" ), DT_CSPlayer_m_angEyeAnglesY );
 
+		for( int i = 0; i < 24; i++ )
+		{
+			char poseProp[ 32 ] = {};
+			sprintf_s( poseProp, "m_flPoseParameter[%d]", i );
+			m_flPoseParameter[ i ] = m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), poseProp, Feature::Resolver::DT_CSPlayer_m_flPoseParameter );
+		}
+
 		return true;
 	}
 
@@ -379,6 +394,17 @@ namespace Source
 		{
 			m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), XorStr( "m_angEyeAngles[1]" ), m_angEyeAnglesY );
 			m_angEyeAnglesY = nullptr;
+		}
+
+		for( int i = 0; i < 24; i++ )
+		{
+			if( !m_flPoseParameter[ i ] )
+				continue;
+
+			char poseProp[ 32 ] = {};
+			sprintf_s( poseProp, "m_flPoseParameter[%d]", i );
+			m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), poseProp, m_flPoseParameter[ i ] );
+			m_flPoseParameter[ i ] = nullptr;
 		}
 
 		return true;

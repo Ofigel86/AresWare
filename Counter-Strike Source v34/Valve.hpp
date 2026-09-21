@@ -1965,7 +1965,7 @@ namespace Valve
 	extern void					ClipTraceToPlayers(const Vector3& vStart, const Vector3& vEnd, unsigned int iMask, ITraceFilter* pTraceFilter, trace_t* pTrace);
 	extern void					GetMaterialParameters(int iMaterial, float& flPenetrationModifier, float& flDamageModifier);
 	extern bool					TraceToExit(Vector3& vStart, Vector3& vDirection, Vector3& vEnd, float flStepSize, float flMaxDistance);
-	extern int					GetPlayerModDamage(float flDamage, int iArmorValue, float flArmorRatio, bool bIsHeadshot, bool bIsFriendly, bool bHasHelmet);
+	extern int					GetPlayerModDamage(float flDamage, int iArmorValue, float flArmorRatio, int iHitgroup, bool bIsFriendly, bool bHasHelmet);
 	extern float				GetHitgroupModDamage(float flDamage, int iHitgroup);
 	class CClientState //: public CBaseClientState, public CClientFrameManager
 	{

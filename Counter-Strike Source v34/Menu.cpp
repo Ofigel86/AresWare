@@ -9,7 +9,7 @@
 #include "ImGuiDX9.hpp"
 #include <ctime>
 int iTab;
-float menusize = 50.0f;
+float menusize = 44.0f;
 bool open;
 float mainmenu1 = 650.0f;
 float mainmenu2 = 560.0f;
@@ -120,6 +120,11 @@ namespace Feature
 		"Auto",
 		"On Press",
 	};
+	const char* AimbotStyleList[ ] =
+	{
+		"Rage",
+		"Legit",
+	};
 	const char* colorlist[] =
 	{
 		"ESP T Not-Visible",
@@ -223,6 +228,7 @@ namespace Feature
 		"Off",
 		"Normal",
 		"Extra",
+		"Multipoint",
 	};
 
 	const char* SilentList[ ] =
@@ -295,6 +301,7 @@ namespace Feature
 		"Custom",
 		"Flip",
 		"Switch",
+		"Jitter",
 	};
 	
 	const char* YawMoveList[] =
@@ -313,6 +320,7 @@ namespace Feature
 		"Custom Static Fake",//11
 		"Fake Spin",
 		"Fake Spin 2",
+		"Unbalanced",
 		};
 	const char* PitchStandList[ ] =
 	{
@@ -322,6 +330,7 @@ namespace Feature
 		"Custom",
 		"Flip",
 		"Switch",
+		"Jitter",
 	};
 	const char* YawStandList[ ] =
 	{
@@ -339,6 +348,7 @@ namespace Feature
 		"Custom Static Fake",//11
 		"Fake Spin",
 		"Fake Spin 2",
+		"Unbalanced",
 	};
 	
 	const char* NoSpreadList[ ] =
@@ -494,7 +504,7 @@ namespace Feature
 					ImGui::PushFont(def);
 					ButtonColor(15, 15, 15);
 					if (iTab == 0) style.Colors[ImGuiCol_Text] = ImColor(200, 200, 200); else style.Colors[ImGuiCol_Text] = ImColor(80, 80, 80);
-					if (ImGui::Button(XorStr("AIMBOT"), ImVec2(118, menusize))) iTab = 0;
+					if (ImGui::Button(XorStr("RAGEBOT"), ImVec2(118, menusize))) iTab = 0;
 
 
 					ImGui::SameLine();
@@ -804,6 +814,64 @@ namespace Feature
 					ImGui::Button("##fgfgfgfg12ac1fg61212fgfgfg", ImVec2(1, 1));
 				}
 			}
+			/*legitbot*/
+			{
+				if (Config::Misc->icons)
+				{
+					if (iTab == 6) ButtonColor(50, 50, 50); else ButtonColor(15, 15, 15);
+					ImGui::Button("##legit_upline", ImVec2(118, 1));
+
+					ImGui::SameLine();
+
+					ButtonColor(50, 50, 50);
+					ImGui::Button("##legit_upline2", ImVec2(1, 1));
+
+					ImGui::PopFont();
+					ImGui::PushFont(def);
+					ButtonColor(15, 15, 15);
+					if (iTab == 6) style.Colors[ImGuiCol_Text] = ImColor(200, 200, 200); else style.Colors[ImGuiCol_Text] = ImColor(80, 80, 80);
+					if (ImGui::Button(XorStr("LEGIT"), ImVec2(118, menusize))) iTab = 6;
+					ImGui::SameLine();
+
+					if (iTab != 6)ButtonColor(50, 50, 50); else ButtonColor(15, 15, 15);
+					ImGui::Button("##legit_midline", ImVec2(1, menusize));
+
+					if (iTab == 6) ButtonColor(50, 50, 50); else ButtonColor(15, 15, 15);
+					ImGui::Button("##legit_downline", ImVec2(118, 1));
+
+					ImGui::SameLine();
+
+					ButtonColor(50, 50, 50);
+					ImGui::Button("##legit_downline2", ImVec2(1, 1));
+				}
+				else
+				{
+					if (iTab == 6) ButtonColor(50, 50, 50); else ButtonColor(15, 15, 15);
+					ImGui::Button("##legit_upline", ImVec2(118, 1));
+
+					ImGui::SameLine();
+
+					ButtonColor(50, 50, 50);
+					ImGui::Button("##legit_upline2", ImVec2(1, 1));
+					ImGui::PopFont();
+					ImGui::PushFont(def);
+					ButtonColor(15, 15, 15);
+					if (iTab == 6) style.Colors[ImGuiCol_Text] = ImColor(200, 200, 200); else style.Colors[ImGuiCol_Text] = ImColor(80, 80, 80);
+					if (ImGui::Button(XorStr("LEGITBOT"), ImVec2(118, menusize))) iTab = 6;
+					ImGui::SameLine();
+
+					if (iTab != 6)ButtonColor(50, 50, 50); else ButtonColor(15, 15, 15);
+					ImGui::Button("##legit_midline", ImVec2(1, menusize));
+
+					if (iTab == 6) ButtonColor(50, 50, 50); else ButtonColor(15, 15, 15);
+					ImGui::Button("##legit_downline", ImVec2(118, 1));
+
+					ImGui::SameLine();
+
+					ButtonColor(50, 50, 50);
+					ImGui::Button("##legit_downline2", ImVec2(1, 1));
+				}
+			}
 			{
 			}
 			ImGui::PopFont();
@@ -863,6 +931,12 @@ namespace Feature
 					ImGui::BeginChild(XorStr(""), ImVec2(493.25, 533.25), true);
 					{
 
+					ImGui::Combo(XorStr("Style"), &Config::Main->AimbotStyle, AimbotStyleList, ARRAYSIZE(AimbotStyleList));
+						if (Config::Main->AimbotStyle == 1)
+							ImGui::TextDisabled(XorStr("Rage inactive: Legit style selected"));
+
+					ImGui::Separator();
+
 					ImGui::Checkbox(XorStr("Weapon Config"), &Config::Main->AimbotWeaponConfig);
 					if (Config::Main->AimbotWeaponConfig)
 					{
@@ -897,8 +971,10 @@ namespace Feature
 						if (Config::Main->Aimbot->Resolver)
 						{
 							ImGui::SliderInt(XorStr("Resolver Bullet"), &Config::Weapon[i]->Aimbot->ResvolerBullets, 1, 7);
-							ImGui::SliderInt(XorStr("Resolver Change Delay"), &Config::Weapon[i]->Aimbot->ResvolerBulletsDelay, 2, 8);
+							ImGui::SliderInt(XorStr("Resolver Grace Shots"), &Config::Weapon[i]->Aimbot->ResvolerBulletsDelay, 2, 8);
 							ImGui::SliderFloat(XorStr("Resolver Add Y"), &Config::Misc->ResolverAng, 0.0f, 180.0f);
+							ImGui::Checkbox(XorStr("Resolver Pitch"), &Config::Weapon[i]->Aimbot->ResolverPitch);
+							ImGui::Checkbox(XorStr("Resolver Log"), &Config::Misc->ResolverLog);
 						}
 
 						ImGui::Separator();
@@ -1037,8 +1113,10 @@ namespace Feature
 						if (Config::Main->Aimbot->Resolver)
 						{
 							ImGui::SliderInt(XorStr("Resolver Bullet"), &Config::Main->Aimbot->ResvolerBullets, 1, 7);
-							ImGui::SliderInt(XorStr("Resolver Change Delay"), &Config::Main->Aimbot->ResvolerBulletsDelay, 2, 8);
+							ImGui::SliderInt(XorStr("Resolver Grace Shots"), &Config::Main->Aimbot->ResvolerBulletsDelay, 2, 8);
 							ImGui::SliderFloat(XorStr("Resolver Add Y"), &Config::Misc->ResolverAng, 0.0f, 180.0f);
+							ImGui::Checkbox(XorStr("Resolver Pitch"), &Config::Main->Aimbot->ResolverPitch);
+							ImGui::Checkbox(XorStr("Resolver Log"), &Config::Misc->ResolverLog);
 						}
 
 						ImGui::Separator();
@@ -1456,12 +1534,15 @@ namespace Feature
 							{
 								ImGui::KeyButton(XorStr("FakeWalk Key"), &Config::AntiAim->FakeWalkKey);
 							}
+							ImGui::Checkbox(XorStr("Hit Reactive"), &Config::AntiAim->HitReactive);
+							ImGui::SameLine();
+							ImGui::Checkbox(XorStr("Break LagComp"), &Config::AntiAim->BreakLC);
 							ImGui::Combo(XorStr("Stand Pitch"), &Config::AntiAim->PitchStand, PitchStandList, ARRAYSIZE(PitchStandList));
 							ImGui::Combo(XorStr("Move Pitch"), &Config::AntiAim->PitchMove, PitchMoveList, ARRAYSIZE(PitchMoveList));
 							ImGui::Combo(XorStr("Stand Yaw"), &Config::AntiAim->YawStand, YawStandList, ARRAYSIZE(YawStandList));
 							ImGui::Combo(XorStr("Move Yaw"), &Config::AntiAim->YawMove, YawMoveList, ARRAYSIZE(YawMoveList));
 
-							if (Config::AntiAim->YawStand == 2 || Config::AntiAim->YawStand == 3 || Config::AntiAim->YawStand == 4 || Config::AntiAim->YawStand == 6 || Config::AntiAim->YawStand == 10 || Config::AntiAim->YawStand == 11 || Config::AntiAim->YawMove == 12 || Config::AntiAim->YawMove == 13 || Config::AntiAim->YawStand == 14)
+							if (Config::AntiAim->YawStand == 2 || Config::AntiAim->YawStand == 3 || Config::AntiAim->YawStand == 4 || Config::AntiAim->YawStand == 6 || Config::AntiAim->YawStand == 10 || Config::AntiAim->YawStand == 11 || Config::AntiAim->YawStand == 12 || Config::AntiAim->YawStand == 13 || Config::AntiAim->YawStand == 14)
 							{
 								ImGui::Separator();
 								ImGui::SliderInt(XorStr("Stand Choked Packets"), &Config::AntiAim->StandChokedPackets, 0, 15);
@@ -1478,13 +1559,13 @@ namespace Feature
 								ImGui::SliderInt(XorStr("Stand Spin Speed"), &Config::AntiAim->StandSpinSpeed, -100, 100);
 
 							}
-							if (Config::AntiAim->YawStand == 12 || Config::AntiAim->YawStand == 14)
+							if (Config::AntiAim->YawStand == 12)
 							{
 								ImGui::Separator();
 								ImGui::SliderInt(XorStr("Stand Custom Fake Spin Speed"), &Config::AntiAim->StandFakeSpinSpeed, -100, 100);
 								ImGui::SliderFloat(XorStr("Stand Custom Fake Spin"), &Config::AntiAim->StandFakeSpinAngle, -180.f, 180.f);
 							}
-							if (Config::AntiAim->PitchStand == 3 || Config::AntiAim->PitchStand == 5)
+							if (Config::AntiAim->PitchStand == 3 || Config::AntiAim->PitchStand == 5 || Config::AntiAim->PitchStand == 6)
 							{
 								ImGui::Separator();
 								ImGui::SliderFloat(XorStr("Stand Custom Angle Pitch"), &Config::AntiAim->StandCustomAnglePitch, -180.f, 180.f);
@@ -1496,7 +1577,7 @@ namespace Feature
 
 							}
 							
-							if (Config::AntiAim->YawStand == 7 || Config::AntiAim->YawStand == 8 || Config::AntiAim->YawStand == 10 || Config::AntiAim->YawStand == 11)
+							if (Config::AntiAim->YawStand == 7 || Config::AntiAim->YawStand == 8 || Config::AntiAim->YawStand == 10 || Config::AntiAim->YawStand == 11 || Config::AntiAim->YawStand == 14)
 							{
 								ImGui::Separator();
 								ImGui::SliderFloat(XorStr("Stand Custom Angle Yaw"), &Config::AntiAim->StandCustomAngleYaw, -180.f, 180.f);
@@ -1539,7 +1620,7 @@ namespace Feature
 
 							}
 
-							if (Config::AntiAim->PitchMove == 3 || Config::AntiAim->PitchMove == 5)
+							if (Config::AntiAim->PitchMove == 3 || Config::AntiAim->PitchMove == 5 || Config::AntiAim->PitchMove == 6)
 							{
 								ImGui::Separator();
 								ImGui::SliderFloat(XorStr("Move Custom Angle Pitch"), &Config::AntiAim->MoveCustomAnglePitch, -180.f, 180.f);
@@ -1550,13 +1631,13 @@ namespace Feature
 								ImGui::SliderInt(XorStr("Move Switch Delay"), &Config::AntiAim->MoveSwitchPitchDelay, 20, 620);
 								
 							}
-							if (Config::AntiAim->YawMove == 7 || Config::AntiAim->YawMove == 8 || Config::AntiAim->YawMove == 10 || Config::AntiAim->YawMove == 11)
+							if (Config::AntiAim->YawMove == 7 || Config::AntiAim->YawMove == 8 || Config::AntiAim->YawMove == 10 || Config::AntiAim->YawMove == 11 || Config::AntiAim->YawMove == 14)
 							{
 								ImGui::Separator();
 								ImGui::SliderFloat(XorStr("Move Custom Angle Yaw"), &Config::AntiAim->MoveCustomAngleYaw, -180.f, 180.f);
 								ImGui::SliderFloat(XorStr("Move Custom Angle FakeYaw"), &Config::AntiAim->MoveCustomAngleFakeYaw, -180.f, 180.f);
 							}
-							if (Config::AntiAim->YawMove == 12 || Config::AntiAim->YawMove == 14)
+							if (Config::AntiAim->YawMove == 12)
 							{
 								ImGui::Separator();
 								ImGui::SliderInt(XorStr("Move Custom Fake Spin Speed"), &Config::AntiAim->MoveFakeSpinSpeed, -100, 100);
@@ -1698,8 +1779,70 @@ namespace Feature
 						ImGui::EndChild();
 					}
 				}
-			//	if (iTab == 6)
-			//	{ }
+			if (iTab == 6) // legitbot
+			{
+				ImGui::BeginChild(XorStr(""), ImVec2(493.25, 533.25), true);
+				{
+					ImGui::Combo(XorStr("Style"), &Config::Main->AimbotStyle, AimbotStyleList, ARRAYSIZE(AimbotStyleList));
+
+					if (Config::Main->AimbotStyle == 0)
+						ImGui::TextDisabled(XorStr("Legit inactive: Rage style selected"));
+
+					ImGui::Separator();
+
+					ImGui::Combo(XorStr("Mode"), &Config::Legitbot->Mode, ModeList, ARRAYSIZE(ModeList));
+					if (Config::Legitbot->Mode == 2) // On Press
+						ImGui::KeyButton(XorStr("Key"), &Config::Legitbot->Key);
+
+					ImGui::Checkbox(XorStr("Auto Fire"), &Config::Legitbot->AutoFire);
+					ImGui::SameLine();
+					ImGui::Checkbox(XorStr("Auto Stop"), &Config::Legitbot->AutoStop);
+
+					ImGui::Separator();
+
+					ImGui::Combo(XorStr("Spot"), &Config::Legitbot->Spot, SpotList, ARRAYSIZE(SpotList));
+
+					ImGui::Separator();
+
+					ImGui::Combo(XorStr("Target Selection"), &Config::Legitbot->TargetSelection, TargetSelectionList, ARRAYSIZE(TargetSelectionList));
+					ImGui::SliderFloat(XorStr("Field Of View"), &Config::Legitbot->FieldOfView, 0.0f, 30.0f);
+
+					ImGui::Separator();
+
+					ImGui::Combo(XorStr("Smooth"), &Config::Legitbot->Smooth, SmoothList, ARRAYSIZE(SmoothList));
+					if (Config::Legitbot->Smooth == 1) // Step
+					{
+						ImGui::SliderFloat(XorStr("Vertical"), &Config::Legitbot->StepX, 0.0f, 100.0f);
+						ImGui::SliderFloat(XorStr("Horizontal"), &Config::Legitbot->StepY, 0.0f, 100.0f);
+					}
+					else if (Config::Legitbot->Smooth == 2) // Linear
+					{
+						ImGui::SliderFloat(XorStr("Vertical"), &Config::Legitbot->SmoothX, 0.0f, 100.0f);
+						ImGui::SliderFloat(XorStr("Horizontal"), &Config::Legitbot->SmoothY, 0.0f, 100.0f);
+					}
+
+					ImGui::Separator();
+
+					ImGui::SliderInt(XorStr("Duration"), &Config::Legitbot->Duration, 0, 5000);
+					ImGui::SliderInt(XorStr("Delay"), &Config::Legitbot->Delay, 0, 5000);
+
+					ImGui::Separator();
+
+					ImGui::Checkbox(XorStr("RCS Active"), &Config::Legitbot->RCS);
+					if (Config::Legitbot->RCS)
+					{
+						ImGui::SliderInt(XorStr("RCS Delay"), &Config::Legitbot->RCSDelay, 0, 10);
+						ImGui::SliderInt(XorStr("RCS Amount X"), &Config::Legitbot->RCSAmountX, 0, 100, "%.0f%%");
+						ImGui::SliderInt(XorStr("RCS Amount Y"), &Config::Legitbot->RCSAmountY, 0, 100, "%.0f%%");
+					}
+
+					ImGui::Separator();
+
+					ImGui::Combo(XorStr("Target"), &Config::Legitbot->Target, AimTargetList, ARRAYSIZE(AimTargetList));
+
+					Config::Legitbot->Clamp();
+				}ImGui::EndChild();
+			}
 				ImGui::EndChild();
 
 				ImGui::End();
@@ -1752,7 +1895,7 @@ namespace Feature
 		"Zero",
 		"Up",
 		"Down",
-		"Brutforce",
+		"Auto",
 	};
 
 	const char* YawModList[ ] =
@@ -1764,7 +1907,7 @@ namespace Feature
 		"Backward",
 		"Sideway Left",
 		"Sideway Right",
-		"Brutforce",
+		"Auto",
 		"Resolver",
 	};
 

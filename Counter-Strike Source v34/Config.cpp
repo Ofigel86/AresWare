@@ -1,4 +1,4 @@
-#include "Config.hpp"
+﻿#include "Config.hpp"
 #include "Player.hpp"
 #include "Weapon.hpp"
 #include "Source.hpp"
@@ -20,6 +20,7 @@ namespace Config
 	MiscList*		Misc = nullptr;
 	ColorsList*		Colors = nullptr;
 	BindsList*		Binds = nullptr;
+	LegitbotList*	Legitbot = nullptr;
 
 	std::string		m_config;
 	std::string		m_current;
@@ -50,6 +51,7 @@ namespace Config
 			Misc = new MiscList();
 			Colors = new ColorsList();
 			Binds = new BindsList();
+			Legitbot = new LegitbotList();
 
 			m_config = Shared::m_pVars->m_loader;
 			m_config.append(XorStr("\\v34\\"));
@@ -85,12 +87,27 @@ namespace Config
 		Memory::SafeDelete( Misc );
 		Memory::SafeDelete( Colors );
 		Memory::SafeDelete( Binds );
+		Memory::SafeDelete( Legitbot );
 	}
 
 	bool LoadBool( const std::string& strSection, const std::string& strName )
 	{
 		char szData[ MAX_PATH ];
 		GetPrivateProfileString( strSection.c_str(), strName.c_str(), XorStr( "0" ), szData, MAX_PATH, m_current.c_str() );
+
+		if( strcmp( szData, XorStr( "on" ) ) == 0 || strcmp( szData, XorStr( "true" ) ) == 0 || atoi( szData ) == 1 )
+			return true;
+
+		return false;
+	}
+
+	bool LoadBoolDef( const std::string& strSection, const std::string& strName, bool bDefault )
+	{
+		char szData[ MAX_PATH ];
+		GetPrivateProfileString( strSection.c_str(), strName.c_str(), "", szData, MAX_PATH, m_current.c_str() );
+
+		if( szData[ 0 ] == '\0' )
+			return bDefault;
 
 		if( strcmp( szData, XorStr( "on" ) ) == 0 || strcmp( szData, XorStr( "true" ) ) == 0 || atoi( szData ) == 1 )
 			return true;
@@ -200,6 +217,7 @@ namespace Config
 		Main->Aimbot->FieldOfView = LoadFloat(main, XorStr("aimbot.fov"));
 		Main->Aimbot->Smooth = LoadInt(main, XorStr("aimbot.smooth"));
 		Main->Aimbot->Resolver = LoadBool(main, XorStr("aimbot.resolver"));
+		Main->Aimbot->ResolverPitch = LoadBoolDef(main, XorStr("aimbot.resolver.pitch"), true);
 		Main->Aimbot->ResvolerBullets = LoadInt(main, XorStr("aimbot.resolver.bullets"));
 		Main->Aimbot->ResvolerBulletsDelay = LoadInt(main, XorStr("aimbot.resolver.bullets.delay"));
 		Main->Aimbot->StepX				= LoadFloat( main, XorStr( "aimbot.step.vertical" ) );
@@ -226,6 +244,33 @@ namespace Config
 		Main->Aimbot->HeightScale = LoadFloat(main, XorStr("aimbot.height.scale"));
 		Main->Aimbot->LagCompensation = LoadInt(main, XorStr("aimbot.adjustment"));
 		Main->Aimbot->Clamp();
+
+		Main->AimbotStyle = LoadInt( main, XorStr( "aimbot.style" ) );
+
+		if( Main->AimbotStyle < 0 || Main->AimbotStyle > 1 )
+			Main->AimbotStyle = 0;
+
+		Legitbot->Mode				= LoadInt( main, XorStr( "legitbot.mode" ) );
+		Legitbot->Key				= LoadInt( main, XorStr( "legitbot.key" ) );
+		Legitbot->Spot				= LoadInt( main, XorStr( "legitbot.spot" ) );
+		Legitbot->TargetSelection	= LoadInt( main, XorStr( "legitbot.target.selection" ) );
+		Legitbot->FieldOfView		= LoadFloat( main, XorStr( "legitbot.fov" ) );
+		Legitbot->Smooth			= LoadInt( main, XorStr( "legitbot.smooth" ) );
+		Legitbot->StepX			= LoadFloat( main, XorStr( "legitbot.step.vertical" ) );
+		Legitbot->StepY			= LoadFloat( main, XorStr( "legitbot.step.horizontal" ) );
+		Legitbot->SmoothX			= LoadFloat( main, XorStr( "legitbot.smooth.vertical" ) );
+		Legitbot->SmoothY			= LoadFloat( main, XorStr( "legitbot.smooth.horizontal" ) );
+		Legitbot->Delay			= LoadInt( main, XorStr( "legitbot.delay" ) );
+		Legitbot->Duration			= LoadInt( main, XorStr( "legitbot.duration" ) );
+		Legitbot->RCS				= LoadBool( main, XorStr( "legitbot.rcs" ) );
+		Legitbot->RCSDelay			= LoadInt( main, XorStr( "legitbot.rcs.delay" ) );
+		Legitbot->RCSAmountX		= LoadInt( main, XorStr( "legitbot.rcs.amount.vertical" ) );
+		Legitbot->RCSAmountY		= LoadInt( main, XorStr( "legitbot.rcs.amount.horizontal" ) );
+		Legitbot->Target			= LoadInt( main, XorStr( "legitbot.target" ) );
+		Legitbot->AutoFire			= LoadBool( main, XorStr( "legitbot.auto.fire" ) );
+		Legitbot->AutoStop			= LoadBool( main, XorStr( "legitbot.auto.stop" ) );
+
+		Legitbot->Clamp();
 
 		Main->TriggerbotWeaponConfig	= LoadBool( main, XorStr( "triggerbot.weapon.config" ) );
 		Main->Triggerbot->Mode			= LoadInt( main, XorStr( "triggerbot.mode" ) );
@@ -298,6 +343,8 @@ namespace Config
 		AntiAim->MoveCustomAngleYaw2 = LoadFloat(main, XorStr("antiaim.move.breaker.real.second"));
 		AntiAim->MoveCustomAngleFakeYaw1 = LoadFloat(main, XorStr("antiaim.move.breaker.fake.first"));
 		AntiAim->MoveCustomAngleFakeYaw2 = LoadFloat(main, XorStr("antiaim.move.breaker.fake.second"));
+		AntiAim->HitReactive = LoadBool(main, XorStr("antiaim.hit.reactive"));
+		AntiAim->BreakLC = LoadBool(main, XorStr("antiaim.break.lagcomp"));
 		AntiAim->Clamp();
 		Removals->NoRecoil				= LoadBool( main, XorStr( "removals.no.recoil" ) );
 		Removals->NoVisualRecoil		= LoadBool( main, XorStr( "removals.no.visual.recoil" ) );
@@ -327,6 +374,7 @@ namespace Config
 		Misc->SpeedMod = LoadFloat(main, XorStr("misc.cstrafer.modifer"));
 		Misc->Restriction = LoadInt(main, XorStr("misc.restriction"));
 		Misc->ResolverAng = LoadFloat(main, XorStr("misc.resolver.angle"));
+		Misc->ResolverLog = LoadBoolDef(main, XorStr("misc.resolver.log"), true);
 
 		Misc->Clamp();
 
@@ -447,6 +495,7 @@ namespace Config
 		SaveFloat(main, XorStr("aimbot.fov"), Main->Aimbot->FieldOfView);
 		SaveInt(main, XorStr("aimbot.smooth"), Main->Aimbot->Smooth);
 		SaveBool(main, XorStr("aimbot.resolver"), Main->Aimbot->Resolver);
+		SaveBool(main, XorStr("aimbot.resolver.pitch"), Main->Aimbot->ResolverPitch);
 		SaveInt(main, XorStr("aimbot.resolver.bullets"), Main->Aimbot->ResvolerBullets);
 		SaveInt(main, XorStr("aimbot.resolver.bullets.delay"), Main->Aimbot->ResvolerBulletsDelay);
 		SaveFloat( main, XorStr( "aimbot.step.vertical" ), Main->Aimbot->StepX );
@@ -472,6 +521,30 @@ namespace Config
 		SaveBool(main, XorStr("aimbot.height"), Main->Aimbot->Height);
 		SaveFloat(main, XorStr("aimbot.height.scale"), Main->Aimbot->HeightScale);
 		SaveInt(main, XorStr("aimbot.adjustment"), Main->Aimbot->LagCompensation);
+
+		SaveInt( main, XorStr( "aimbot.style" ), Main->AimbotStyle );
+
+		Legitbot->Clamp();
+
+		SaveInt( main, XorStr( "legitbot.mode" ), Legitbot->Mode );
+		SaveInt( main, XorStr( "legitbot.key" ), Legitbot->Key );
+		SaveInt( main, XorStr( "legitbot.spot" ), Legitbot->Spot );
+		SaveInt( main, XorStr( "legitbot.target.selection" ), Legitbot->TargetSelection );
+		SaveFloat( main, XorStr( "legitbot.fov" ), Legitbot->FieldOfView );
+		SaveInt( main, XorStr( "legitbot.smooth" ), Legitbot->Smooth );
+		SaveFloat( main, XorStr( "legitbot.step.vertical" ), Legitbot->StepX );
+		SaveFloat( main, XorStr( "legitbot.step.horizontal" ), Legitbot->StepY );
+		SaveFloat( main, XorStr( "legitbot.smooth.vertical" ), Legitbot->SmoothX );
+		SaveFloat( main, XorStr( "legitbot.smooth.horizontal" ), Legitbot->SmoothY );
+		SaveInt( main, XorStr( "legitbot.delay" ), Legitbot->Delay );
+		SaveInt( main, XorStr( "legitbot.duration" ), Legitbot->Duration );
+		SaveBool( main, XorStr( "legitbot.rcs" ), Legitbot->RCS );
+		SaveInt( main, XorStr( "legitbot.rcs.delay" ), Legitbot->RCSDelay );
+		SaveInt( main, XorStr( "legitbot.rcs.amount.vertical" ), Legitbot->RCSAmountX );
+		SaveInt( main, XorStr( "legitbot.rcs.amount.horizontal" ), Legitbot->RCSAmountY );
+		SaveInt( main, XorStr( "legitbot.target" ), Legitbot->Target );
+		SaveBool( main, XorStr( "legitbot.auto.fire" ), Legitbot->AutoFire );
+		SaveBool( main, XorStr( "legitbot.auto.stop" ), Legitbot->AutoStop );
 
 		Main->Triggerbot->Clamp();
 
@@ -548,6 +621,8 @@ namespace Config
 		SaveFloat(main, XorStr("antiaim.move.breaker.real.second"), AntiAim->MoveCustomAngleYaw2);
 		SaveFloat(main, XorStr("antiaim.move.breaker.fake.first"), AntiAim->MoveCustomAngleFakeYaw1);
 		SaveFloat(main, XorStr("antiaim.move.breaker.fake.second"), AntiAim->MoveCustomAngleFakeYaw2);
+		SaveBool(main, XorStr("antiaim.hit.reactive"), AntiAim->HitReactive);
+		SaveBool(main, XorStr("antiaim.break.lagcomp"), AntiAim->BreakLC);
 
 		Removals->Clamp();
 		SaveBool( main, XorStr( "removals.no.recoil" ), Removals->NoRecoil );
@@ -578,6 +653,7 @@ namespace Config
 		SaveFloat(main, XorStr("misc.cstrafer.modifer"), Misc->SpeedMod);
 		SaveInt(main, XorStr("misc.restriction"), Misc->Restriction);
 		SaveFloat(main, XorStr("misc.resolver.angle"), Misc->ResolverAng);
+		SaveBool(main, XorStr("misc.resolver.log"), Misc->ResolverLog);
 
 		
 		std::string colors( XorStr( "colors" ) );
@@ -696,6 +772,58 @@ namespace Config
 			memcpy( Current->Triggerbot, Weapon[ i ]->Triggerbot, sizeof( TriggerbotList ) );
 		else
 			memcpy( Current->Triggerbot, Main->Triggerbot, sizeof( TriggerbotList ) );
+
+		// Legit-стиль: поверх текущего конфига кладём легитные настройки,
+		// а рейдж-фичи принудительно гасим. Вся логика (Aimbot/Hooked)
+		// читает только Current->Aimbot, поэтому переключение атомарно.
+		if( Main->AimbotStyle == 1 && Legitbot )
+		{
+			Current->Aimbot->Mode				= Legitbot->Mode;
+			Current->Aimbot->Key				= Legitbot->Key;
+			Current->Aimbot->Spot				= Legitbot->Spot;
+			Current->Aimbot->TargetSelection	= Legitbot->TargetSelection;
+			Current->Aimbot->FieldOfView		= Legitbot->FieldOfView;
+			Current->Aimbot->Smooth			= Legitbot->Smooth;
+			Current->Aimbot->StepX				= Legitbot->StepX;
+			Current->Aimbot->StepY				= Legitbot->StepY;
+			Current->Aimbot->SmoothX			= Legitbot->SmoothX;
+			Current->Aimbot->SmoothY			= Legitbot->SmoothY;
+			Current->Aimbot->Delay				= Legitbot->Delay;
+			Current->Aimbot->Duration			= Legitbot->Duration;
+			Current->Aimbot->RCS				= Legitbot->RCS;
+			Current->Aimbot->RCSDelay			= Legitbot->RCSDelay;
+			Current->Aimbot->RCSAmountX		= Legitbot->RCSAmountX;
+			Current->Aimbot->RCSAmountY		= Legitbot->RCSAmountY;
+			Current->Aimbot->Target				= Legitbot->Target;
+			Current->Aimbot->AutoFire			= Legitbot->AutoFire;
+			Current->Aimbot->AutoStop			= Legitbot->AutoStop;
+
+			// Рейдж-фичи в легите недоступны.
+			Current->Aimbot->AutoCrouch			= false;
+			Current->Aimbot->AutoReload			= false;
+			Current->Aimbot->AntiSpawnProtection	= false;
+			Current->Aimbot->NoSwitch			= true;
+			Current->Aimbot->SpotRandomize			= false;
+			Current->Aimbot->Height				= false;
+			Current->Aimbot->HeightScale			= 0.0f;
+			Current->Aimbot->HeightScaleX			= 0.0f;
+			Current->Aimbot->HeightScaleY			= 0.0f;
+			Current->Aimbot->SwitchDelay			= 0;
+			Current->Aimbot->AutoWall			= false;
+			Current->Aimbot->MinDamage			= 0;
+			Current->Aimbot->HitScan				= 0;
+			Current->Aimbot->HitScanScale			= 0.0f;
+			Current->Aimbot->Silent				= false;
+			Current->Aimbot->NoSpreadActive		= false;
+			Current->Aimbot->NoSpread			= 0;
+			Current->Aimbot->LagCompensation		= 0;
+			Current->Aimbot->LastTick			= false;
+			Current->Aimbot->SetAbs				= false;
+			Current->Aimbot->UpdateAnim			= false;
+			Current->Aimbot->Resolver			= false;
+			Current->Aimbot->ResvolerBullets		= 0;
+			Current->Aimbot->ResvolerBulletsDelay	= 0;
+		}
 	}
 
 	auto GetPath() -> std::string

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Valve.hpp"
 
@@ -16,6 +16,8 @@ namespace Config
 		bool	AimbotWeaponConfig		= false;
 		bool	TriggerbotWeaponConfig	= false;
 
+		int		AimbotStyle				= 0;	// 0 - Rage | 1 - Legit
+
 		AimbotList*		Aimbot		= nullptr;
 		TriggerbotList*	Triggerbot	= nullptr;
 	};
@@ -31,9 +33,10 @@ namespace Config
 		bool LastTick = false;
 		bool SetAbs = false;
 		bool UpdateAnim = false;
-		int ResvolerBulletsDelay = 0;
+		int ResvolerBulletsDelay = 2;
 		bool Resolver = false;
-		int ResvolerBullets = 0;
+		bool ResolverPitch = true;
+		int ResvolerBullets = 2;
 		int		Mode = 0;				// 0 - Off | 1 - Auto | 2 - On Press
 		int		Key = 0;				// 
 		bool	AutoFire = false;		// 
@@ -64,7 +67,7 @@ namespace Config
 		int		RCSAmountY = 0;			// percents ( 0 - 100 )
 		bool	AutoWall = false;		// Aim Through Penetrable Walls
 		int		MinDamage = 0;			// Minimum Damage To Deal Through Wall
-		int		HitScan = 0;			// 0 - Off | 1 - Normal | 2 - Corners
+		int		HitScan = 0;			// 0 - Off | 1 - Normal | 2 - Corners | 3 - Multipoint
 		float	HitScanScale = 1.0f;	// Corners Scale
 		int		Target = 0;				// 0 - Everyone | 1 - Enemies | 2 - Friends
 		bool	Silent = 0;				// 0 - Off | 1 - Normal | 2 - Perfect
@@ -115,12 +118,54 @@ namespace Config
 		}
 	};
 
+	struct LegitbotList
+	{
+		int		Mode = 0;			// 0 - Off | 1 - Auto | 2 - On Press
+		int		Key = 0;			//
+		int		Spot = 12;			// хитбокс (12 - Head)
+		int		TargetSelection = 2;// 0 - Fast | 1 - Distance | 2 - FOV
+		float	FieldOfView = 5.0f;	//
+		int		Smooth = 2;			// 0 - Off | 1 - Step | 2 - Linear
+		float	StepX = 0.0f;		// 0 - 100
+		float	StepY = 0.0f;		// 0 - 100
+		float	SmoothX = 10.0f;	// 0 - 100
+		float	SmoothY = 10.0f;	// 0 - 100
+		int		Delay = 0;			// ms ( 0 - 5000 )
+		int		Duration = 0;		// ms ( 0 - 5000 )
+		bool	RCS = false;		// Recoil Control System
+		int		RCSDelay = 0;		// bullets ( 0 - 10 )
+		int		RCSAmountX = 100;	// percents ( 0 - 100 )
+		int		RCSAmountY = 100;	// percents ( 0 - 100 )
+		int		Target = 1;			// 0 - Everyone | 1 - Enemies | 2 - Friends
+		bool	AutoFire = false;	//
+		bool	AutoStop = false;	//
+
+		void	Clamp()
+		{
+			LimitValue( Key, 0, 128 );
+			LimitValue( Spot, 0, 19 );
+			LimitValue( TargetSelection, 0, 2 );
+			LimitValue( FieldOfView, 0.0f, 180.0f );
+			LimitValue( Smooth, 0, 2 );
+			LimitValue( StepX, 0.0f, 100.0f );
+			LimitValue( StepY, 0.0f, 100.0f );
+			LimitValue( SmoothX, 0.0f, 100.0f );
+			LimitValue( SmoothY, 0.0f, 100.0f );
+			LimitValue( Delay, 0, 5000 );
+			LimitValue( Duration, 0, 5000 );
+			LimitValue( RCSDelay, 0, 10 );
+			LimitValue( RCSAmountX, 0, 100 );
+			LimitValue( RCSAmountY, 0, 100 );
+			LimitValue( Target, 0, 2 );
+		}
+	};
+
 	struct ESPList
 	{
 		bool Hitbox = false;
 		bool Filled = false;
 		bool Spread = false;
-		int		Box = 0;			// 0 - Off | 1 - Normal | 2 - Corners
+		int		Box = 0;			// 0 - Off | 1 - Normal | 2 - Corners | 3 - Multipoint
 		bool	Outlined = false;	// Draw Black Outline
 		int viewfov = 0;
 		bool	Name = false;		// Draw Player Name
@@ -200,6 +245,8 @@ namespace Config
 		int StandFakeSpinSpeed = 0;
 		float MoveFakeSpinAngle = 0.0f;
 		int MoveFakeSpinSpeed = 0;
+		bool HitReactive = false;
+		bool BreakLC = false;
 		void Clamp()
 		{
 			LimitValue(StandSwitchPitchDelay, 20, 1020);
@@ -246,6 +293,7 @@ namespace Config
 		int fr = 0;
 		int LagKey = 0;
 		float ResolverAng = 0.0f;
+		bool ResolverLog = true;
 		int Angles = 0;
 		int target = 0;
 		int FakePing = 0;
@@ -341,6 +389,8 @@ namespace Config
 	extern MainList*		Main;
 	extern CurrentList*		Current;
 	extern CurrentList*		Weapon[ WEAPON_MAX ];
+
+	extern LegitbotList*	Legitbot;
 
 	extern ESPList*			ESP;
 	extern RenderList*		Render;

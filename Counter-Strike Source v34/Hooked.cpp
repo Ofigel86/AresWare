@@ -12,9 +12,15 @@
 #include "Aimbot.hpp"
 #include "HitMarker.hpp"
 #include "Thirdperson.hpp"
+#include "Resolver.hpp"
 
 #define	CONTENTS_SOLID			0x1
 bool bSendPacket = false;
+
+// Hit-reactive AA direction: flipped every time we take damage while
+// AntiAim->HitReactive is on. Mirrors spin direction / unbalanced jitter
+// side to invalidate the enemy's locked resolver correction.
+int g_iAAHurtDir = 1;
 using namespace Direct3D9;
 
 void RenderSkeleton(C_CSPlayer* player, matrix3x4_t* transform, const Color& color)
@@ -328,28 +334,26 @@ void Speed(C_CSPlayer* player, CUserCmd* cmd, Vector3& Originalview)
 
 void FakeWalk(CUserCmd* cmd, C_CSPlayer* player)
 {
-	if (GetAsyncKeyState(Config::AntiAim->FakeWalkKey))
+	(void)player;
+
+	if (!GetAsyncKeyState(Config::AntiAim->FakeWalkKey))
+		return;
+
+	// On-demand fakelag: move in choked commands, send stationary snapshots.
+	// (Original did pointer arithmetic on cmd and corrupted frametime.)
+	static int iChoked = 0;
+
+	if (iChoked < 3)
 	{
-
-		static int iChoked = -1;
+		bSendPacket = false;
 		iChoked++;
-
-		if (iChoked < 3)
-		{
-			bSendPacket = false;
-			cmd->tick_count += 10;
-			cmd += 7 + cmd->tick_count % 2 ? 0 : 1;
-			cmd->buttons |= player->m_MoveType() == IN_BACK;
-			cmd->forwardmove = cmd->sidemove = 0.f;
-		}
-		else
-		{
-			bSendPacket = true;
-			iChoked = -1;
-			Source::m_pGlobalVars->frametime *= (player->m_vecVelocity().Length2D()) / 1.f;
-			cmd->buttons |= player->m_MoveType() == IN_FORWARD;
-		}
-
+	}
+	else
+	{
+		bSendPacket = true;
+		iChoked = 0;
+		cmd->forwardmove = 0.0f;
+		cmd->sidemove = 0.0f;
 	}
 }
 
@@ -497,6 +501,69 @@ auto IsEveryoneDead3()
 
 }
 
+void BreakLagComp(CUserCmd* cmd, C_CSPlayer* player)
+{
+	(void)cmd;
+
+	// Force a send once we moved 68u since the last sent snapshot: the server
+	// lag compensator discards records that jumped > 64u (teleport), so every
+	// send lands as a teleport - enemy backtrack has no valid record to aim at.
+	static Vector3 vLastSent(0.0f, 0.0f, 0.0f);
+	static int iChoked = 0;
+	static bool bInit = false;
+
+	if (!bInit)
+	{
+		vLastSent = player->m_vecOrigin();
+		bInit = true;
+	}
+
+	if (bSendPacket)
+	{
+		vLastSent = player->m_vecOrigin();
+		iChoked = 0;
+		return;
+	}
+
+	int iMaxChoke = Config::Misc->ChokedPackets;
+
+	if (iMaxChoke < 1)
+		iMaxChoke = 1;
+
+	if (iMaxChoke > 14)
+		iMaxChoke = 14;
+
+		iChoked++;
+
+	if (iChoked >= iMaxChoke || vLastSent.DistTo(player->m_vecOrigin()) >= 68.0f)
+	{
+		bSendPacket = true;
+		vLastSent = player->m_vecOrigin();
+		iChoked = 0;
+	}
+}
+
+void Hooked_GameEvent(IGameEvent* game_event)
+{
+	if (!Config::AntiAim->HitReactive)
+		return;
+
+	if (std::strcmp(game_event->GetName(), "player_hurt") != 0)
+		return;
+
+	auto local = C_CSPlayer::GetLocalPlayer();
+
+	if (!local)
+		return;
+
+	if (Source::m_pEngine->GetPlayerForUserID(game_event->GetInt("userid")) != local->GetIndex())
+		return;
+
+	// We took damage: mirror spin direction / jitter side to invalidate the
+	// enemy's locked resolver correction.
+	g_iAAHurtDir = -g_iAAHurtDir;
+}
+
 void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 {
 	auto va = cmd->viewangles;
@@ -534,12 +601,6 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 	auto velocity = player->m_vecVelocity();
 
 	float speed = velocity.Length2D();
-	if (Config::AntiAim->FakeDuck && player->m_MoveType() != MOVETYPE_LADDER)
-	{
-		if (!bSendPacket)
-			cmd->buttons |= IN_DUCK;
-		
-	}
 	int type = cmd->command_number % 3;
 	if (speed > 100.01)
 	{
@@ -590,6 +651,21 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 				cmd->viewangles.x = Config::AntiAim->MoveCustomAngleFakePitch;
 				choked_tick_count--;
 			}
+		}
+		else if (Config::AntiAim->PitchMove == 6) // Send Jitter
+		{
+			// Alternate the custom pitches per SEND tick: per-tick flips alias
+			// to a static angle under choke, this guarantees the sent pitch
+			// keeps changing. Pairs best with a non-choking yaw + Misc fakelag.
+			static int iSendCount = 0;
+
+			if (bSendPacket)
+				iSendCount++;
+
+			if (iSendCount % 2)
+				cmd->viewangles.x = Config::AntiAim->MoveCustomAngleFakePitch;
+			else
+				cmd->viewangles.x = Config::AntiAim->MoveCustomAnglePitch;
 		}
 		if (Config::AntiAim->YawMove == 1) // Backward
 		{
@@ -661,7 +737,7 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 		{
 			static float yaw = 0.f;
 
-			yaw += (Config::AntiAim->MoveSpinSpeed);
+			yaw += (Config::AntiAim->MoveSpinSpeed * g_iAAHurtDir);
 
 			cmd->viewangles.y += yaw;
 
@@ -817,7 +893,7 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 			static int choked_tick_count = 0;
 			static float yaw = 0.f;
 
-			yaw += (Config::AntiAim->MoveFakeSpinSpeed);
+			yaw += (Config::AntiAim->MoveFakeSpinSpeed * g_iAAHurtDir);
 
 			if (yaw > 360.f)
 				yaw = 0.f;
@@ -834,6 +910,37 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 
 				bSendPacket = false;
 				cmd->viewangles.y += yaw + 180	;
+			}
+		}
+		else if (Config::AntiAim->YawMove == 14) // Unbalanced Jitter
+		{
+			// 3:1 unbalanced pattern counted over SENDS: three sends of the
+			// custom yaw, one of the fake yaw. Median of recent sends lands on
+			// the majority side while the mean sits between - beats median /
+			// average feedback resolvers that assume symmetric jitter.
+			static int choked_tick_count = 0;
+			static int iSendCount = 0;
+
+			if (choked_tick_count == 0)
+			{
+				choked_tick_count = Config::AntiAim->MoveChokedPackets;
+
+				bSendPacket = true;
+
+				if (iSendCount % 4 == 3)
+					cmd->viewangles.y += Config::AntiAim->MoveCustomAngleFakeYaw * g_iAAHurtDir;
+				else
+					cmd->viewangles.y += Config::AntiAim->MoveCustomAngleYaw * g_iAAHurtDir;
+
+				iSendCount++;
+			}
+			else
+			{
+				choked_tick_count--;
+
+				bSendPacket = false;
+
+				cmd->viewangles.y += Config::AntiAim->MoveCustomAngleYaw;
 			}
 		}
 }
@@ -886,6 +993,21 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 				cmd->viewangles.x = Config::AntiAim->StandCustomAnglePitch;
 				hhh--;
 			}
+		}
+		else if (Config::AntiAim->PitchStand == 6) // Send Jitter
+		{
+			// Alternate the custom pitches per SEND tick: per-tick flips alias
+			// to a static angle under choke, this guarantees the sent pitch
+			// keeps changing. Pairs best with a non-choking yaw + Misc fakelag.
+			static int iSendCount = 0;
+
+			if (bSendPacket)
+				iSendCount++;
+
+			if (iSendCount % 2)
+				cmd->viewangles.x = Config::AntiAim->StandCustomAngleFakePitch;
+			else
+				cmd->viewangles.x = Config::AntiAim->StandCustomAnglePitch;
 		}
 		if (Config::AntiAim->YawStand == 1) // Backward
 		{
@@ -957,7 +1079,7 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 		{
 			static float yaw = 0.f;
 
-			yaw += (Config::AntiAim->StandSpinSpeed);
+			yaw += (Config::AntiAim->StandSpinSpeed * g_iAAHurtDir);
 
 			cmd->viewangles.y += yaw;
 
@@ -1114,7 +1236,7 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 			static int choked_tick_count = 0;
 			static float yaw = 0.f;
 
-			yaw += (Config::AntiAim->StandFakeSpinSpeed);
+			yaw += (Config::AntiAim->StandFakeSpinSpeed * g_iAAHurtDir);
 
 			if (yaw > 360.f)
 				yaw = 0.f;
@@ -1133,6 +1255,51 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 				cmd->viewangles.y += yaw + 180;
 			}
 		}
+		else if (Config::AntiAim->YawStand == 14) // Unbalanced Jitter
+		{
+			// 3:1 unbalanced pattern counted over SENDS: three sends of the
+			// custom yaw, one of the fake yaw. Median of recent sends lands on
+			// the majority side while the mean sits between - beats median /
+			// average feedback resolvers that assume symmetric jitter.
+			static int choked_tick_count = 0;
+			static int iSendCount = 0;
+
+			if (choked_tick_count == 0)
+			{
+				choked_tick_count = Config::AntiAim->StandChokedPackets;
+
+				bSendPacket = true;
+
+				if (iSendCount % 4 == 3)
+					cmd->viewangles.y += Config::AntiAim->StandCustomAngleFakeYaw * g_iAAHurtDir;
+				else
+					cmd->viewangles.y += Config::AntiAim->StandCustomAngleYaw * g_iAAHurtDir;
+
+				iSendCount++;
+			}
+			else
+			{
+				choked_tick_count--;
+
+				bSendPacket = false;
+
+				cmd->viewangles.y += Config::AntiAim->StandCustomAngleYaw;
+			}
+		}
+	}
+
+	// Flap the duck bit on SEND ticks (final bSendPacket): ducking choked
+	// commands never reaches the server, so only sent ticks matter.
+	// (Original ducked choked ticks - invisible, did nothing.)
+	if (Config::AntiAim->FakeDuck && player->m_MoveType() != MOVETYPE_LADDER)
+	{
+		static bool bDuckFlip = false;
+
+		if (bSendPacket)
+			bDuckFlip = !bDuckFlip;
+
+		if (bDuckFlip)
+			cmd->buttons |= IN_DUCK;
 	}
 }
 
@@ -1143,13 +1310,15 @@ void PerfectSilent(CUserCmd* cmd, C_WeaponCSBaseGun* weapon)
 	if (weapon->GetWeaponType() == WEAPONTYPE_C4)
 		return;
 
-	if (cmd->buttons & IN_ATTACK && weapon->IsFireTime() && bSendPacket == true)
-		bSendPacket = false;
+	// Force-send firing commands: choking a shot only delays our own damage,
+	// the aim snap is animated server-side either way.
+	if (cmd->buttons & IN_ATTACK && weapon->IsFireTime())
+		bSendPacket = true;
 
 	if (Config::AntiAim->OnKnife && weapon->GetWeaponType() == WEAPON_KNIFE)
 	{
-			if (cmd->buttons & IN_ATTACK2 && weapon->IsFireTime() && bSendPacket == true)
-				bSendPacket = false;
+			if (cmd->buttons & IN_ATTACK2 && weapon->IsFireTime())
+			bSendPacket = true;
 	}
 
 }
@@ -1482,6 +1651,8 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 
 							if (Config::AntiAim->AtTarget || Config::AntiAim->PitchMove || Config::AntiAim->YawMove || Config::AntiAim->PitchStand || Config::AntiAim->YawStand)
 								AntiAim(cmd, player, weapon);
+							if (Config::AntiAim->BreakLC)
+								BreakLagComp(cmd, player);
 							if (Config::Misc->LagExploit)
 								Lag(cmd);
 
@@ -2032,6 +2203,15 @@ HRESULT D3DAPI Hooked_Reset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* pP
 
 				Source::m_pRenderer->DrawRect(x + w + 3, y - 1, 4, h + 3, Color::Black);
 				Source::m_pRenderer->DrawRect(x + w + 4, y + real_h, 2, size_h, Color(180, 180, 180));
+			}
+
+			auto resolver_text = Feature::Resolver::GetText( player->GetIndex() );
+
+			if( resolver_text && resolver_text[ 0 ] )
+			{
+				Source::m_pRenderer->DrawText( Source::m_hFont, x + w + 4, y + pad_h, FONT_ALIGN_LEFT, Color( 0, 255, 255 ), "R: %s", resolver_text );
+
+				pad_h += 13;
 			}
 
 			if (Config::ESP->Skeleton == 1)
@@ -2781,13 +2961,10 @@ void DT_ParticleSmokeGrenade_m_flSpawnTime( const CRecvProxyData* pData, void* p
 
 	*( float* )( pOut ) = Value;
 }
-bool fixedx = false;
-float savedang = 0.0f;
 void DT_CSPlayer_m_angEyeAnglesX( const CRecvProxyData* pData, void* pStruct, void* pOut )
 {
 	float angle = pData->m_Value.m_Float;
 
-	auto local = C_CSPlayer::GetLocalPlayer();
 	auto player = ( C_CSPlayer* )pStruct;
 	auto player_from_list = Source::m_pPlayerList->GetPlayer( player->GetIndex() );
 
@@ -2800,32 +2977,12 @@ void DT_CSPlayer_m_angEyeAnglesX( const CRecvProxyData* pData, void* pStruct, vo
 		else if( player_from_list->m_pitch == 3 ) // Down
 			angle = 89.0f;
 
-		else if (player_from_list->m_pitch == 4) // Brutforce
-		{
-			static int choked_tick_count = 0;
-
-			if (choked_tick_count == 0)
-				choked_tick_count = 64;
-
-			if (choked_tick_count >= 32)
-			{
-				angle = 80.00;
-				choked_tick_count--;
-			}
-
-			if (choked_tick_count < 32)
-			{
-				angle = -16.00;
-				choked_tick_count--;
-			}
-		//	return;
-		}
+		else if( player_from_list->m_pitch == 4 ) // Auto
+			angle = Feature::Resolver::ResolvePitch( player, angle );
 	}
 
 	*( float* )( pOut ) = angle;
 }
-float savedangy = 0.0f;
-bool fixed = false;
 void DT_CSPlayer_m_angEyeAnglesY(const CRecvProxyData* pData, void* pStruct, void* pOut)
 {
 	float angle = pData->m_Value.m_Float;
@@ -2903,115 +3060,11 @@ void DT_CSPlayer_m_angEyeAnglesY(const CRecvProxyData* pData, void* pStruct, voi
 				angle = aim.y - 90.0f;
 			}
 		}
-		else if (player_from_list->m_yaw == 7) // Switch
-		{
-			Vector3 start;
+		else if( player_from_list->m_yaw == 7 ) // Auto
+			angle = Feature::Resolver::ResolveYaw( player, angle );
+		else if( player_from_list->m_yaw == 8 ) // Resolver
+			angle = Feature::Resolver::ResolveYaw( player, angle );
 
-			if (player->GetHitboxVector(12, start))
-			{
-				Vector3 direction = local->EyePosition() - start;
-				VectorNormalize(direction);
-
-				Vector3 aim;
-				VectorAngles(direction, aim);
-				if (savedangy != 0.0f)
-					angle = savedangy;
-			/*	else
-				{
-					static int choked_tick_count = 0;
-					static int kek = 0;
-					if (kek == 0)
-					{
-						if (choked_tick_count == 0)
-							choked_tick_count = 128;
-
-						if (choked_tick_count == 1)
-						{
-							choked_tick_count = 128;
-							kek = 1;
-						}
-
-						if (choked_tick_count >= 64)
-						{
-							angle = aim.y + 90;
-							choked_tick_count--;
-						}
-
-						if (choked_tick_count < 64)
-						{
-							angle = aim.y - 90;
-							choked_tick_count--;
-						}
-					}
-					if (kek == 1)
-					{
-						if (choked_tick_count == 0)
-							choked_tick_count = 128;
-
-						if (choked_tick_count == 1)
-						{
-							choked_tick_count = 128;
-							kek = 0;
-						}
-						if (choked_tick_count >= 64)
-						{
-							angle = aim.y + 180;
-							choked_tick_count--;
-						}
-
-						if (choked_tick_count < 64)
-						{
-							angle = aim.y;
-							choked_tick_count--;
-						}
-					}
-				}*/
-			}
-		}
-		else if (player_from_list->m_yaw == 8) // ondmg
-		{
-			Vector3 start;
-			bool fixy = false;
-			if (player->GetHitboxVector(12, start))
-			{
-				int ind = player->GetIndex();
-				if (ind != Config::Misc->target)
-					return;
-				if (Config::Current->Aimbot->Resolver & local->m_iShotsFired() >= Config::Current->Aimbot->ResvolerBullets)
-				{
-					if (fixy == false)
-					{
-						if (Config::Misc->aaa)
-						{
-							savedangy = angle;
-							fixy = true;
-							Config::Misc->aaa = false;
-						}
-						else
-						{
-							for (int i = 0; i <= local->m_iShotsFired(); i++)
-							{
-								angle = angle + Config::Misc->ResolverAng;
-							}
-						}
-					}
-					else
-					{
-						angle = savedangy;
-							if (Config::Misc->aaa)
-							{
-								angle = savedangy;
-								Config::Misc->aaa = false;
-							}
-							else if (local->m_iShotsFired() >= Config::Current->Aimbot->ResvolerBulletsDelay & !Config::Misc->aaa)
-								fixy = false;
-						
-					}
-					
-					}
-
-			}
-		}
 	}
 
 	*(float*)(pOut) = angle;

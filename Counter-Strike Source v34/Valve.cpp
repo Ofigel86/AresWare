@@ -367,21 +367,46 @@ namespace Valve
 
 			vEnd = vStart + flDistance * vDirection;
 
-			if ((Source::m_pEngineTrace->GetPointContents(vEnd) & 0x200400B) == 0)
+			// SDK MASK_SOLID (0x204400B): original missed CONTENTS_MOVEABLE.
+			if ((Source::m_pEngineTrace->GetPointContents(vEnd) & 0x204400B) == 0)
 				return true;
 		}
 
 		return false;
 	}
 
-	int GetPlayerModDamage(float flDamage, int iArmorValue, float flArmorRatio, bool bIsHeadshot, bool bIsFriendly, bool bHasHelmet)
+	int GetPlayerModDamage(float flDamage, int iArmorValue, float flArmorRatio, int iHitgroup, bool bIsFriendly, bool bHasHelmet)
 	{
 		if (bIsFriendly)
 			flDamage *= 0.35f;
 
 		flArmorRatio *= 0.5f;
 
-		if (iArmorValue > 0 && !bIsHeadshot || bIsHeadshot && bHasHelmet)
+		// SDK CCSPlayer::IsArmored: generic/chest/stomach/arms take armor when
+		// ArmorValue > 0, head only with a helmet, legs never take armor.
+		// (Original applied armor to legs too, underestimating leg damage.)
+		bool bApplyArmor = false;
+
+		if (iArmorValue > 0)
+		{
+			switch (iHitgroup)
+			{
+			case 0: // HITGROUP_GENERIC
+			case 2: // HITGROUP_CHEST
+			case 3: // HITGROUP_STOMACH
+			case 4: // HITGROUP_LEFTARM
+			case 5: // HITGROUP_RIGHTARM
+				bApplyArmor = true;
+				break;
+			case 1: // HITGROUP_HEAD
+				bApplyArmor = bHasHelmet;
+				break;
+			default: // HITGROUP_LEFTLEG / HITGROUP_RIGHTLEG: no armor
+				break;
+			}
+		}
+
+		if (bApplyArmor)
 		{
 			float flNew = flDamage * flArmorRatio;
 			float flArmor = (flDamage - flNew) * 0.5f;

@@ -207,12 +207,16 @@
     <ClCompile Include="Main.cpp">
       <Filter>Main</Filter>
     </ClCompile>
+    <ClCompile Include="License.cpp">
+      <Filter>Main</Filter>
+    </ClCompile>
     <ClCompile Include="LagCompensation.cpp">
       <Filter>Feature\LagCompensation</Filter>
     </ClCompile>
+    <ClCompile Include="Resolver.cpp">
+      <Filter>Feature\Resolver</Filter>
+    </ClCompile>
     <ClCompile Include="Hitmarker.cpp" />
-    <ClCompile Include="Anglee.hpp" />
-    <ClCompile Include="Anglee.cpp" />
     <ClCompile Include="Sounds.hpp" />
     <ClCompile Include="Sounds.cpp" />
   </ItemGroup>
@@ -352,6 +356,9 @@
     <ClInclude Include="LagCompensation.hpp">
       <Filter>Feature\LagCompensation</Filter>
     </ClInclude>
+    <ClInclude Include="Resolver.hpp">
+      <Filter>Feature\Resolver</Filter>
+    </ClInclude>
     <ClInclude Include="Thirdperson.hpp">
       <Filter>Feature</Filter>
     </ClInclude>
@@ -360,5 +367,9 @@
     </ClInclude>
     <ClInclude Include="HitMarker.hpp" />
     <ClInclude Include="picture.hpp" />
+    <ClInclude Include="Anglee.hpp" />
+    <ClInclude Include="License.hpp">
+      <Filter>Main</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

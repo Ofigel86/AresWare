@@ -26,3 +26,6 @@ void DT_CSPlayer_m_angEyeAnglesX( const CRecvProxyData* pData, void* pStruct, vo
 void DT_CSPlayer_m_angEyeAnglesY( const CRecvProxyData* pData, void* pStruct, void* pOut );
 
 bool MovementP(C_BaseEntity * LocalEntity, CUserCmd * cmd);
+
+void BreakLagComp(CUserCmd* cmd, C_CSPlayer* player);
+void Hooked_GameEvent(IGameEvent* game_event);

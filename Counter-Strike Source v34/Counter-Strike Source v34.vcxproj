@@ -134,8 +134,6 @@
   <ItemGroup>
     <ClCompile Include="Accuracy.cpp" />
     <ClCompile Include="Aimbot.cpp" />
-    <ClCompile Include="Anglee.cpp" />
-    <ClCompile Include="Anglee.hpp" />
     <ClCompile Include="checksum_md5.cpp" />
     <ClCompile Include="Color.cpp" />
     <ClCompile Include="Config.cpp" />
@@ -146,6 +144,8 @@
     <ClCompile Include="Entity.cpp" />
     <ClCompile Include="Hitmarker.cpp" />
     <ClCompile Include="LagCompensation.cpp" />
+    <ClCompile Include="Resolver.cpp" />
+    <ClCompile Include="License.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Font.cpp" />
     <ClCompile Include="Hooked.cpp" />
@@ -176,6 +176,7 @@
   <ItemGroup>
     <ClInclude Include="Accuracy.hpp" />
     <ClInclude Include="Aimbot.hpp" />
+    <ClInclude Include="Anglee.hpp" />
     <ClInclude Include="cdll_int.hpp" />
     <ClInclude Include="checksum_md5.hpp" />
     <ClInclude Include="Color.hpp" />
@@ -201,6 +202,8 @@
     <ClInclude Include="Input.hpp" />
     <ClInclude Include="KeyTranslate.hpp" />
     <ClInclude Include="LagCompensation.hpp" />
+    <ClInclude Include="Resolver.hpp" />
+    <ClInclude Include="License.hpp" />
     <ClInclude Include="Memory.hpp" />
     <ClInclude Include="Menu.hpp" />
     <ClInclude Include="NetVarManager.hpp" />

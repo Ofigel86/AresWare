@@ -200,7 +200,7 @@ namespace Feature
 				{
 					float flModDamage = Valve::GetHitgroupModDamage(flCurrentDamage, tr.hitgroup);
 
-					iModDamage += Valve::GetPlayerModDamage(flModDamage, pLastPlayerHit->m_ArmorValue(), pData->m_flArmorRatio, tr.hitgroup == 1, pLastPlayerHit->m_iTeamNum() == pLocal->m_iTeamNum(), pLastPlayerHit->m_bHasHelmet());
+					iModDamage += Valve::GetPlayerModDamage(flModDamage, pLastPlayerHit->m_ArmorValue(), pData->m_flArmorRatio, tr.hitgroup, pLastPlayerHit->m_iTeamNum() == pLocal->m_iTeamNum(), pLastPlayerHit->m_bHasHelmet());
 
 					if (pHitbox)
 						*pHitbox = tr.hitbox;
