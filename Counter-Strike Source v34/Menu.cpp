@@ -25,6 +25,46 @@ ImFont* fntTitle = nullptr;
 
 extern LRESULT ImGui_ImplDX9_WndProcHandler( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
 
+// ---------------------------------------------------------------------------
+// Загрузка шрифтов меню.
+//
+// Было: жёсткие пути вида "C:\\\\Windows\\\\Fonts\\\\tahoma.ttf" (в строке
+// получались удвоенные слэши) и кастомные badcache.ttf / toma.ttf, которых на
+// чистой Windows нет. При неудаче AddFontFromFileTTF возвращает NULL, а
+// PushFont(NULL) в этой сборке ImGui падает на Fonts[0] — исключение глоталось
+// __except в PresentProxy, и меню не рисовалось вообще (ESP при этом работал).
+//
+// Стало: список кандидатов на каждый шрифт, путь строится от GetWindowsDirectory,
+// перед вызовом проверяется существование файла (в Debug-сборке
+// AddFontFromFileTTF ассертит на отсутствующем файле), в самом конце —
+// встроенный растровый шрифт ImGui, чтобы меню работало даже без TTF.
+// ---------------------------------------------------------------------------
+static ImFont* LoadMenuFont( ImFontAtlas* pFonts, const char* const* pszFiles, int nCount, float flSize, const ImWchar* pRanges )
+{
+	char szWindowsDir[ MAX_PATH ] = {};
+
+	if( !GetWindowsDirectoryA( szWindowsDir, MAX_PATH ) )
+		lstrcpyA( szWindowsDir, XorStr( "C:\\Windows" ) );
+
+	for( int i = 0; i < nCount; i++ )
+	{
+		const std::string path = std::string( szWindowsDir ) + XorStr( "\\Fonts\\" ) + pszFiles[ i ];
+
+		if( GetFileAttributesA( path.c_str() ) == INVALID_FILE_ATTRIBUTES )
+			continue;
+
+		if( ImFont* pFont = pFonts->AddFontFromFileTTF( path.c_str(), flSize, NULL, pRanges ) )
+		{
+			LOG( XorStr( "[Menu] Font '%s' (%.0f px)." ), path.c_str(), flSize );
+			return pFont;
+		}
+	}
+
+	LOG( XorStr( "[Menu] No suitable TTF found, using built-in font (%.0f px)." ), flSize );
+
+	return pFonts->AddFontDefault();
+}
+
 namespace AW
 {
 	static ImU32 Col( int r, int g, int b, int a = 255 )
@@ -114,7 +154,28 @@ namespace AW
 		ImGui::PushStyleColor( ImGuiCol_ScrollbarGrabHovered, ImVec4( 0.62f, 0.62f, 0.62f, 1 ) );
 		ImGui::PushStyleColor( ImGuiCol_ScrollbarGrabActive, ImVec4( 0.58f, 0.58f, 0.58f, 1 ) );
 		ImGui::SetCursorScreenPos( ImVec2( p.x, p.y + 26.0f ) );
-		ImGui::BeginChild( "##c", ImVec2( size.x, size.y - 26.0f ), false );
+		// ВАЖНО: в этой сборке ImGui дочернее окно ищется по СТРОКЕ имени —
+		// BeginChild() собирает имя как "<имя родителя>.<str_id>" и передаёт
+		// его в Begin() -> FindWindowByName() (см. ImGui.cpp, BeginChild).
+		// ID-стек в имя НЕ попадает, поэтому все панели с одинаковым "##c"
+		// были одним и тем же окном: позиция, размер и clip-прямоугольник
+		// брались от первой панели кадра (полная инициализация окна
+		// выполняется только при first_begin_of_the_frame), а содержимое
+		// остальных панелей рисовалось за пределами этого clip'а и
+		// отбрасывалось ещё в ItemAdd() — панели выглядели пустыми и не
+		// реагировали на мышь. Собираем имя из заголовка и координат панели:
+		// оно уникально в пределах кадра и стабильно между кадрами, так что
+		// лишние окна не создаются.
+		char szPanelId[ 192 ];
+		sprintf_s( szPanelId, sizeof( szPanelId ), "##panel_%d_%d_%.120s",
+			( int )p.x, ( int )p.y, title ? title : "" );
+		// ImGuiWindowFlags_NoMove передан явно: в этой сборке ImGui
+		// BeginChild() не выставляет NoMove (в отличие от стокового 1.49 и от
+		// BeginChildFrame()). Без него клик по пустому месту панели (мимо
+		// элементов) запускал "перетаскивание" дочернего окна: EndFrame()
+		// выставлял ActiveId дочернего окна, и пока кнопка мыши удерживается,
+		// ни один элемент меню не мог получить hover.
+		ImGui::BeginChild( szPanelId, ImVec2( size.x, size.y - 26.0f ), false, ImGuiWindowFlags_NoMove );
 		g_flContentX = p.x + 8.0f;
 		g_flContentW = size.x - 28.0f;
 		float cw = ( ctrlW > 0.0f ) ? ctrlW : g_flContentW * 0.45f;
@@ -210,7 +271,7 @@ namespace AW
 			ImGui::PushStyleColor( ImGuiCol_ScrollbarGrab, ImVec4( 0.72f, 0.72f, 0.72f, 1 ) );
 			ImGui::PushStyleColor( ImGuiCol_ScrollbarGrabHovered, ImVec4( 0.62f, 0.62f, 0.62f, 1 ) );
 			ImGui::PushStyleColor( ImGuiCol_ScrollbarGrabActive, ImVec4( 0.58f, 0.58f, 0.58f, 1 ) );
-			ImGui::BeginChild( "##rows", ImVec2( pw, ph ), false );
+			ImGui::BeginChild( "##rows", ImVec2( pw, ph ), false, ImGuiWindowFlags_NoMove );
 			ImVec2 rp = ImGui::GetCursorScreenPos();
 
 			for( int i = 0; i < n; i++ )
@@ -272,13 +333,19 @@ namespace AW
 		d->AddRectFilled( b0, b1, Col( 255, 255, 255 ) );
 		d->AddRect( b0, b1, Col( 165, 165, 165 ) );
 		d->AddLine( ImVec2( b0.x + 1.0f, b0.y + 1.0f ), ImVec2( b1.x - 1.0f, b0.y + 1.0f ), Col( 228, 228, 228 ) );
-		const char* nm = XorStr( "-" );
+		// XorStr(...) отдаёт указатель внутрь временного XorString, который
+		// разрушается в конце полного выражения. Раньше результат сохранялся
+		// в nm и читался позже — обращение к освобождённой памяти. Теперь
+		// строки живут столько же, сколько и сама программа.
+		static const std::string s_strEmptyKey = XorStr( "-" );
+		static const std::string s_strWaitKey  = XorStr( "..." );
+		const char* nm = s_strEmptyKey.c_str();
 
 		if( s_pKeyCap != key && *key >= 0 && *key < 124 )
 			nm = ImGui::GetNameFromCode( ( uint32_t )*key ).c_str();
 
 		if( s_pKeyCap == key )
-			nm = XorStr( "..." );
+			nm = s_strWaitKey.c_str();
 
 		ImGui::PushClipRect( ImVec2( b0.x + 5.0f, b0.y ), ImVec2( b1.x - 4.0f, b1.y ), true );
 		Text( ImVec2( b0.x + 5.0f, b0.y + 4.0f ), Col( 30, 30, 30 ), nm );
@@ -429,11 +496,37 @@ namespace AW
 		return changed;
 	}
 
-	static bool SliderInt( const char* label, int* v, int vmin, int vmax, const char* fmt )
+		static bool SliderInt( const char* label, int* v, int vmin, int vmax, const char* fmt )
 	{
-		const char* ff = ( fmt[ 0 ] == '%' && fmt[ 1 ] == 'd' && fmt[ 2 ] == '\0' ) ? XorStr( "%.0f" ) : fmt;
+		// SliderInt рисуется через SliderFloat, а тот печатает значение как
+		// float (sprintf_s(..., fmt, *v)). Поэтому "%d"/"%i" в формате надо
+		// заменить на "%.0f": иначе float подставляется под %d — в подписи
+		// слайдера мусор, а поведение неопределённое. Раньше подмена была
+		// только для формата ровно "%d", а "%d ms" и "%d%%" печатались
+		// неправильно.
+		char szFmt[ 32 ] = {};
+
+		if( fmt )
+		{
+			int n = 0;
+
+			for( int i = 0; fmt[ i ] != '\0' && n < ( int )sizeof( szFmt ) - 5; i++ )
+			{
+				if( fmt[ i ] == '%' && ( fmt[ i + 1 ] == 'd' || fmt[ i + 1 ] == 'i' ) )
+				{
+					szFmt[ n++ ] = '%';
+					szFmt[ n++ ] = '.';
+					szFmt[ n++ ] = '0';
+					szFmt[ n++ ] = 'f';
+					i++;
+				}
+				else
+					szFmt[ n++ ] = fmt[ i ];
+			}
+		}
+
 		float f = ( float )*v;
-		bool ch = SliderFloat( label, &f, ( float )vmin, ( float )vmax, ff );
+		bool ch = SliderFloat( label, &f, ( float )vmin, ( float )vmax, szFmt );
 		int ni = ( int )( f + ( ( f >= 0.0f ) ? 0.5f : -0.5f ) );
 
 		if( ni < vmin )
@@ -936,9 +1029,22 @@ namespace Feature
 		ZeroMemory( m_szConfigName, sizeof( m_szConfigName ) );
 	}
 
+	// cl_mouseenable забирает/возвращает курсор у игры. FindVar возвращает
+	// nullptr, если конвары нет (другой билд/кастомный клиент) — раньше это
+	// было разыменование нуля в каждом кадре с открытым меню.
+	static ConVar* GetMouseEnableCvar()
+	{
+		if( !Source::m_pCvar )
+			return nullptr;
+
+		return Source::m_pCvar->FindVar( XorStr( "cl_mouseenable" ) );
+	}
+
 	Menu::~Menu()
 	{
-		Source::m_pCvar->FindVar( XorStr( "cl_mouseenable" ) )->m_nValue = 1;
+		if( ConVar* pMouseEnable = GetMouseEnableCvar() )
+			pMouseEnable->m_nValue = 1;
+
 		ImGui_ImplDX9_Shutdown();
 	}
 
@@ -948,12 +1054,25 @@ namespace Feature
 			return false;
 
 		ImGuiIO& io = ImGui::GetIO();
-		bad = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\badcache.ttf" ), 22.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
-		und = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\toma.ttf" ), 12.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
-		def = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\tahoma.ttf" ), 14.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
-		def1 = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\tahoma.ttf" ), 16.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
-		fntBody = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\verdana.ttf" ), 11.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
-		fntTitle = io.Fonts->AddFontFromFileTTF( XorStr( "C:\\\\Windows\\\\Fonts\\\\verdanab.ttf" ), 11.0f, NULL, io.Fonts->GetGlyphRangesCyrillic() );
+		// Кандидаты по каждому шрифту: сначала «фирменные» (если установлены),
+		// затем гарантированные системные.
+		static const char* const kBigFonts[]	= { "badcache.ttf", "tahoma.ttf", "verdana.ttf", "arial.ttf" };
+		static const char* const kSmallFonts[]	= { "toma.ttf", "tahoma.ttf", "verdana.ttf", "arial.ttf" };
+		static const char* const kTextFonts[]	= { "tahoma.ttf", "verdana.ttf", "arial.ttf" };
+		static const char* const kBodyFonts[]	= { "verdana.ttf", "tahoma.ttf", "arial.ttf" };
+		static const char* const kTitleFonts[]	= { "verdanab.ttf", "verdana.ttf", "tahomabd.ttf", "tahoma.ttf" };
+
+		const ImWchar* pRanges = io.Fonts->GetGlyphRangesCyrillic();
+
+		bad			= LoadMenuFont( io.Fonts, kBigFonts, ARRAYSIZE( kBigFonts ), 22.0f, pRanges );
+		und			= LoadMenuFont( io.Fonts, kSmallFonts, ARRAYSIZE( kSmallFonts ), 12.0f, pRanges );
+		def			= LoadMenuFont( io.Fonts, kTextFonts, ARRAYSIZE( kTextFonts ), 14.0f, pRanges );
+		def1		= LoadMenuFont( io.Fonts, kTextFonts, ARRAYSIZE( kTextFonts ), 16.0f, pRanges );
+		fntBody		= LoadMenuFont( io.Fonts, kBodyFonts, ARRAYSIZE( kBodyFonts ), 11.0f, pRanges );
+		fntTitle	= LoadMenuFont( io.Fonts, kTitleFonts, ARRAYSIZE( kTitleFonts ), 11.0f, pRanges );
+
+		if( !bad || !und || !def || !def1 || !fntBody || !fntTitle )
+			LOG( XorStr( "[Menu] Some fonts failed to load, fallback font is used." ) );
 
 		if( tImage == nullptr )
 			D3DXCreateTextureFromFileInMemoryEx( pDevice, &pic, sizeof( pic ), 96, 96, D3DX_DEFAULT, 0, D3DFMT_UNKNOWN, D3DPOOL_MANAGED, D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL, &tImage );
@@ -994,15 +1113,38 @@ namespace Feature
 		if( m_bMouse != Shared::m_bMenu )
 		{
 			m_bMouse = Shared::m_bMenu;
-			Source::m_pCvar->FindVar( XorStr( "cl_mouseenable" ) )->m_nValue = ( int )!m_bMouse;
+
+			if( ConVar* pMouseEnable = GetMouseEnableCvar() )
+				pMouseEnable->m_nValue = ( int )!m_bMouse;
 		}
 
 		if( !Shared::m_bMenu )
 			return;
 
+		// Если в атласе не оказалось ни одного шрифта (AddFontDefault тоже
+		// не сработал), PushFont(NULL) разыменует Fonts[0] == nullptr и
+		// каждый кадр будет падать в __except — меню не появится вообще.
+		if( ImGui::GetIO().Fonts->Fonts.Size == 0 )
+		{
+			static bool s_bFontErrorLogged = false;
+
+			if( !s_bFontErrorLogged )
+			{
+				s_bFontErrorLogged = true;
+				LOG( XorStr( "[Menu] Font atlas is empty, menu can not be drawn." ) );
+			}
+
+			return;
+		}
+
 		ImGui_ImplDX9_NewFrame();
 		ImGui::GetIO().MouseDrawCursor = true;
-		ImGuiWindowFlags Flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar;
+		// ImGuiWindowFlags_NoMove: позиция окна всё равно задаётся каждый кадр
+		// через SetNextWindowPos(), поэтому перетаскивание за пустые области
+		// (шапки панелей, промежутки между панелями) только мешало: EndFrame()
+		// переводил мышь в режим перемещения окна и на время удержания кнопки
+		// элементы меню переставали получать hover.
+		ImGuiWindowFlags Flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove;
 		ImGuiIO& io = ImGui::GetIO();
 		ImGui::SetNextWindowPos( ImVec2( ( io.DisplaySize.x - mainmenu1 ) * 0.5f, ( io.DisplaySize.y - mainmenu2 ) * 0.5f ) );
 		ImGui::SetNextWindowSize( ImVec2( mainmenu1, mainmenu2 ) );
@@ -1171,8 +1313,8 @@ namespace Feature
 		if( aim->RCS )
 		{
 			AW::SliderInt( XorStr( "RCS Delay" ), &aim->RCSDelay, 0, 10, XorStr( "%d" ) );
-			AW::SliderInt( XorStr( "RCS Amount X" ), &aim->RCSAmountX, 0, 100, XorStr( "%.0f%%" ) );
-			AW::SliderInt( XorStr( "RCS Amount Y" ), &aim->RCSAmountY, 0, 100, XorStr( "%.0f%%" ) );
+			AW::SliderInt( XorStr( "RCS Amount X" ), &aim->RCSAmountX, 0, 100, XorStr( "%d%%" ) );
+			AW::SliderInt( XorStr( "RCS Amount Y" ), &aim->RCSAmountY, 0, 100, XorStr( "%d%%" ) );
 		}
 
 		if( aim->NoSpreadActive )
@@ -1522,8 +1664,8 @@ namespace Feature
 		if( legit->RCS )
 		{
 			AW::SliderInt( XorStr( "RCS Delay" ), &legit->RCSDelay, 0, 10, XorStr( "%d" ) );
-			AW::SliderInt( XorStr( "RCS Amount X" ), &legit->RCSAmountX, 0, 100, XorStr( "%.0f%%" ) );
-			AW::SliderInt( XorStr( "RCS Amount Y" ), &legit->RCSAmountY, 0, 100, XorStr( "%.0f%%" ) );
+			AW::SliderInt( XorStr( "RCS Amount X" ), &legit->RCSAmountX, 0, 100, XorStr( "%d%%" ) );
+			AW::SliderInt( XorStr( "RCS Amount Y" ), &legit->RCSAmountY, 0, 100, XorStr( "%d%%" ) );
 			AW::Checkbox( XorStr( "Standalone RCS" ), &legit->RCSStandalone );
 		}
 
@@ -1757,7 +1899,7 @@ namespace Feature
 			AW::Checkbox( XorStr( "No Visual Recoil" ), &Config::Removals->NoVisualRecoil );
 
 		AW::Checkbox( XorStr( "No Smoke" ), &Config::Removals->NoSmoke );
-		AW::SliderInt( XorStr( "Flash Amount" ), &Config::Removals->FlashAmount, 0, 100, XorStr( "%.0f%%" ) );
+		AW::SliderInt( XorStr( "Flash Amount" ), &Config::Removals->FlashAmount, 0, 100, XorStr( "%d%%" ) );
 		AW::EndPanel();
 		AW::BeginPanel( XorStr( "Exploits" ), ImVec2( pos.x + 402.0f, pos.y + 374.0f ), ImVec2( 394.0f, 278.0f ) );
 		AW::Combo( XorStr( "Exploit" ), &Config::Misc->Crash, Crashlist, ARRAYSIZE( Crashlist ) );

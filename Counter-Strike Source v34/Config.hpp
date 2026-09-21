@@ -2,7 +2,20 @@
 
 #include "Valve.hpp"
 
-#define LimitValue( val, min, max )	if( val < min ) val = min; if( val > max ) val = max;
+// Ограничение значения диапазоном.
+//
+// Раньше это был макрос `if( val < min ) val = min; if( val > max ) val = max;`
+// без do/while — он ломался в конструкциях вида `if(...) LimitValue(...); else ...`
+// и требовал точки с запятой после себя (в AntiAimList::Clamp их не было).
+template< typename T, typename TMin, typename TMax >
+inline void LimitValue( T& value, TMin minValue, TMax maxValue )
+{
+	if( value < ( T )minValue )
+		value = ( T )minValue;
+
+	if( value > ( T )maxValue )
+		value = ( T )maxValue;
+}
 
 namespace Config
 {
@@ -317,19 +330,19 @@ namespace Config
 			LimitValue(StandCustomAngleYaw, -9999999.f, 9999999.f);
 			LimitValue(StandCustomAngleFakePitch, -9999999.f, 9999999.f);
 			LimitValue(StandCustomAngleFakeYaw, -9999999.f, 9999999.f);
-			LimitValue(StandStaticModifer, -9999999.f, 9999999.f)
-			LimitValue(StandSpinSpeed, -100, 100)
+			LimitValue(StandStaticModifer, -9999999.f, 9999999.f);
+			LimitValue(StandSpinSpeed, -100, 100);
 			LimitValue(MoveChokedPackets, 0, 15);
 			LimitValue(MoveCustomAnglePitch, -9999999.f, 9999999.f);
 			LimitValue(MoveCustomAngleYaw, -9999999.f, 9999999.f);
 			LimitValue(MoveCustomAngleFakePitch, -9999999.f, 9999999.f);
 			LimitValue(MoveCustomAngleFakeYaw, -9999999.f, 9999999.f);
-			LimitValue(MoveStaticModifer, -9999999.f, 9999999.f)
-				LimitValue(MoveSpinSpeed, -100, 100)
-				LimitValue(StandFakeSpinAngle, -999999.f, 9999999.f)
-				LimitValue(StandFakeSpinSpeed, -9999, 9999)
-				LimitValue(MoveFakeSpinAngle, -999999.f, 9999999.f)
-				LimitValue(MoveFakeSpinSpeed, -9999, 9999);
+			LimitValue(MoveStaticModifer, -9999999.f, 9999999.f);
+			LimitValue(MoveSpinSpeed, -100, 100);
+			LimitValue(StandFakeSpinAngle, -999999.f, 9999999.f);
+			LimitValue(StandFakeSpinSpeed, -9999, 9999);
+			LimitValue(MoveFakeSpinAngle, -999999.f, 9999999.f);
+			LimitValue(MoveFakeSpinSpeed, -9999, 9999);
 				LimitValue(DefensiveTicks, 0, 10);
 				LimitValue(ManualLeftKey, 0, 128);
 				LimitValue(ManualRightKey, 0, 128);

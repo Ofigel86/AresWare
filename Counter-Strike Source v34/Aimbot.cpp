@@ -12,6 +12,7 @@
 
 #include "Aimbot.hpp"
 #include "Source.hpp"
+#include "Shared.hpp"
 #include "Player.hpp"
 #include "Weapon.hpp"
 #include "Config.hpp"
@@ -112,6 +113,14 @@ namespace Feature
 
 	void Aimbot::OnCreateMove( CUserCmd* pCmd, C_WeaponCSBaseGun* pWeapon )
 	{
+		// Паник-кей (F12): немедленно прекращаем работу. Раньше флаг проверялся
+		// только в отрисовке — аимбот продолжал стрелять по цели.
+		if( Shared::m_bPanic )
+		{
+			m_pTarget = nullptr;
+			return;
+		}
+
 		auto cfg = Config::Current->Aimbot;
 
 		m_pCmd = pCmd;

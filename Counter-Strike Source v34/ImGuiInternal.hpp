@@ -492,7 +492,9 @@ struct ImGuiContext
 		OsImePosRequest = OsImePosSet = ImVec2(-1.0f, -1.0f);
 
 		ModalWindowDarkeningRatio = 0.0f;
-		OverlayDrawList._OwnerName = XorStr( "##Overlay" ); // Give it a name for debugging
+		// Здесь был XorStr: указатель внутрь временного буфера сохранялся в поле
+		// и использовался в ImGui::ShowDrawCmd уже после его разрушения.
+		OverlayDrawList._OwnerName = "##Overlay"; // Give it a name for debugging
 		MouseCursor = ImGuiMouseCursor_Arrow;
 		memset(MouseCursorData, 0, sizeof(MouseCursorData));
 

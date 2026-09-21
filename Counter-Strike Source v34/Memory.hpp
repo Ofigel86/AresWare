@@ -37,7 +37,7 @@ namespace Memory
 	}
 
 	template< typename T >
-	inline void SafeDelete( T object )
+	inline void SafeDelete( T& object )
 	{
 		if( object )
 			delete object;
@@ -46,7 +46,7 @@ namespace Memory
 	}
 
 	template< typename T >
-	inline void SafeDeleteArray( T object )
+	inline void SafeDeleteArray( T& object )
 	{
 		if( object )
 			delete[ ] object;
@@ -55,7 +55,7 @@ namespace Memory
 	}
 
 	template< typename T >
-	inline void SafeReset( T object )
+	inline void SafeReset( T& object )
 	{
 		if( object )
 			object.reset();
@@ -64,7 +64,7 @@ namespace Memory
 	}
 
 	template< typename T >
-	inline void SafeRelease( T object )
+	inline void SafeRelease( T& object )
 	{
 		if( object )
 			object->Release();

@@ -1,5 +1,6 @@
 #include "Triggerbot.hpp"
 #include "Source.hpp"
+#include "Shared.hpp"
 #include "Player.hpp"
 #include "Weapon.hpp"
 #include "Config.hpp"
@@ -20,6 +21,15 @@ namespace Feature
 
 	void Triggerbot::OnCreateMove( CUserCmd* pCmd )
 	{
+		// Паник-кей (F12): прекращаем работу и снимаем нажатие.
+		if( Shared::m_bPanic )
+		{
+			m_bFire = false;
+			m_bKeyPressed = false;
+			m_Timer.Reset();
+			return;
+		}
+
 		if( !Config::Current->Triggerbot->Mode )
 			return;
 

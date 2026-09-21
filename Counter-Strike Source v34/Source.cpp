@@ -3,6 +3,7 @@
 #include "Player.hpp"
 #include "HitMarker.hpp"
 #include "Resolver.hpp"
+#include "Debug.hpp"
 #include <cstdio>
 #include <cstring>
 class GameEventListener : public IGameEventListener2
@@ -18,6 +19,30 @@ public:
 };
 
 GameEventListener g_GameEventListener = {};
+
+// Безопасно достаём D3D9-устройство.
+//
+// Смещение внутри shaderapidx9.dll (Valve::Dx9Device) жёстко зашито под один
+// билд движка. На другом билде вызов уйдёт по мусорному адресу, поэтому
+// оборачиваем его в SEH: вместо падения игры старт просто провалится и
+// запишет причину в лог.
+static IDirect3DDevice9* GetDx9Device()
+{
+	__try
+	{
+		auto pWrapper = Valve::Dx9Device();
+
+		if( !pWrapper )
+			return nullptr;
+
+		return pWrapper->m_pD3DDevice;
+	}
+	__except( EXCEPTION_EXECUTE_HANDLER )
+	{
+		return nullptr;
+	}
+}
+
 namespace Source
 {
 	IBaseClientDLL*								m_pClient = nullptr;
@@ -76,7 +101,7 @@ namespace Source
 
 		if( !m_pClient )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'VClient' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'VClient' interface!" ) );
 			return false;
 		}
 
@@ -84,7 +109,7 @@ namespace Source
 
 		if( !m_pEntList )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'VClientEntityList' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'VClientEntityList' interface!" ) );
 			return false;
 		}
 
@@ -92,7 +117,7 @@ namespace Source
 
 		if( !m_pGameMovement )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'GameMovement' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'GameMovement' interface!" ) );
 			return false;
 		}
 
@@ -100,7 +125,7 @@ namespace Source
 
 		if( !m_pPrediction )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'VClientPrediction' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'VClientPrediction' interface!" ) );
 			return false;
 		}
 
@@ -108,7 +133,7 @@ namespace Source
 
 		if( !m_pEngine )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'VEngineClient' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'VEngineClient' interface!" ) );
 			return false;
 		}
 
@@ -116,7 +141,7 @@ namespace Source
 
 		if( !m_pModelInfoClient )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'VModelInfoClient' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'VModelInfoClient' interface!" ) );
 			return false;
 		}
 
@@ -124,7 +149,7 @@ namespace Source
 
 		if( !m_pRenderView )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'VEngineRenderView' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'VEngineRenderView' interface!" ) );
 			return false;
 		}
 
@@ -132,7 +157,7 @@ namespace Source
 
 		if( !m_pModelRender )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'VEngineModel' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'VEngineModel' interface!" ) );
 			return false;
 		}
 
@@ -140,7 +165,7 @@ namespace Source
 
 		if( !m_pEngineTrace )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'EngineTraceClient' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'EngineTraceClient' interface!" ) );
 			return false;
 		}
 
@@ -148,7 +173,7 @@ namespace Source
 
 		if( !m_pCvar )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'VEngineCvar003' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'VEngineCvar003' interface!" ) );
 			return false;
 		}
 
@@ -156,7 +181,7 @@ namespace Source
 
 		if( !m_pPhysicsSurfaceProps )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'VPhysicsSurfaceProps' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'VPhysicsSurfaceProps' interface!" ) );
 			return false;
 		}
 
@@ -164,7 +189,7 @@ namespace Source
 
 		if( !m_pMatSystem )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't query 'VMaterialSystem' interface!" ) );
+			LOG( XorStr( "[Source::Startup] Can't query 'VMaterialSystem' interface!" ) );
 			return false;
 		}
 
@@ -172,31 +197,50 @@ namespace Source
 
 		if (!m_pGameEventManager)
 		{
-			DPRINT(XorStr("[Source::Startup] Can't query 'GAMEEVENTSMANAGER' interface!"));
+			LOG(XorStr("[Source::Startup] Can't query 'GAMEEVENTSMANAGER' interface!"));
 			return false;
 		}
 
-		m_pGlobalVars = **( CGlobalVars*** )( Memory::PatternScan( XorStr( "client.dll" ), XorStr( "A3 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8D 54 24 34" ) ) + 1 );
+		// Сигнатуры: сначала получаем адрес, проверяем его и только потом
+		// разыменовываем. Раньше при несовпадении паттерна (другой билд игры)
+		// читалась память по адресу 0x1 — игра падала при инжекте.
+		const auto uGlobals = Memory::PatternScan( XorStr( "client.dll" ), XorStr( "A3 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8D 54 24 34" ) );
+
+		if( !uGlobals )
+		{
+			LOG( XorStr( "[Source::Startup] Can't find 'global vars' pattern in client.dll!" ) );
+			return false;
+		}
+
+		m_pGlobalVars = **( CGlobalVars*** )( uGlobals + 1 );
 
 		if( !m_pGlobalVars )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't find 'global vars'!" ) );
+			LOG( XorStr( "[Source::Startup] Can't find 'global vars'!" ) );
 			return false;
 		}
 
-		m_pInput = **( IInput*** )( Memory::PatternScan( XorStr( "client.dll" ), XorStr( "8B 0D ?? ?? ?? ?? 8B 11 50 8B 44 24 10" ) ) + 2 );
+		const auto uInput = Memory::PatternScan( XorStr( "client.dll" ), XorStr( "8B 0D ?? ?? ?? ?? 8B 11 50 8B 44 24 10" ) );
+
+		if( !uInput )
+		{
+			LOG( XorStr( "[Source::Startup] Can't find 'input' pattern in client.dll!" ) );
+			return false;
+		}
+
+		m_pInput = **( IInput*** )( uInput + 2 );
 
 		if( !m_pInput )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't find 'input'!" ) );
+			LOG( XorStr( "[Source::Startup] Can't find 'input'!" ) );
 			return false;
 		}
 
-		m_pDevice = Valve::Dx9Device()->m_pD3DDevice;
+		m_pDevice = GetDx9Device();
 
 		if( !m_pDevice )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't get 'device'!" ) );
+			LOG( XorStr( "[Source::Startup] Can't get 'device'!" ) );
 			return false;
 		}
 
@@ -204,7 +248,7 @@ namespace Source
 
 		if( !m_pTargetInput->Capture() )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't capture input!" ) );
+			LOG( XorStr( "[Source::Startup] Can't capture input!" ) );
 			return false;
 		}
 
@@ -212,7 +256,7 @@ namespace Source
 
 		if( !m_pNetVarManager->Create( m_pClient ) )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't create netvar manager!" ) );
+			LOG( XorStr( "[Source::Startup] Can't create netvar manager!" ) );
 			return false;
 		}
 
@@ -220,7 +264,7 @@ namespace Source
 
 		if( !m_pRenderer->Create( m_pDevice ) )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't create renderer!" ) );
+			LOG( XorStr( "[Source::Startup] Can't create renderer!" ) );
 			return false;
 		}
 
@@ -228,7 +272,7 @@ namespace Source
 
 		if( m_hFont == INVALID_FONT_HANDLE )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't create default font!" ) );
+			LOG( XorStr( "[Source::Startup] Can't create default font!" ) );
 			return false;
 		}
 
@@ -242,7 +286,7 @@ namespace Source
 
 		if( !m_pMenu->Create( m_pTargetInput->GetTarget(), m_pDevice ) )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't create menu!" ) );
+			LOG( XorStr( "[Source::Startup] Can't create menu!" ) );
 			return false;
 		}
 
@@ -262,45 +306,51 @@ namespace Source
 
 		if( !m_pClientSwap->Apply( m_pClient ) )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't apply 'client' vmt swap!" ) );
+			LOG( XorStr( "[Source::Startup] Can't apply 'client' vmt swap!" ) );
 			return false;
 		}
 
 		if( !m_pPredictionSwap->Apply( m_pPrediction ) )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't apply 'prediction' vmt swap!" ) );
+			LOG( XorStr( "[Source::Startup] Can't apply 'prediction' vmt swap!" ) );
 			return false;
 		}
 
 		if( !m_pInputSwap->Apply( m_pInput ) )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't apply 'input' vmt swap!" ) );
+			LOG( XorStr( "[Source::Startup] Can't apply 'input' vmt swap!" ) );
 			return false;
 		}
 
 		if( !m_pModelRenderSwap->Apply( m_pModelRender ) )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't apply 'model render' vmt swap!" ) );
+			LOG( XorStr( "[Source::Startup] Can't apply 'model render' vmt swap!" ) );
 			return false;
 		}
 
 		if( !m_pDeviceSwap->Apply( m_pDevice ) )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't apply 'device' vmt swap!" ) );
+			LOG( XorStr( "[Source::Startup] Can't apply 'device' vmt swap!" ) );
 			return false;
 		}
 
 	/*	if( !m_pPresentSwap->Apply( m_pDeviceSwap->VCall< std::uintptr_t >( IDirect3DDevice9_Present ) + 5, ( std::uintptr_t )&Hooked_Present, 6 ) )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't apply 'present' code swap!" ) );
+			LOG( XorStr( "[Source::Startup] Can't apply 'present' code swap!" ) );
 			return false;
 		}*/
 
 		auto CL_RunPrediction = Memory::PatternScan( XorStr( "engine.dll" ), XorStr( "A1 ?? ?? ?? ?? 39 05 ?? ?? ?? ?? 74 55" ) );
 
+		if( !CL_RunPrediction )
+		{
+			LOG( XorStr( "[Source::Startup] Can't find 'CL_RunPrediction' pattern in engine.dll!" ) );
+			return false;
+		}
+
 		if( !m_pRunPredictionSwap->Apply( CL_RunPrediction, ( std::uintptr_t )Hooked_CL_RunPrediction, 5 ) )
 		{
-			DPRINT( XorStr( "[Source::Startup] Can't apply 'runprediction' code swap!" ) );
+			LOG( XorStr( "[Source::Startup] Can't apply 'runprediction' code swap!" ) );
 			return false;
 		}
 
@@ -319,11 +369,32 @@ namespace Source
 		m_pDeviceSwap->Hook( &Hooked_Reset, IDirect3DDevice9_Reset );
 		m_pDeviceSwap->Hook( &Hooked_Present, IDirect3DDevice9_Present );
 
+		// Если прокси не поставился (свойство не найдено в таблице),
+		// соответствующая фича молча не работает — пишем в лог.
 		m_nTickBase = m_pNetVarManager->HookProp( XorStr( "DT_BasePlayer" ), XorStr( "m_nTickBase" ), DT_BasePlayer_m_nTickBase );
+
+		if( !m_nTickBase )
+			LOG( XorStr( "[Source::Startup] Can't hook proxy 'DT_BasePlayer::m_nTickBase'." ) );
+
 		m_vecPunchAngle = m_pNetVarManager->HookProp( XorStr( "DT_BasePlayer" ), XorStr( "m_vecPunchAngle" ), DT_BasePlayer_m_vecPunchAngle );
+
+		if( !m_vecPunchAngle )
+			LOG( XorStr( "[Source::Startup] Can't hook proxy 'DT_BasePlayer::m_vecPunchAngle'." ) );
+
 		m_flSpawnTime = m_pNetVarManager->HookProp( XorStr( "DT_ParticleSmokeGrenade" ), XorStr( "m_flSpawnTime" ), DT_ParticleSmokeGrenade_m_flSpawnTime );
+
+		if( !m_flSpawnTime )
+			LOG( XorStr( "[Source::Startup] Can't hook proxy 'DT_ParticleSmokeGrenade::m_flSpawnTime'." ) );
+
 		m_angEyeAnglesX = m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), XorStr( "m_angEyeAngles[0]" ), DT_CSPlayer_m_angEyeAnglesX );
+
+		if( !m_angEyeAnglesX )
+			LOG( XorStr( "[Source::Startup] Can't hook proxy 'DT_CSPlayer::m_angEyeAngles[0]'." ) );
+
 		m_angEyeAnglesY = m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), XorStr( "m_angEyeAngles[1]" ), DT_CSPlayer_m_angEyeAnglesY );
+
+		if( !m_angEyeAnglesY )
+			LOG( XorStr( "[Source::Startup] Can't hook proxy 'DT_CSPlayer::m_angEyeAngles[1]'." ) );
 
 		for( int i = 0; i < 24; i++ )
 		{
@@ -337,13 +408,13 @@ namespace Source
 
 	bool Release()
 	{
+		// Раньше здесь был return: если не удалось восстановить оконную
+		// процедуру, все VMT/Detour-хуки оставались висеть и игра падала
+		// при выгрузке. Теперь просто пишем в лог и идём дальше.
 		if( m_pTargetInput )
 		{
 			if( !m_pTargetInput->Release() )
-			{
-				DPRINT( XorStr( "[Source::Release] Can't release input!" ) );
-				return false;
-			}
+				LOG( XorStr( "[Source::Release] Can't release input!" ) );
 		}
 
 		if( m_pClientSwap )
@@ -367,45 +438,67 @@ namespace Source
 		if( m_pRunPredictionSwap )
 			m_pRunPredictionSwap->Release();
 
-		if( m_nTickBase )
+		// Слушателя могли зарегистрировать несколько раз, если Startup
+		// вызывался повторно (см. цикл повторов в Main.cpp): дубликаты
+		// обрабатывали бы игровые события по два раза.
+		if( m_pGameEventManager )
+			m_pGameEventManager->RemoveListener( &g_GameEventListener );
+
+		// Снимаем прокси netvar'ов. Если менеджер не создан (провал старта) —
+		// просто обнуляем указатели: иначе HostProp дёрнет nullptr.
+		if( m_pNetVarManager )
 		{
-			m_pNetVarManager->HookProp( XorStr( "DT_BasePlayer" ), XorStr( "m_nTickBase" ), m_nTickBase );
+			if( m_nTickBase )
+			{
+				m_pNetVarManager->HookProp( XorStr( "DT_BasePlayer" ), XorStr( "m_nTickBase" ), m_nTickBase );
+				m_nTickBase = nullptr;
+			}
+
+			if( m_vecPunchAngle )
+			{
+				m_pNetVarManager->HookProp( XorStr( "DT_BasePlayer" ), XorStr( "m_vecPunchAngle" ), m_vecPunchAngle );
+				m_vecPunchAngle = nullptr;
+			}
+
+			if( m_flSpawnTime )
+			{
+				m_pNetVarManager->HookProp( XorStr( "DT_ParticleSmokeGrenade" ), XorStr( "m_flSpawnTime" ), m_flSpawnTime );
+				m_flSpawnTime = nullptr;
+			}
+
+			if( m_angEyeAnglesX )
+			{
+				m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), XorStr( "m_angEyeAngles[0]" ), m_angEyeAnglesX );
+				m_angEyeAnglesX = nullptr;
+			}
+
+			if( m_angEyeAnglesY )
+			{
+				m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), XorStr( "m_angEyeAngles[1]" ), m_angEyeAnglesY );
+				m_angEyeAnglesY = nullptr;
+			}
+
+			for( int i = 0; i < 24; i++ )
+			{
+				if( !m_flPoseParameter[ i ] )
+					continue;
+
+				char poseProp[ 32 ] = {};
+				sprintf_s( poseProp, "m_flPoseParameter[%d]", i );
+				m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), poseProp, m_flPoseParameter[ i ] );
+				m_flPoseParameter[ i ] = nullptr;
+			}
+		}
+		else
+		{
 			m_nTickBase = nullptr;
-		}
-
-		if( m_vecPunchAngle )
-		{
-			m_pNetVarManager->HookProp( XorStr( "DT_BasePlayer" ), XorStr( "m_vecPunchAngle" ), m_vecPunchAngle );
 			m_vecPunchAngle = nullptr;
-		}
-
-		if( m_flSpawnTime )
-		{
-			m_pNetVarManager->HookProp( XorStr( "DT_ParticleSmokeGrenade" ), XorStr( "m_flSpawnTime" ), m_flSpawnTime );
 			m_flSpawnTime = nullptr;
-		}
-
-		if( m_angEyeAnglesX )
-		{
-			m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), XorStr( "m_angEyeAngles[0]" ), m_angEyeAnglesX );
 			m_angEyeAnglesX = nullptr;
-		}
-
-		if( m_angEyeAnglesY )
-		{
-			m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), XorStr( "m_angEyeAngles[1]" ), m_angEyeAnglesY );
 			m_angEyeAnglesY = nullptr;
-		}
 
-		for( int i = 0; i < 24; i++ )
-		{
-			if( !m_flPoseParameter[ i ] )
-				continue;
-
-			char poseProp[ 32 ] = {};
-			sprintf_s( poseProp, "m_flPoseParameter[%d]", i );
-			m_pNetVarManager->HookProp( XorStr( "DT_CSPlayer" ), poseProp, m_flPoseParameter[ i ] );
-			m_flPoseParameter[ i ] = nullptr;
+			for( int i = 0; i < 24; i++ )
+				m_flPoseParameter[ i ] = nullptr;
 		}
 
 		return true;
@@ -443,7 +536,7 @@ namespace Source
 
 		if( !hMod )
 		{
-			DPRINT( XorStr( "[Source::QueryInterface] Module '%s' not found! Timeout!" ), szMod );
+			LOG( XorStr( "[Source::QueryInterface] Module '%s' not found! Timeout!" ), szMod );
 			return nullptr;
 		}
 
@@ -451,7 +544,7 @@ namespace Source
 
 		if( !pCreateInterface )
 		{
-			DPRINT( XorStr( "[Source::QueryInterface] Can't get 'CreateInterface' address!" ) );
+			LOG( XorStr( "[Source::QueryInterface] Can't get 'CreateInterface' address!" ) );
 			return nullptr;
 		}
 
@@ -470,7 +563,7 @@ namespace Source
 				return pRet;
 		}
 
-		DPRINT( XorStr( "[Source::QueryInterface] Interface '%s' not found!" ), szName );
+		LOG( XorStr( "[Source::QueryInterface] Interface '%s' not found!" ), szName );
 
 		return nullptr;
 	}

@@ -4,6 +4,13 @@
 
 namespace Memory
 {
+	// Подмена таблицы виртуальных функций объекта.
+	//
+	// Гарантии (раньше их не было и это роняло игру при неудачной инжекции):
+	//   * Apply() можно звать только один раз до Release();
+	//   * Restore()/Replace()/Hook() ничего не делают, если Apply() не прошёл;
+	//   * Hook() проверяет индекс — запись вне скопированной таблицы невозможна;
+	//   * Release() идемпотентен.
 	class VmtSwap
 	{
 	public:
@@ -17,6 +24,8 @@ namespace Memory
 
 		void Hook( void* pHooked, std::size_t nIndex );
 
+		bool IsApplied() const;
+
 		template< typename T >
 		inline T VCall( const std::size_t nIndex )
 		{
@@ -24,9 +33,10 @@ namespace Memory
 		}
 
 	private:
-		std::uintptr_t**						m_ppInstance;
-		std::uintptr_t*							m_pBackupVmt;
+		std::uintptr_t**					m_ppInstance;
+		std::uintptr_t*						m_pBackupVmt;
 		std::unique_ptr< std::uintptr_t[ ] >	m_pCustomVmt;
-		std::size_t								m_nSize;
+		std::size_t							m_nSize;
+		bool								m_bApplied;
 	};
 }

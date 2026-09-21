@@ -4,6 +4,9 @@
 
 namespace Feature
 {
+	// Максимальное число игровых слотов (индексы 1..kMaxPlayers).
+	static const int kMaxPlayers = 64;
+
 	class Player
 	{
 	public:
@@ -32,6 +35,6 @@ namespace Feature
 		Player* GetPlayer( const char* name );
 
 	private:
-		Player m_players[ 65 ];
+		Player m_players[ kMaxPlayers + 1 ];
 	};
 }

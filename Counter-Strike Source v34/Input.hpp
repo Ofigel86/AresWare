@@ -15,6 +15,10 @@ namespace Input
 		bool					Capture();
 		bool					Release();
 
+		// Пере-захват окна, если WndProc-хук потерялся (пересоздание окна
+		// при смене режима экрана).
+		bool					EnsureCaptured();
+
 		const HWND				GetTarget() const;
 
 	private:

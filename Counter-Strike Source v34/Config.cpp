@@ -68,20 +68,34 @@ namespace Config
 
 	void Release()
 	{
-		Memory::SafeDelete( Main->Aimbot );
-		Memory::SafeDelete( Main->Triggerbot );
-		Memory::SafeDelete( Main );
+		// Все указатели обнуляются: Release() может быть вызван повторно
+		// (Eject из потока + DLL_PROCESS_DETACH) или после провалившегося
+		// Startup(), а двойное delete роняло игру.
+		if( Main )
+		{
+			Memory::SafeDelete( Main->Aimbot );
+			Memory::SafeDelete( Main->Triggerbot );
+			Memory::SafeDelete( Main );
+		}
 
-		Memory::SafeDelete( Current->Aimbot );
-		Memory::SafeDelete( Current->Triggerbot );
-		Memory::SafeDelete( Current );
+		if( Current )
+		{
+			Memory::SafeDelete( Current->Aimbot );
+			Memory::SafeDelete( Current->Triggerbot );
+			Memory::SafeDelete( Current );
+		}
 
 		for( int i = 0; i < WEAPON_MAX; i++ )
 		{
-			Memory::SafeDelete( Weapon[ i ]->Aimbot );
-			Memory::SafeDelete( Weapon[ i ]->Triggerbot );
+			if( Weapon[ i ] )
+			{
+				Memory::SafeDelete( Weapon[ i ]->Aimbot );
+				Memory::SafeDelete( Weapon[ i ]->Triggerbot );
 
-			Memory::SafeDelete( Weapon[ i ] );
+				Memory::SafeDelete( Weapon[ i ] );
+			}
+
+			Weapon[ i ] = nullptr;
 		}
 
 		Memory::SafeDelete( ESP );
@@ -91,8 +105,12 @@ namespace Config
 		Memory::SafeDelete( Misc );
 		Memory::SafeDelete( Colors );
 		Memory::SafeDelete( Binds );
+
 		for( int i = 0; i < 5; i++ )
+		{
 			Memory::SafeDelete( LegitbotClasses[ i ] );
+			LegitbotClasses[ i ] = nullptr;
+		}
 
 		Legitbot = nullptr;
 	}
@@ -129,6 +147,20 @@ namespace Config
 		return atoi( szData );
 	}
 
+	// Как LoadInt, но при отсутствии ключа возвращает значение по умолчанию.
+	// Нужен там, где «0» — невалидное значение (например, клавиша меню):
+	// старый конфиг без нужной секции выключал меню навсегда.
+	int LoadIntDef( const std::string& strSection, const std::string& strName, int iDefault )
+	{
+		char szData[ MAX_PATH ];
+		GetPrivateProfileString( strSection.c_str(), strName.c_str(), "", szData, MAX_PATH, m_current.c_str() );
+
+		if( szData[ 0 ] == '\0' )
+			return iDefault;
+
+		return atoi( szData );
+	}
+
 	float LoadFloat( const std::string& strSection, const std::string& strName )
 	{
 		char szData[ MAX_PATH ];
@@ -148,7 +180,11 @@ namespace Config
 
 	void SaveBool( const std::string& strSection, const std::string& strName, bool bValue )
 	{
-		const char* szData = bValue ? XorStr( "true" ) : XorStr( "false" );
+		// Раньше здесь был указатель на временный XorString: он умирал в конце
+		// строки, а использовался в следующей (UB). Копируем в std::string.
+		static const std::string s_strTrue  = XorStr( "true" );
+		static const std::string s_strFalse = XorStr( "false" );
+		const char* szData = bValue ? s_strTrue.c_str() : s_strFalse.c_str();
 		WritePrivateProfileString( strSection.c_str(), strName.c_str(), szData, m_current.c_str() );
 	}
 
@@ -174,6 +210,19 @@ namespace Config
 	{
 		std::ifstream f( name );
 		return f.good();
+	}
+
+	// Config::Create() создаёт ПУСТОЙ файл, поэтому одной проверки Exists()
+	// мало: файл существует, но все ключи в нём отсутствуют — LoadInt()
+	// вернул бы нули (в том числе menu = 0, из-за чего меню не открывалось).
+	bool IsFileEmpty( const std::string& name )
+	{
+		std::ifstream f( name, std::ios::binary | std::ios::ate );
+
+		if( !f.good() )
+			return true;
+
+		return f.tellg() <= 0;
 	}
 
 	bool Create( const std::string& name )
@@ -204,7 +253,7 @@ namespace Config
 
 		m_current = m_config + current;
 
-		if( !Exists( m_current ) )
+		if( !Exists( m_current ) || IsFileEmpty( m_current ) )
 			Save( name );
 
 		std::string main( XorStr( "main" ) );
@@ -603,14 +652,33 @@ namespace Config
 		Colors->CT_Chams_Colored = LoadColor(colors, XorStr("ct.chams.visible"));
 		Colors->Crosshair = LoadColor(colors, XorStr("crosshair"));
 
-		Source::m_pMenu->SetColors();
-		Source::m_pMenu->ApplyColors();
+		if( Source::m_pMenu )
+		{
+			Source::m_pMenu->SetColors();
+			Source::m_pMenu->ApplyColors();
+		}
 
 		std::string binds( XorStr( "binds" ) );
 
-		Binds->Menu						= LoadInt( binds, XorStr( "menu" ) );
-		Binds->Eject					= LoadInt( binds, XorStr( "eject" ) );
-		Binds->Panic					= LoadInt( binds, XorStr( "panic" ) );
+		// 45 = VK_INSERT, 122 = VK_F11, 123 = VK_F12.
+		// Значения по умолчанию обязательны: старый/пустой конфиг без секции
+		// [binds] выставлял клавишу меню в 0, и меню нельзя было открыть.
+		Binds->Menu						= LoadIntDef( binds, XorStr( "menu" ), 45 );
+		Binds->Eject					= LoadIntDef( binds, XorStr( "eject" ), 122 );
+		Binds->Panic					= LoadIntDef( binds, XorStr( "panic" ), 123 );
+
+		// Клавиша меню не может быть нулевой/битой — иначе чит неуправляем.
+		if( Binds->Menu <= 0 || Binds->Menu > 255 )
+		{
+			LOG( XorStr( "[Config] Invalid menu key (%d) in config, forcing INSERT (45)." ), Binds->Menu );
+			Binds->Menu = 45;
+		}
+
+		if( Binds->Eject <= 0 || Binds->Eject > 255 )
+			Binds->Eject = 122;
+
+		if( Binds->Panic <= 0 || Binds->Panic > 255 )
+			Binds->Panic = 123;
 
 		for( int i = 0; i < ARRAYSIZE( WeaponList ); i++ )
 		{
@@ -1352,11 +1420,11 @@ namespace Config
 			return WEAPON_DEAGLE;
 		else if (!std::strcmp(name, XorStr("Dual Berettas")))
 			return WEAPON_ELITE;
-		else if (!std::strcmp(name, XorStr("Five-SeveN")))
+		else if (!std::strcmp(name, XorStr("Five-SeveN")) || !std::strcmp(name, XorStr("Five-Seven")))
 			return WEAPON_FIVESEVEN;
 		else if (!std::strcmp(name, XorStr("M3")))
 			return WEAPON_M3;
-		else if (!std::strcmp(name, XorStr("XM1014")))
+		else if (!std::strcmp(name, XorStr("XM1014")) || !std::strcmp(name, XorStr("XM1024")))
 			return WEAPON_XM1014;
 		else if (!std::strcmp(name, XorStr("MAC-10")))
 			return WEAPON_MAC10;

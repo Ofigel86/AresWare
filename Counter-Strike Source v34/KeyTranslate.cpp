@@ -147,7 +147,9 @@ namespace ImGui
 
 	const std::string& GetNameFromCode( uint32_t code )
 	{
-		if( code > 124 )
+		// key_array содержит 124 элемента (индексы 0..123), а проверка была
+		// `> 124`: для code == 124 читался элемент за границей массива.
+		if( code >= 124 )
 			return key_array[ 0 ];
 
 		return key_array[ code ];

@@ -13,6 +13,7 @@
 #include "HitMarker.hpp"
 #include "Thirdperson.hpp"
 #include "Resolver.hpp"
+#include "inetmsghandler.hpp"
 
 #define	CONTENTS_SOLID			0x1
 bool bSendPacket = false;
@@ -22,6 +23,65 @@ bool bSendPacket = false;
 // side to invalidate the enemy's locked resolver correction.
 int g_iAAHurtDir = 1;
 using namespace Direct3D9;
+
+// ---------------------------------------------------------------------------
+// Кэш конваров.
+//
+// Раньше каждый тик вызывался FindVar("cl_minmodels") и результат сразу
+// разыменовывался: если конвара нет (другой билд клиента, кастомный сервер),
+// это nullptr->m_nValue прямо внутри CreateMove. Плюс строка расшифровывалась
+// заново на каждый вызов. Теперь ищем один раз и проверяем результат.
+// ---------------------------------------------------------------------------
+static ConVar* s_pCvarClMinModels = nullptr;
+static bool s_bCvarClMinModelsSearched = false;
+
+static ConVar* CvarClMinModels()
+{
+	if( !s_bCvarClMinModelsSearched && Source::m_pCvar )
+	{
+		s_bCvarClMinModelsSearched = true;
+		s_pCvarClMinModels = Source::m_pCvar->FindVar( XorStr( "cl_minmodels" ) );
+
+		if( !s_pCvarClMinModels )
+			LOG( XorStr( "[Hooked] Cvar 'cl_minmodels' not found." ) );
+	}
+
+	return s_pCvarClMinModels;
+}
+
+static ConVar* s_pCvarNetFakeLag = nullptr;
+static bool s_bCvarNetFakeLagSearched = false;
+
+static ConVar* CvarNetFakeLag()
+{
+	if( !s_bCvarNetFakeLagSearched && Source::m_pCvar )
+	{
+		s_bCvarNetFakeLagSearched = true;
+		s_pCvarNetFakeLag = Source::m_pCvar->FindVar( XorStr( "net_fakelag" ) );
+
+		if( !s_pCvarNetFakeLag )
+			LOG( XorStr( "[Hooked] Cvar 'net_fakelag' not found." ) );
+	}
+
+	return s_pCvarNetFakeLag;
+}
+
+static ConVar* s_pCvarSvCheats = nullptr;
+static bool s_bCvarSvCheatsSearched = false;
+
+static ConVar* CvarSvCheats()
+{
+	if( !s_bCvarSvCheatsSearched && Source::m_pCvar )
+	{
+		s_bCvarSvCheatsSearched = true;
+		s_pCvarSvCheats = Source::m_pCvar->FindVar( XorStr( "sv_cheats" ) );
+
+		if( !s_pCvarSvCheats )
+			LOG( XorStr( "[Hooked] Cvar 'sv_cheats' not found." ) );
+	}
+
+	return s_pCvarSvCheats;
+}
 
 void RenderSkeleton(C_CSPlayer* player, matrix3x4_t* transform, const Color& color)
 {
@@ -493,48 +553,53 @@ void RotateMovement(CUserCmd* cmd, float rotation)
 
 void Speed(C_CSPlayer* player, CUserCmd* cmd, Vector3& Originalview)
 {
+	(void)Originalview;
 
-	static float yaw;
+	// Состояние живёт между тиками: yaw — предыдущий прицел, current_y —
+	// накопленный угол разгона, flRamp — плавный рост этого угла.
+	static float yaw = 0.0f;
+	static float current_y = 0.0f;
+	static float flRamp = 0.0f;
+	static bool s_bYawCaptured = false;
+
 	if (!Shared::m_bSpeed)
 	{
-		yaw = 0;
+		yaw = 0.0f;
 		return;
 	}
 
 	if (Source::m_pDataManager->GetFlags() & FL_ONGROUND)
 		return;
+
 	yaw = AngleNormalize(cmd->viewangles.y - yaw);
 
 	if (player->m_MoveType() == MOVETYPE_LADDER || player->m_MoveType() == MOVETYPE_NOCLIP)
 		return;
 	if (player->m_lifeState() == LIFE_DEAD)
 		return;
+
 	if (GetAsyncKeyState(VK_SPACE))
 	{
-		Vector3 View(cmd->viewangles);
-		float blackcock = 0;
 		cmd->forwardmove = 450.f;
-		int random = rand() % 100;
-		int random2 = rand() % 1000;
-		static bool dir;
-		static float current_y = View.y;
+
+		if (!s_bYawCaptured)
+		{
+			s_bYawCaptured = true;
+			current_y = cmd->viewangles.y;
+		}
+
 		if (player->m_vecVelocity().Length() > 50.f)
 		{
-			blackcock += 0.00007;
-			current_y += (Config::Misc->SpeedMod) - blackcock;
+			flRamp += 0.00007f;
+			current_y += Config::Misc->SpeedMod - flRamp;
 		}
 		else
 		{
-			blackcock = 0;
+			flRamp = 0.0f;
 		}
-		View.y = current_y;
-		if (random == random2)
-			View.y += random;
-		// Clamp(View);
-		else
-		{
-			float blackcock = 0;
-		}
+
+		// Здесь раньше были rand()/View.y — они писали в локальную копию углов
+		// и ни на что не влияли; поворот делает RotateMovement ниже.
 		RotateMovement(cmd, current_y);
 	}
 }
@@ -1625,12 +1690,19 @@ void PerfectSilent(CUserCmd* cmd, C_WeaponCSBaseGun* weapon)
 }
 void AirStuck(CUserCmd* cmd)
 {
-
-	auto player = C_CSPlayer::GetLocalPlayer();
-	auto weapon = player->GetActiveWeapon();
-	if( !Shared::m_bStuck )
+	if( !Shared::m_bStuck || !cmd )
 		return;
-	if ((cmd->buttons & IN_ATTACK) && weapon->IsFireTime())
+
+	// player/weapon могут быть nullptr (мёртв, смена оружия, меню) — раньше
+	// это было разыменование нуля прямо в CreateMove.
+	auto player = C_CSPlayer::GetLocalPlayer();
+
+	if( !player )
+		return;
+
+	auto weapon = player->GetActiveWeapon();
+
+	if( weapon && ( cmd->buttons & IN_ATTACK ) && weapon->IsFireTime() )
 		return;
 
 	cmd->tick_count = 0xFFFFFF;
@@ -1669,7 +1741,14 @@ auto MovementRecord(CUserCmd* usercmd) -> void
 
 	if (g_recording)
 	{
-		g_usercmd_array.emplace_back(*usercmd);
+		// Ограничиваем запись: без лимита вектор растёт ~6 КБ/сек и ест память
+		// до конца сессии (66 записей в секунду, ~5 минут записи).
+		static const size_t kMaxRecordedCmds = 66 * 60 * 5;
+
+		if( g_usercmd_array.size() < kMaxRecordedCmds )
+			g_usercmd_array.emplace_back( *usercmd );
+		else if( g_usercmd_array.size() == kMaxRecordedCmds )
+			LOG( XorStr( "[MovementRecord] Buffer is full, recording stopped." ) );
 	}
 	else if (g_playing)
 	{
@@ -1712,7 +1791,6 @@ void RemoveInterpolation()
 	*(std::uint16_t*)(interpolation_list + 18) = 0;
 }
 
-#include "inetmsghandler.hpp"
 auto Lag(CUserCmd* usercmd) -> void
 {
 	auto netchan = (CNetChan*)Source::m_pEngine->GetNetChannelInfo();
@@ -1789,7 +1867,11 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 			if (GetAsyncKeyState(Config::Misc->CrashKey))
 			{
 				auto chan = (INetChannel*)Source::m_pEngine->GetNetChannelInfo();
-				auto channel = (INetChannelHandler*)Source::m_pEngine->GetNetChannelInfo();
+
+				// Вне игры/без соединения GetNetChannelInfo() отдаёт nullptr:
+				// раньше это было разыменование нуля прямо в CreateMove.
+				if( !chan )
+					return;
 
 				unsigned short bits = 0;
 
@@ -1800,7 +1882,7 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 					if (Config::Misc->CrashRestricion)
 					{
 						if (buf->GetNumBitsWritten() > Config::Misc->CrashRestricion)
-							return;
+							break;
 					}
 
 					buf->WriteUBitLong(10, 5);
@@ -1815,6 +1897,9 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 			{
 				auto chan = (INetChannel*)Source::m_pEngine->GetNetChannelInfo();
 
+				if( !chan )
+					return;
+
 				unsigned short bits = -3;
 
 				Memory::VCall< void(__thiscall*)(void*, bool, int) >(chan, 59)(chan, false, 96000);
@@ -1826,7 +1911,7 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 					if (Config::Misc->CrashRestricion)
 					{
 						if (buf->GetNumBitsWritten() > Config::Misc->CrashRestricion)
-							return;
+							break;
 					}
 					buf->WriteUBitLong(10, 5);
 					buf->WriteWord(bits);
@@ -1841,6 +1926,9 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 			{
 				auto chan = (INetChannel*)Source::m_pEngine->GetNetChannelInfo();
 
+				if( !chan )
+					return;
+
 				unsigned short bits = Config::Misc->Val0;
 
 				Memory::VCall< void(__thiscall*)(void*, bool, int) >(chan, 59)(chan, false, 96000);
@@ -1852,7 +1940,7 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 					if (Config::Misc->CrashRestricion)
 					{
 						if (buf->GetNumBitsWritten() > Config::Misc->CrashRestricion)
-							return;
+							break;
 					}
 					buf->WriteUBitLong(Config::Misc->Val1, Config::Misc->Val2);
 					buf->WriteWord(bits);
@@ -1865,8 +1953,11 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 			Config::OnCreateMove();
 			auto player = C_CSPlayer::GetLocalPlayer();
 
-			if (Source::m_pCvar->FindVar(XorStr("cl_minmodels"))->m_nValue != 1337)
-				Source::m_pCvar->FindVar(XorStr("cl_minmodels"))->m_nValue = 1337;
+			if( ConVar* pClMinModels = CvarClMinModels() )
+			{
+				if( pClMinModels->m_nValue != 1337 )
+					pClMinModels->m_nValue = 1337;
+			}
 	
 			if (player)
 			{
@@ -1915,10 +2006,13 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 							if (Config::Current->Triggerbot->Mode)
 								Source::m_pTriggerbot->OnCreateMove(cmd);
 						
-						if (Config::Misc->FakePing)
-							Source::m_pCvar->FindVar(XorStr("net_fakelag"))->m_nValue = Config::Misc->FakePing;
-						else
-							Source::m_pCvar->FindVar(XorStr("net_fakelag"))->m_nValue = 0;
+						if( ConVar* pFakeLag = CvarNetFakeLag() )
+						{
+							if( Config::Misc->FakePing )
+								pFakeLag->m_nValue = Config::Misc->FakePing;
+							else
+								pFakeLag->m_nValue = 0;
+						}
 						
 						if (Config::Misc->FakeLag)
 							FakeLag(cmd);
@@ -1931,7 +2025,7 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 							if (Config::Current->Aimbot->NoSpread)
 								NoSpread(cmd, weapon);
 						}
-
+						if (!Shared::m_bPanic && (Config::AntiAim->AtTarget || Config::AntiAim->PitchMove || Config::AntiAim->YawMove || Config::AntiAim->PitchStand || Config::AntiAim->YawStand))
 						if (Config::Removals->NoRecoil)							
 							NoRecoil(cmd, player, weapon);
 
@@ -2050,8 +2144,11 @@ void __fastcall Hooked_FrameStageNotify(void* ecx, void* edx, ClientFrameStage_t
 							Source::m_pInput->m_fCameraInThirdPerson = true;
 					}
 
-					if (Source::m_pCvar->FindVar(XorStr("sv_cheats"))->m_nValue != 7991801)
-						Source::m_pCvar->FindVar(XorStr("sv_cheats"))->m_nValue = 7991801;
+					if( ConVar* pCheats = CvarSvCheats() )
+					{
+						if( pCheats->m_nValue != 7991801 )
+							pCheats->m_nValue = 7991801;
+					}
 					if (Source::m_pInput->m_fCameraInThirdPerson)
 					{
 						Source::m_pInput->m_vecCameraOffset = Vector(vecAngles[0], vecAngles[1], 128.0f);
@@ -2064,8 +2161,11 @@ void __fastcall Hooked_FrameStageNotify(void* ecx, void* edx, ClientFrameStage_t
 				}
 				else
 				{
-					if (Source::m_pCvar->FindVar(XorStr("sv_cheats"))->m_nValue == 7991801)
-						Source::m_pCvar->FindVar(XorStr("sv_cheats"))->m_nValue = 0;
+					if( ConVar* pCheats = CvarSvCheats() )
+					{
+						if( pCheats->m_nValue == 7991801 )
+							pCheats->m_nValue = 0;
+					}
 					Source::m_pInput->m_vecCameraOffset = Vector(vecAngles.x, vecAngles.y, 0);
 					Source::m_pInput->m_fCameraInThirdPerson = false;
 
@@ -2107,15 +2207,23 @@ void __fastcall Hooked_FrameStageNotify(void* ecx, void* edx, ClientFrameStage_t
 					bool tr = true;
 					if (tr)
 					{
-						Source::m_pCvar->FindVar(XorStr("sv_cheats"))->m_nValue = 7991802;
-						Source::m_pCvar->FindVar(XorStr("net_fakelag"))->m_nValue = Config::Misc->FakePing;
+						if( ConVar* pCheats = CvarSvCheats() )
+						pCheats->m_nValue = 7991802;
+
+						if( ConVar* pFakeLag = CvarNetFakeLag() )
+							pFakeLag->m_nValue = Config::Misc->FakePing;
 					}
 				}
 				else
 				{
-					if (Source::m_pCvar->FindVar(XorStr("sv_cheats"))->m_nValue == 7991802)
-						Source::m_pCvar->FindVar(XorStr("sv_cheats"))->m_nValue = 0;
-					Source::m_pCvar->FindVar(XorStr("net_fakelag"))->m_nValue = 0;
+					if( ConVar* pCheats = CvarSvCheats() )
+					{
+						if( pCheats->m_nValue == 7991802 )
+							pCheats->m_nValue = 0;
+					}
+
+					if( ConVar* pFakeLag = CvarNetFakeLag() )
+						pFakeLag->m_nValue = 0;
 				}
 				for (int i = 1; i <= Source::m_pEngine->GetMaxClients(); i++)
 				{
@@ -2275,6 +2383,12 @@ HRESULT D3DAPI Hooked_Reset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* pP
 
 		Source::m_pRenderer->OnResetDevice();
 		Source::m_pMenu->OnResetDevice();
+
+		// Смена режима экрана/разрешения может пересоздать окно игры: наш
+		// WndProc теряется, и кнопка меню перестаёт работать. Пере-захватываем.
+		if( Source::m_pInput )
+			Source::m_pInput->EnsureCaptured();
+
 		return hRet;
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
@@ -2436,14 +2550,16 @@ HRESULT D3DAPI Hooked_Reset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* pP
 			if (player->m_lifeState() != LIFE_ALIVE)
 				return;
 
+			auto pLocal = C_CSPlayer::GetLocalPlayer();
+
 			if (Config::ESP->Target == 1) // Enemy
 			{
-				if (player->m_iTeamNum() == C_CSPlayer::GetLocalPlayer()->m_iTeamNum())
+				if (pLocal && player->m_iTeamNum() == pLocal->m_iTeamNum())
 					return;
 			}
 			else if (Config::ESP->Target == 2) // Friendly
 			{
-				if (player->m_iTeamNum() != C_CSPlayer::GetLocalPlayer()->m_iTeamNum())
+				if (pLocal && player->m_iTeamNum() != pLocal->m_iTeamNum())
 					return;
 			}
 
@@ -3347,8 +3463,7 @@ void Watermark()
 
 		Source::m_pEngine->GetScreenSize(w, h);
 		auto net_channel = Source::m_pEngine->GetNetChannelInfo();
-		auto player = C_CSPlayer::GetLocalPlayer();
-		auto ping = net_channel->GetLatency(FLOW_OUTGOING) * 1000;
+		float ping = net_channel ? net_channel->GetLatency(FLOW_OUTGOING) * 1000.0f : 0.0f;
 		Source::m_pRenderer->DrawText(Source::m_hFont, (float)w - 5.0f, 2.0f, FONT_ALIGN_RIGHT, Direct3D9::Color::FromHSB(rainbow, 1.f, 1.f), XorStr("$$$ WEED $$$"));
 		Source::m_pRenderer->DrawText(Source::m_hFont, (float)w - 5.0f, 14.0f, FONT_ALIGN_RIGHT, Direct3D9::Color::FromHSB(rainbow, 1.f, 1.f), XorStr("PING: %0.f"), ping);
 		Source::m_pRenderer->DrawText(Source::m_hFont, (float)w - 5.0f, 26.0f, FONT_ALIGN_RIGHT, Direct3D9::Color::FromHSB(rainbow, 1.f, 1.f), XorStr("FPS: %3d"), get_fps());
@@ -3379,25 +3494,35 @@ void Watermark()
 
 void PresentProxy()
 {
+	// Раньше все подсистемы рисовались в одном __try: первое же исключение
+	// (например, разыменование nullptr внутри ESP) глоталось общим __except и
+	// обрывало кадр целиком — вместе с меню, которое рисуется после ESP.
+	// Теперь у каждой подсистемы свой блок, и падение одного раздела не мешает
+	// остальным.
 	__try
 	{
 		Source::m_pRenderer->Begin();
+	}
+	__except( EXCEPTION_EXECUTE_HANDLER )
+	{
+		return;
+	}
 
-		if (!Shared::m_bPanic)
-		{
-			ESP();
-			Crosshair();
-			Menu();
-			Watermark();
-			
-		}
+	if( !Shared::m_bPanic )
+	{
+		__try { ESP(); } __except( EXCEPTION_EXECUTE_HANDLER ) { }
+		__try { Crosshair(); } __except( EXCEPTION_EXECUTE_HANDLER ) { }
+		__try { Menu(); } __except( EXCEPTION_EXECUTE_HANDLER ) { }
+		__try { Watermark(); } __except( EXCEPTION_EXECUTE_HANDLER ) { }
+	}
 
+	__try
+	{
 		Source::m_pRenderer->End();
 	}
 	__except( EXCEPTION_EXECUTE_HANDLER )
-{
-		
-		}
+	{
+	}
 }
 
 HRESULT D3DAPI Hooked_Present( IDirect3DDevice9* device, const RECT* source_rect, const RECT* dest_rect, HWND dest_window_override, const RGNDATA* dirty_region )
@@ -3423,13 +3548,35 @@ void __declspec( naked ) Hooked_Present()
 	}
 }
 */
+// Достаёт адрес по паттерну внутри engine.dll и разыменовывает его со
+// смещением. При провале пишет в лог и возвращает 0.
+static std::uintptr_t ResolveEnginePattern( const char* szPattern, int nOffset )
+{
+	auto uAddress = Memory::PatternScan( XorStr( "engine.dll" ), szPattern );
+
+	if( !uAddress )
+	{
+		LOG( XorStr( "[Hooked] Can't find pattern '%s' in engine.dll." ), szPattern );
+		return 0;
+	}
+
+	return *( std::uintptr_t* )( uAddress + nOffset );
+}
+
 void Hooked_CL_RunPrediction( PREDICTION_REASON reason )
 {
-	static auto s_nSignonState = *( std::uintptr_t* )( Memory::PatternScan( XorStr( "engine.dll" ), XorStr( "83 3D ?? ?? ?? ?? ?? A3 ?? ?? ?? ?? 75 47" ) ) + 2 );
-	static auto s_nDeltaTick = *( std::uintptr_t* )( Memory::PatternScan( XorStr( "engine.dll" ), XorStr( "83 3D ?? ?? ?? ?? ?? 7C 3E 8B 0D" ) ) + 2 );
-	static auto s_last_command_ack = *( std::uintptr_t* )( Memory::PatternScan( XorStr( "engine.dll" ), XorStr( "A1 ?? ?? ?? ?? 56 50 A1" ) ) + 1 );
-	static auto s_lastoutgoingcommand = *( std::uintptr_t* )( Memory::PatternScan( XorStr( "engine.dll" ), XorStr( "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 11 53 56" ) ) + 1 );
-	static auto s_chokedcommands = *( std::uintptr_t* )( Memory::PatternScan( XorStr( "engine.dll" ), XorStr( "8B 35 ?? ?? ?? ?? 03 F0 A1 ?? ?? ?? ??" ) ) + 2 );
+	// Пять сигнатур берутся из engine.dll один раз. Раньше разыменование
+	// (PatternScan(...) + смещение) стояло прямо в статических инициализаторах
+	// без проверки: если паттерн не найден (другой билд движка), читалась
+	// память по адресу 0x1..0x5 — падение внутри engine.dll, без логов.
+	static const std::uintptr_t s_nSignonState = ResolveEnginePattern( XorStr( "83 3D ?? ?? ?? ?? ?? A3 ?? ?? ?? ?? 75 47" ), 2 );
+	static const std::uintptr_t s_nDeltaTick = ResolveEnginePattern( XorStr( "83 3D ?? ?? ?? ?? ?? 7C 3E 8B 0D" ), 2 );
+	static const std::uintptr_t s_last_command_ack = ResolveEnginePattern( XorStr( "A1 ?? ?? ?? ?? 56 50 A1" ), 1 );
+	static const std::uintptr_t s_lastoutgoingcommand = ResolveEnginePattern( XorStr( "A1 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 11 53 56" ), 1 );
+	static const std::uintptr_t s_chokedcommands = ResolveEnginePattern( XorStr( "8B 35 ?? ?? ?? ?? 03 F0 A1 ?? ?? ?? ??" ), 2 );
+
+	if( !s_nSignonState || !s_nDeltaTick || !s_last_command_ack || !s_lastoutgoingcommand || !s_chokedcommands )
+		return;
 
 	int nSignonState = *( int* )s_nSignonState;
 	int nDeltaTick = *( int* )s_nDeltaTick;
