@@ -1070,6 +1070,7 @@ namespace Feature
 		AW::Checkbox( XorStr( "Auto Stop" ), &aim->AutoStop );
 		AW::Checkbox( XorStr( "Auto Crouch" ), &aim->AutoCrouch );
 		AW::Checkbox( XorStr( "Auto Reload" ), &aim->AutoReload );
+		AW::Checkbox( XorStr( "Auto Scope" ), &aim->AutoScope );
 		AW::Checkbox( XorStr( "Anti Spawn-Protection" ), &aim->AntiSpawnProtection );
 		AW::Checkbox( XorStr( "No Switch" ), &aim->NoSwitch );
 		AW::Checkbox( XorStr( "Resolver" ), &aim->Resolver );
@@ -1135,7 +1136,11 @@ namespace Feature
 		AW::Checkbox( XorStr( "Auto Wall" ), &aim->AutoWall );
 
 		if( aim->AutoWall )
+		{
 			AW::SliderInt( XorStr( "Min Damage" ), &aim->MinDamage, 0, 100, XorStr( "%d" ) );
+			AW::SliderInt( XorStr( "Min Damage Override" ), &aim->MinDamageOverride, 0, 100, XorStr( "%d" ) );
+			AW::KeyBox( XorStr( "Override Key" ), &aim->MinDamageOverrideKey );
+		}
 
 		AW::Combo( XorStr( "Hit Scan" ), &aim->HitScan, HitScanList, ARRAYSIZE( HitScanList ) );
 

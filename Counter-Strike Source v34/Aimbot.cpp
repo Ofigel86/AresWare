@@ -97,6 +97,7 @@ namespace Feature
 	Aimbot::Aimbot()
 		: m_bKeyPressed( false ),
 		m_bChangeTarget( false ),
+		m_bAutoScoped( false ),
 		m_pCmd( nullptr ),
 		m_pLocal( nullptr ),
 		m_pWeapon( nullptr ),
@@ -165,6 +166,20 @@ namespace Feature
 		{
 			Config::Misc->target = 0;
 
+			// Автоскоп: цели нет — снимаем только СВОЙ зум.
+			// Ручной зум игрока не трогаем (m_bAutoScoped выставлен лишь
+			// нашим нажатием, сбрасывается при ручном раззуме).
+			if( m_bAutoScoped )
+			{
+				if( !IsScoped() || !cfg->AutoScope )
+					m_bAutoScoped = false;
+				else if( IsScopedWeapon() )
+				{
+					pCmd->buttons |= IN_ATTACK2;
+					m_bAutoScoped = false;
+				}
+			}
+
 			if( cfg->NoSwitch )
 				return;
 
@@ -177,6 +192,17 @@ namespace Feature
 		}
 
 		Config::Misc->target = m_pTarget->GetIndex();
+
+		// Автоскоп: есть цель, винтовка с зумом, зума нет — зумимся.
+		// Выстрел в этом тике пропускаем: пуля уйдёт до зума с разбросом.
+		bool bNeedScope = false;
+
+		if( cfg->AutoScope && IsScopedWeapon() && !IsScoped() )
+		{
+			pCmd->buttons |= IN_ATTACK2;
+			m_bAutoScoped = true;
+			bNeedScope = true;
+		}
 
 		if( cfg->Delay && m_Timer.Elapsed() < cfg->Delay )
 			return;
@@ -232,7 +258,7 @@ namespace Feature
 				Source::m_pEngine->SetViewAngles( pCmd->viewangles );
 		}
 
-		if( cfg->AutoFire )
+		if( cfg->AutoFire && !bNeedScope )
 		{
 			pCmd->buttons &= ~IN_RELOAD;
 			pCmd->buttons |= IN_ATTACK;
@@ -489,7 +515,7 @@ namespace Feature
 		{
 			int iDamage = -1;
 
-			if( !Source::m_pAccuracy->CanPenetrate( m_pLocal->EyePosition(), vPoint, cfg->MinDamage, cfg->Target, &iDamage ) )
+			if( !Source::m_pAccuracy->CanPenetrate( m_pLocal->EyePosition(), vPoint, EffectiveMinDamage(), cfg->Target, &iDamage ) )
 				return false;
 
 			if( pDamage )
@@ -522,7 +548,7 @@ namespace Feature
 		auto cfg = Config::Current->Aimbot;
 
 		bool bFound = false;
-		int iBestDamage = cfg->MinDamage;
+		int iBestDamage = EffectiveMinDamage();
 		float flBestFov = 180.0f;
 
 		for( int i = 0; i < hitboxSet->numhitboxes; i++ )
@@ -559,7 +585,7 @@ namespace Feature
 		auto cfg = Config::Current->Aimbot;
 
 		bool bFound = false;
-		int iBestDamage = cfg->MinDamage;
+		int iBestDamage = EffectiveMinDamage();
 		float flBestFov = 180.0f;
 
 		for( int i = 0; i < hitboxSet->numhitboxes; i++ )
@@ -610,7 +636,7 @@ namespace Feature
 		auto cfg = Config::Current->Aimbot;
 
 		bool bFound = false;
-		int iBestDamage = cfg->MinDamage;
+		int iBestDamage = EffectiveMinDamage();
 		float flBestFov = 180.0f;
 
 		const Vector3 vEye = m_pLocal->EyePosition();
@@ -735,6 +761,32 @@ namespace Feature
 
 		vPoint = vCandidate;
 		return true;
+	}
+
+	bool Aimbot::IsScopedWeapon()
+	{
+		const CSWeaponID id = m_pWeapon->GetWeaponID();
+
+		return id == WEAPON_SCOUT || id == WEAPON_AUG || id == WEAPON_SG550 ||
+			id == WEAPON_SG552 || id == WEAPON_AWP || id == WEAPON_G3SG1;
+	}
+
+	bool Aimbot::IsScoped()
+	{
+		// В зуме FOV падает ниже дефолтных 90; 0 = дефолт (не зум).
+		const int fov = m_pLocal->m_iFOV();
+
+		return fov != 0 && fov < 90;
+	}
+
+	int Aimbot::EffectiveMinDamage()
+	{
+		auto cfg = Config::Current->Aimbot;
+
+		if( cfg->MinDamageOverrideKey && GetAsyncKeyState( cfg->MinDamageOverrideKey ) )
+			return cfg->MinDamageOverride;
+
+		return cfg->MinDamage;
 	}
 
 	void Aimbot::ApplyPrediction( Vector3& vPoint )

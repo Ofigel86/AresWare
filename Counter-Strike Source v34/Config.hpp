@@ -47,6 +47,9 @@ namespace Config
 		bool	AutoCrouch = false;		// 
 		bool	AntiSpawnProtection = false;		// 
 		bool	AutoReload = false;		// 
+		bool	AutoScope = false;		// zoom scoped rifles when target found
+		int		MinDamageOverride = 0;	// min damage while override key held
+		int		MinDamageOverrideKey = 0;
 		bool	NoSwitch = false;		// 
 		bool	Height = false;
 		int		Spot = 0;				// 
@@ -91,6 +94,8 @@ namespace Config
 			LimitValue( MinDamage, 0, 100 );
 			LimitValue( HitScanScale, 0.0f, 1.0f );
 			LimitValue( Spot, 0, 19 );
+			LimitValue( MinDamageOverride, 0, 100 );
+			LimitValue( MinDamageOverrideKey, 0, 128 );
 		}
 	};
 

@@ -54,9 +54,17 @@ namespace Feature
 		Vector3				MakeVector( const Vector3& angles );
 		float				GetFOV( const Vector3& va, const Vector3& src, const Vector3& dest );
 
+		// Автоскоп: оружие со вторичным зумом / факт зума по FOV.
+		bool				IsScopedWeapon();
+		bool				IsScoped();
+
+		// Мин. урон с учётом оверрайда на клавише.
+		int					EffectiveMinDamage();
+
 	private:
 		bool				m_bKeyPressed;
 		bool				m_bChangeTarget;
+		bool				m_bAutoScoped;
 
 		CUserCmd*			m_pCmd;
 		C_CSPlayer*			m_pLocal;

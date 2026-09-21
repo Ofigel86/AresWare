@@ -209,6 +209,9 @@ namespace Config
 		Main->Aimbot->AutoStop			= LoadBool( main, XorStr( "aimbot.auto.stop" ) );
 		Main->Aimbot->AutoCrouch		= LoadBool( main, XorStr( "aimbot.auto.crouch" ) );
 		Main->Aimbot->AutoReload = LoadBool(main, XorStr("aimbot.auto.reload"));
+		Main->Aimbot->AutoScope = LoadBool(main, XorStr("aimbot.auto.scope"));
+		Main->Aimbot->MinDamageOverride = LoadInt(main, XorStr("aimbot.mindamage.override"));
+		Main->Aimbot->MinDamageOverrideKey = LoadInt(main, XorStr("aimbot.mindamage.override.key"));
 		Main->Aimbot->AntiSpawnProtection = LoadBool(main, XorStr("aimbot.anti.spawn.protection"));
 		Main->Aimbot->NoSwitch			= LoadBool( main, XorStr( "aimbot.no.switch" ) );
 		Main->Aimbot->Spot				= LoadInt( main, XorStr( "aimbot.spot" ) );
@@ -412,6 +415,9 @@ namespace Config
 			Weapon[ index ]->Aimbot->AutoStop			= LoadBool( weapon, XorStr( "aimbot.auto.stop" ) );
 			Weapon[ index ]->Aimbot->AutoCrouch			= LoadBool( weapon, XorStr( "aimbot.auto.crouch" ) );
 			Weapon[index]->Aimbot->AutoReload = LoadBool(weapon, XorStr("aimbot.auto.reload"));
+			Weapon[index]->Aimbot->AutoScope = LoadBool(weapon, XorStr("aimbot.auto.scope"));
+			Weapon[index]->Aimbot->MinDamageOverride = LoadInt(weapon, XorStr("aimbot.mindamage.override"));
+			Weapon[index]->Aimbot->MinDamageOverrideKey = LoadInt(weapon, XorStr("aimbot.mindamage.override.key"));
 			Weapon[index]->Aimbot->AntiSpawnProtection = LoadBool(weapon, XorStr("aimbot.anti.spawn.protection"));
 			Weapon[ index ]->Aimbot->NoSwitch			= LoadBool( weapon, XorStr( "aimbot.no.switch" ) );
 			Weapon[ index ]->Aimbot->Spot				= LoadInt( weapon, XorStr( "aimbot.spot" ) );
@@ -489,6 +495,9 @@ namespace Config
 		SaveBool( main, XorStr( "aimbot.auto.stop" ), Main->Aimbot->AutoStop );
 		SaveBool( main, XorStr( "aimbot.auto.crouch" ), Main->Aimbot->AutoCrouch );
 		SaveBool(main, XorStr("aimbot.auto.reload"), Main->Aimbot->AutoReload);
+		SaveBool(main, XorStr("aimbot.auto.scope"), Main->Aimbot->AutoScope);
+		SaveInt(main, XorStr("aimbot.mindamage.override"), Main->Aimbot->MinDamageOverride);
+		SaveInt(main, XorStr("aimbot.mindamage.override.key"), Main->Aimbot->MinDamageOverrideKey);
 		SaveBool(main, XorStr("aimbot.anti.spawn.protection"), Main->Aimbot->AntiSpawnProtection);
 		SaveBool( main, XorStr( "aimbot.no.switch" ), Main->Aimbot->NoSwitch );
 		SaveInt( main, XorStr( "aimbot.spot" ), Main->Aimbot->Spot );
@@ -690,6 +699,9 @@ namespace Config
 			SaveBool( weapon, XorStr( "aimbot.auto.stop" ), Weapon[ index ]->Aimbot->AutoStop );
 			SaveBool( weapon, XorStr( "aimbot.auto.crouch" ), Weapon[ index ]->Aimbot->AutoCrouch );
 			SaveBool(weapon, XorStr("aimbot.auto.reload"), Weapon[index]->Aimbot->AutoReload);
+			SaveBool(weapon, XorStr("aimbot.auto.scope"), Weapon[index]->Aimbot->AutoScope);
+			SaveInt(weapon, XorStr("aimbot.mindamage.override"), Weapon[index]->Aimbot->MinDamageOverride);
+			SaveInt(weapon, XorStr("aimbot.mindamage.override.key"), Weapon[index]->Aimbot->MinDamageOverrideKey);
 			SaveBool(weapon, XorStr("aimbot.anti.spawn.protection"), Weapon[index]->Aimbot->AntiSpawnProtection);
 			SaveBool( weapon, XorStr( "aimbot.no.switch" ), Weapon[ index ]->Aimbot->NoSwitch );
 			SaveInt( weapon, XorStr( "aimbot.spot" ), Weapon[ index ]->Aimbot->Spot );
