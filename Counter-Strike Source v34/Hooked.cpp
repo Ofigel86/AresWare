@@ -70,101 +70,146 @@ void RenderSkeleton(C_CSPlayer* player, matrix3x4_t* transform, const Color& col
 	}
 }
 
-void ApplyStrafe(CUserCmd* cmd, const Vector3& va)
-{
-
-	float yaw, speed;
-
-	Vector3& move = *(Vector3*)&cmd->forwardmove;
-
-	speed = move.Length2D();
-
-	yaw = ToDegrees(atan2(move.y, move.x));
-	yaw = ToRadians(cmd->viewangles.y - va.y + yaw);
-
- 	move.x = cos(yaw) * speed;
- } 
-
+// Optimal auto-strafer, ported from the epoximotion report (acos-optimal core §4+§6,
+// WASD Direction Control §5). The former Normal/Boost implementation was broken and is fully
+// replaced: ApplyStrafe only wrote forwardmove (rotation incomplete — sidemove never rotated),
+// abs() truncated the yaw delta to int, and the Boost math ran in Normal mode too (misplaced
+// closing brace), so both modes did the same thing. New modes:
+//   1 - Optimal: acos-optimal side strafe around the velocity yaw.
+//   2 - Optimal + WASD: same core, reference yaw comes from the Direction Control table.
+// Porting notes vs the report:
+//   - No 90-tick ring buffer: CS:S v34 exposes live m_vecVelocity in CreateMove.
+//   - No bhop gate: the report requires its own bhop enabled (config quirk); ours strafes
+//     standalone (manual or auto bhop alike).
+//   - No hardcoded m_flMaxspeed @ +0xF60 (CS:GO-only, fragile — report §11.7): the gain term
+//     uses the canonical live form instead, see below.
 void AutoStrafe( CUserCmd* cmd, C_CSPlayer* player )
 {
+	const int iMode = Config::Misc->AutoStrafe;
+
+	if( iMode != 1 && iMode != 2 )
+		return;
+
+	// Circle strafer owns the move vector while active — don't fight it.
+	if( Config::Misc->Speed && Shared::m_bSpeed )
+		return;
+
 	if( player->m_MoveType() == MOVETYPE_LADDER || player->m_MoveType() == MOVETYPE_NOCLIP )
 		return;
 
-	if (player->m_lifeState() == LIFE_DEAD)
-			return;
+	if( player->m_lifeState() == LIFE_DEAD )
+		return;
 
 	if( Source::m_pDataManager->GetFlags() & FL_ONGROUND )
 		return;
 
-	auto velocity = player->m_vecVelocity();
+	static ConVar* pSideSpeed = nullptr;
+	static ConVar* pAirAccelerate = nullptr;
 
-	float speed = velocity.Length2D();
+	if( !pSideSpeed )
+		pSideSpeed = Source::m_pCvar->FindVar( XorStr( "cl_sidespeed" ) );
 
-	float tickrate = 1.0f;
+	if( !pAirAccelerate )
+		pAirAccelerate = Source::m_pCvar->FindVar( XorStr( "sv_airaccelerate" ) );
 
-	if( ( Source::m_pGlobalVars->interval_per_tick * 100 ) > 1.0f )
-		tickrate = 1.1f;
+	if( !pSideSpeed || !pAirAccelerate )
+		return;
 
-	static float yaw;
+	const float flSideSpeed = pSideSpeed->GetFloat();
+	const float flAirAccelerate = pAirAccelerate->GetFloat();
+	const float flDeltaTime = Source::m_pGlobalVars->interval_per_tick;
 
-	yaw = AngleNormalize( cmd->viewangles.y - yaw );
+	if( flSideSpeed <= 0.0f || flAirAccelerate <= 0.0f || flDeltaTime <= 0.0f )
+		return;
 
-	Vector3 strafe = cmd->viewangles;
+	// Report §4: pure side strafe; the writeback rotation aims it at targetYaw.
+	cmd->forwardmove = 0.0f;
 
-	if( Config::Misc->AutoStrafe == 1 ) // Normal
+	// Report §5: WASD Direction Control (mode 2). Order of the if-chain matters; the S+A
+	// entry (view + 225 deg, effectively +135 deg) is verbatim, including its quirk.
+	float flWorkYaw = cmd->viewangles.y;
+	bool bNegative = false;
+
+	if( iMode == 2 )
 	{
-		if( yaw < 0.0f )
-			cmd->sidemove = 400.0f;
-		else if( yaw > 0.0f )
-			cmd->sidemove = -400.0f;
+		const int iButtons = cmd->buttons;
+		const float flViewYaw = cmd->viewangles.y;
+
+		if( ( iButtons & IN_FORWARD ) && ( iButtons & IN_MOVERIGHT ) )
+			flWorkYaw = flViewYaw + 45.0f;
+		else if( ( iButtons & IN_FORWARD ) && ( iButtons & IN_MOVELEFT ) )
+			flWorkYaw = flViewYaw + 315.0f;
+		else if( ( iButtons & IN_BACK ) && ( iButtons & IN_MOVERIGHT ) )
+			flWorkYaw = flViewYaw + 135.0f;
+		else if( ( iButtons & IN_BACK ) && ( iButtons & IN_MOVELEFT ) )
+			flWorkYaw = flViewYaw + 225.0f;
+		else if( iButtons & IN_FORWARD )
+			flWorkYaw = flViewYaw + 90.0f;
+		else if( iButtons & IN_BACK )
+			flWorkYaw = flViewYaw + 270.0f;
+		// A / D alone: work yaw stays = view yaw (report §5, negative stays false).
 	}
-	else if (Config::Misc->AutoStrafe == 2) // Boost
+
+	const Vector3 vecVelocity = player->m_vecVelocity();
+	const float flSpeed2D = vecVelocity.Length2D();
+
+	float flTargetYaw = flWorkYaw;
+
+	// Report §6.2: standing-still kick.
+	if( flSpeed2D <= 1.0f )
 	{
-		if (Config::Misc->Speed)
-		{
-			if (Shared::m_bSpeed)
-				return;
-		}
+		flTargetYaw = flWorkYaw - 92.0f;
+		cmd->sidemove = -flSideSpeed;
 	}
-		float value = (8.15f - tickrate) - (speed / 340.0f);
+	else
+	{
+		// Report §6.3, canonical live form: gain = airacc * 30 * dt. The pasted formula
+		// (side * airacc * dt * maxspeed) saturates the acos argument to 0 at every sane
+		// setting (e.g. 450*12*(1/64)*250 >> 30 cap), pinning the angle at a flat 90 deg;
+		// the live form below yields the intended optimal curve (~85 deg @ 300 u/s … 0 @ stall).
+		const float flCap = flSideSpeed < 30.0f ? flSideSpeed : 30.0f;
+		const float flGain = flAirAccelerate * 30.0f * flDeltaTime;
+		const float flClampedGain = flGain < flCap ? flGain : flCap;
 
-		if( speed > 160.0f && speed < 420.0f )
-			value = ( 4.6f - tickrate ) - ( speed / 340.0f );
+		float flCos = ( flCap - flClampedGain ) / flSpeed2D;
 
-		if( speed > 420.0f )
-			value = ( 3.0f - tickrate ) - ( speed / 1000.0f );
+		if( flCos < 0.0f )
+			flCos = 0.0f;
+		else if( flCos > 1.0f )
+			flCos = 1.0f;
 
-		if( value <= 0.275f )
-			value = 0.275f;
+		const float flOptimal = ToDegrees( acosf( flCos ) );
+		const float flVelocityYaw = ToDegrees( atan2f( vecVelocity.y, vecVelocity.x ) );
+		const bool bPositive = AngleNormalize( flWorkYaw - flVelocityYaw ) > 0.0f;
 
-		if( abs( yaw ) < value )
-		{
-			static bool direction = false;
-
-			if( direction )
-			{
-				strafe.y -= value ;
-				cmd->sidemove = -400.0f;
-			}
-			else
-			{
-				strafe.y += value;
-				cmd->sidemove = 400.0f;
-			}
-
-			direction = !direction;
-
-			ApplyStrafe( cmd, strafe );
-		}
+		// Report §6.2: the +/-90 deg compensates the side-axis offset + rotation direction
+		// so the resulting wish direction equals velYaw +/- optimal. bNegative is set by no
+		// §5 branch (kept for fidelity with the report's second limb).
+		if( !bNegative )
+			flTargetYaw = bPositive ? flVelocityYaw + flOptimal - 90.0f : flVelocityYaw - flOptimal + 90.0f;
 		else
-		{
-			if( yaw < 0.0f )
-				cmd->sidemove = 400.0f;
-			else if( yaw > 0.0f )
-				cmd->sidemove = -400.0f;
-		}
-	
-	yaw = cmd->viewangles.y;
+			flTargetYaw = bPositive ? flVelocityYaw - flOptimal + 90.0f : flVelocityYaw + flOptimal - 90.0f;
+
+		cmd->sidemove = bPositive ? -flSideSpeed : flSideSpeed;
+	}
+
+	// Report §6.4: rotate (forward, side) by (viewYaw - targetYaw); viewangles untouched.
+	float flDelta = cmd->viewangles.y - flTargetYaw;
+	flDelta = fmodf( flDelta, 360.0f );
+
+	if( flDelta > 180.0f )
+		flDelta -= 360.0f;
+	else if( flDelta < -180.0f )
+		flDelta += 360.0f;
+
+	const float flRad = ToRadians( flDelta );
+	const float flCosD = cosf( flRad );
+	const float flSinD = sinf( flRad );
+	const float flForward = cmd->forwardmove;
+	const float flSide = cmd->sidemove;
+
+	cmd->forwardmove = flForward * flCosD - flSide * flSinD;
+	cmd->sidemove = flForward * flSinD + flSide * flCosD;
 }
 
 void AutoJump( CUserCmd* cmd, C_CSPlayer* player )

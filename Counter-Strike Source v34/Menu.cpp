@@ -738,8 +738,8 @@ const char* CrosshairList[ ] =
 const char* AutoStrafeList[ ] =
 {
 	"Off",
-	"Mouse",
-	"Auto"
+	"Optimal",
+	"Optimal + WASD"
 };
 
 const char* RestrictionList[ ] =

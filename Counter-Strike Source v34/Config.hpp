@@ -329,7 +329,7 @@ namespace Config
 		bool Lag = false;
 		bool	AutoJump = false;		// 
 		bool	AutoPistol = false;		// 
-		int		AutoStrafe = 0;			// 0 - Off | 1 - Normal | 2 - Boost
+		int		AutoStrafe = 0;			// 0 - Off | 1 - Optimal | 2 - Optimal + WASD
 		bool	BombWarning = false;	// 
 		float viewfov = 0;
 		float viewfov2 = 0;
