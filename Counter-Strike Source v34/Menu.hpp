@@ -13,8 +13,14 @@
 #define COL_CT_CHAMS_NORMAL		6
 #define COL_CT_CHAMS_COLORED	7
 
-#define COL_CROSSHAIR			8
-#define COL_CHAMSOUTLINEDC		9
+#define COL_CROSSHAIR		8
+#define COL_CHAMSOUTLINEDC	9
+
+namespace Config
+{
+	struct AimbotList;
+	struct TriggerbotList;
+}
 
 namespace Feature
 {
@@ -26,20 +32,13 @@ namespace Feature
 
 		bool	Create( HWND hWnd, IDirect3DDevice9* pDevice );
 
-		void Background();
-
-		void Time();
-		
 		void	OnPresentDevice();
-		void usr();
 		bool	OnKeyEvent( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );
 
 		void	OnLostDevice();
 		void	OnResetDevice();
 
 	public:
-		void	RenderPlayers();
-
 		void	SetColors();
 		void	ApplyColors();
 		void	ResetColors();
@@ -49,6 +48,11 @@ namespace Feature
 
 		int		m_iWeaponAimbot;
 		int		m_iWeaponTriggerbot;
+
+		int		m_iRageClass;
+		int		m_iLegitClass;
+		int		m_iRageSub;
+		int		m_iVisPart;
 
 		int		m_iConfig;
 		bool	m_bConfigSelected[ 1024 ];
@@ -66,5 +70,17 @@ namespace Feature
 
 		bool	m_bConfig;
 		float	m_flColors[ 32 ][ 4 ];
+
+		void	DrawRageTab();
+		void	DrawLegitTab();
+		void	DrawVisualsTab();
+		void	DrawMiscTab();
+		void	DrawColorsTab();
+		void	DrawGUITab();
+		void	DrawSettingsTab();
+
+		void	DrawAimbotBlock( Config::AimbotList* aim, bool bGlobal );
+		void	DrawTriggerBlock( Config::TriggerbotList* trigger );
+		void	DrawPlayersBlock();
 	};
 }
