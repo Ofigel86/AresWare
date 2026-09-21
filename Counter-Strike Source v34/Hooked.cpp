@@ -284,6 +284,80 @@ void AutoJump( CUserCmd* cmd, C_CSPlayer* player )
 }
 
 
+static Vector3 s_vPeekStart;
+static bool s_bPeekArmed = false;
+static bool s_bPeekReturning = false;
+static float s_flPeekTime = 0.0f;
+
+void AutoPeek( CUserCmd* cmd, C_CSPlayer* player )
+{
+	if( player->m_MoveType() == MOVETYPE_LADDER || player->m_MoveType() == MOVETYPE_NOCLIP )
+	{
+		s_bPeekArmed = false;
+		s_bPeekReturning = false;
+		return;
+	}
+
+	if( player->m_lifeState() != LIFE_ALIVE )
+	{
+		s_bPeekArmed = false;
+		s_bPeekReturning = false;
+		return;
+	}
+
+	const int iKey = Config::Misc->AutoPeekKey;
+	const bool bDown = ( iKey > 0 ) && ( ( GetAsyncKeyState( iKey ) & 0x8000 ) != 0 );
+
+	if( bDown )
+	{
+		if( !s_bPeekArmed )
+		{
+			s_vPeekStart = player->m_vecOrigin();
+			s_flPeekTime = Source::m_pGlobalVars->curtime;
+			s_bPeekArmed = true;
+		}
+
+		s_bPeekReturning = false;
+		return;
+	}
+
+	// Клавиша отпущена — автоматический возврат к точке пика.
+	if( !s_bPeekArmed )
+		return;
+
+	s_bPeekReturning = true;
+
+	Vector3 vDelta = s_vPeekStart - player->m_vecOrigin();
+	vDelta.z = 0.0f;
+
+	if( vDelta.Length() < 10.0f || Source::m_pGlobalVars->curtime - s_flPeekTime > 5.0f )
+	{
+		s_bPeekArmed = false;
+		s_bPeekReturning = false;
+		return;
+	}
+
+	// Мировое направление -> forward/sidemove относительно yaw взгляда.
+	float flYaw = cmd->viewangles.y * 3.14159265f / 180.0f;
+	float flSin = sin( flYaw ), flCos = cos( flYaw );
+
+	float flFwd = vDelta.x * flCos + vDelta.y * flSin;
+	float flSide = vDelta.x * flSin - vDelta.y * flCos;
+
+	const float flMax = 450.0f;
+	const float flLen = sqrt( flFwd * flFwd + flSide * flSide );
+
+	if( flLen > flMax )
+	{
+		flFwd = flFwd / flLen * flMax;
+		flSide = flSide / flLen * flMax;
+	}
+
+	cmd->forwardmove = flFwd;
+	cmd->sidemove = flSide;
+	cmd->buttons &= ~IN_JUMP;
+}
+
 void AutoPistol( CUserCmd* cmd, C_WeaponCSBaseGun* weapon )
 {
 	if( weapon->GetWeaponType() != WEAPONTYPE_PISTOL &&
@@ -1386,10 +1460,11 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 		}
 	}
 
-	// Flap the duck bit on SEND ticks (final bSendPacket): ducking choked
-	// commands never reaches the server, so only sent ticks matter.
-	// (Original ducked choked ticks - invisible, did nothing.)
-	if (Config::AntiAim->FakeDuck && player->m_MoveType() != MOVETYPE_LADDER)
+	// FakeDuck: дёргаем бит приседания на SEND-тиках — сервер видит
+	// мерцающий хитбокс, а модель клиента стоит. Только на земле:
+	// в воздухе дёрганье ломает движение и ничего не даёт.
+	if (Config::AntiAim->FakeDuck && player->m_MoveType() != MOVETYPE_LADDER &&
+		(player->m_fFlags() & FL_ONGROUND))
 	{
 		static bool bDuckFlip = false;
 
@@ -1398,6 +1473,8 @@ void AntiAim(CUserCmd* cmd, C_CSPlayer* player, C_WeaponCSBaseGun* weapon)
 
 		if (bDuckFlip)
 			cmd->buttons |= IN_DUCK;
+		else
+			cmd->buttons &= ~IN_DUCK;
 	}
 }
 
@@ -1763,6 +1840,9 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 							AntiSMAC( cmd );
 
 						Source::MovementFix(cmd, va, false);
+
+						if (Config::Misc->AutoPeek)
+							AutoPeek(cmd, player);
 					}
 				}
 				Source::m_pDataManager->PostCreateMove(player);
@@ -2070,12 +2150,155 @@ HRESULT D3DAPI Hooked_Reset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* pP
 	}
 }
 
+		struct DormantCache_t
+		{
+			bool bValid = false;
+			Vector3 vOrigin;
+			int iHealth = 0;
+		};
+
+		static DormantCache_t s_Dormant[65];
+
+		void PaintDormant(C_CSPlayer* player, int iIdx)
+		{
+			using Direct3D9::Color;
+
+			if (player->m_lifeState() != LIFE_ALIVE)
+			{
+				s_Dormant[iIdx].bValid = false;
+				return;
+			}
+
+			auto local = C_CSPlayer::GetLocalPlayer();
+
+			if (!local)
+				return;
+
+			if (Config::ESP->Target == 1 && player->m_iTeamNum() == local->m_iTeamNum())
+				return;
+			else if (Config::ESP->Target == 2 && player->m_iTeamNum() != local->m_iTeamNum())
+				return;
+
+			Vector3 vHead = s_Dormant[iIdx].vOrigin + Vector3(0.0f, 0.0f, 72.0f);
+			Vector3 sHead, sFoot;
+
+			if (!Source::WorldToScreen(vHead, sHead) || !Source::WorldToScreen(s_Dormant[iIdx].vOrigin, sFoot))
+				return;
+
+			int h = (int)(sFoot.y - sHead.y);
+
+			if (h < 4)
+				return;
+
+			int w = (int)(h * 0.55f);
+			int x = (int)(sHead.x - w * 0.5f);
+			int y = (int)sHead.y;
+
+			Color color(130, 130, 130, 160);
+
+			Source::m_pRenderer->DrawBorderBox(x, y, w, h, 1, color);
+
+			if (Config::ESP->Name)
+			{
+				player_info_t data;
+
+				if (Source::m_pEngine->GetPlayerInfo(player->GetIndex(), &data))
+					Source::m_pRenderer->DrawText(Source::m_hFont, x + w / 2, y - 16, FONT_ALIGN_CENTER_H, color, data.name);
+			}
+
+			Source::m_pRenderer->DrawText(Source::m_hFont, x + w / 2, y + h + 2, FONT_ALIGN_CENTER_H, color, XorStr("DORMANT"));
+		}
+
+		// True, если цель за экраном и стрелка нарисована.
+		bool PaintOOFArrow(C_CSPlayer* player)
+		{
+			using Direct3D9::Color;
+
+			auto local = C_CSPlayer::GetLocalPlayer();
+
+			if (!local)
+				return false;
+
+			int sw, sh;
+			Source::m_pEngine->GetScreenSize(sw, sh);
+
+			Vector3 vHead;
+
+			if (!player->GetHitboxVector(12, vHead))
+				vHead = player->m_vecOrigin() + Vector3(0.0f, 0.0f, 62.0f);
+
+			Vector3 vScreen;
+
+			if (Source::WorldToScreen(vHead, vScreen) && vScreen.x > -40.0f && vScreen.x < (float)(sw + 40) && vScreen.y > -40.0f && vScreen.y < (float)(sh + 40))
+				return false;
+
+			Vector3 vDelta = player->m_vecOrigin() - local->m_vecOrigin();
+
+			float flRel = (float)(atan2(vDelta.y, vDelta.x) * 180.0 / 3.14159265) - local->m_angEyeAngles().y;
+
+			while (flRel > 180.0f) flRel -= 360.0f;
+			while (flRel < -180.0f) flRel += 360.0f;
+
+			float flRad = (float)(-flRel * 3.14159265 / 180.0);
+			float flDx = (float)sin(flRad);
+			float flDy = (float)-cos(flRad);
+
+			float flR = (float)((sw < sh ? sw : sh) * 0.42);
+			float cx = sw * 0.5f;
+			float cy = sh * 0.5f;
+
+			int tipX = (int)(cx + flDx * (flR + 16.0f));
+			int tipY = (int)(cy + flDy * (flR + 16.0f));
+			int baseX = (int)(cx + flDx * (flR - 8.0f));
+			int baseY = (int)(cy + flDy * (flR - 8.0f));
+			int sideX = (int)(-flDy * 11.0f);
+			int sideY = (int)(flDx * 11.0f);
+
+			Color color = (player->m_iTeamNum() == 2) ? Color(255, 60, 60, 255) : Color(80, 160, 255, 255);
+
+			Source::m_pRenderer->DrawTriangleOut(baseX - sideX, baseY - sideY, baseX + sideX, baseY + sideY, tipX, tipY, color);
+
+			return true;
+		}
+
+		void DrawBox3DEdges(const Vector3& blb, const Vector3& brb, const Vector3& frb, const Vector3& flb,
+			const Vector3& frt, const Vector3& brt, const Vector3& blt, const Vector3& flt,
+			int ox, int oy, const Direct3D9::Color& color)
+		{
+			Source::m_pRenderer->DrawLine(blb.x + ox, blb.y + oy, brb.x + ox, brb.y + oy, color);
+			Source::m_pRenderer->DrawLine(brb.x + ox, brb.y + oy, frb.x + ox, frb.y + oy, color);
+			Source::m_pRenderer->DrawLine(frb.x + ox, frb.y + oy, flb.x + ox, flb.y + oy, color);
+			Source::m_pRenderer->DrawLine(flb.x + ox, flb.y + oy, blb.x + ox, blb.y + oy, color);
+			Source::m_pRenderer->DrawLine(frt.x + ox, frt.y + oy, brt.x + ox, brt.y + oy, color);
+			Source::m_pRenderer->DrawLine(brt.x + ox, brt.y + oy, blt.x + ox, blt.y + oy, color);
+			Source::m_pRenderer->DrawLine(blt.x + ox, blt.y + oy, flt.x + ox, flt.y + oy, color);
+			Source::m_pRenderer->DrawLine(flt.x + ox, flt.y + oy, frt.x + ox, frt.y + oy, color);
+			Source::m_pRenderer->DrawLine(blb.x + ox, blb.y + oy, blt.x + ox, blt.y + oy, color);
+			Source::m_pRenderer->DrawLine(brb.x + ox, brb.y + oy, brt.x + ox, brt.y + oy, color);
+			Source::m_pRenderer->DrawLine(frb.x + ox, frb.y + oy, frt.x + ox, frt.y + oy, color);
+			Source::m_pRenderer->DrawLine(flb.x + ox, flb.y + oy, flt.x + ox, flt.y + oy, color);
+		}
+
 		void PaintEntity(C_CSPlayer* player)
 		{
 			using Direct3D9::Color;
 
+			const int iIdx = player->GetIndex();
+
 			if (player->IsDormant())
+			{
+				if (Config::ESP->Dormant && iIdx > 0 && iIdx < 65 && s_Dormant[iIdx].bValid)
+					PaintDormant(player, iIdx);
+
 				return;
+			}
+
+			if (iIdx > 0 && iIdx < 65)
+			{
+				s_Dormant[iIdx].bValid = true;
+				s_Dormant[iIdx].vOrigin = player->m_vecOrigin();
+				s_Dormant[iIdx].iHealth = player->m_iHealth();
+			}
 
 			if (player->m_lifeState() != LIFE_ALIVE)
 				return;
@@ -2090,6 +2313,9 @@ HRESULT D3DAPI Hooked_Reset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* pP
 				if (player->m_iTeamNum() != C_CSPlayer::GetLocalPlayer()->m_iTeamNum())
 					return;
 			}
+
+			if (Config::ESP->OutOfFOV && PaintOOFArrow(player))
+				return;
 
 			Vector3 head;
 
@@ -2224,6 +2450,21 @@ HRESULT D3DAPI Hooked_Reset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* pP
 				Source::m_pRenderer->DrawRect(x + w, y + h - line_h + 1, 1, line_h, color); // bottom right -> top
 			}
 
+			else if (Config::ESP->Box == 3) // 3D
+			{
+				if (Config::ESP->Outlined)
+					DrawBox3DEdges(blb, brb, frb, flb, frt, brt, blt, flt, 1, 1, Color(0, 0, 0, color.A));
+
+				DrawBox3DEdges(blb, brb, frb, flb, frt, brt, blt, flt, 0, 0, color);
+			}
+
+			if (Config::ESP->Snaplines)
+			{
+				int sw, sh;
+				Source::m_pEngine->GetScreenSize(sw, sh);
+				Source::m_pRenderer->DrawLine(sw / 2, sh, x + w / 2, y + h, color);
+			}
+
 			int pad_h = 0;
 
 			if (Config::ESP->Name)
@@ -2244,6 +2485,18 @@ HRESULT D3DAPI Hooked_Reset(IDirect3DDevice9* pDevice, D3DPRESENT_PARAMETERS* pP
 
 					if (name)
 						Source::m_pRenderer->DrawText(Source::m_hFont, x + w / 2, y + h + 2, FONT_ALIGN_CENTER_H, Color::White, "%s", (name + 7));
+				}
+			}
+
+			if (Config::ESP->Distance)
+			{
+				auto local = C_CSPlayer::GetLocalPlayer();
+
+				if (local)
+				{
+					float dist = local->m_vecOrigin().DistTo(player->m_vecOrigin()) / 50.0f;
+					int dy = Config::ESP->Weapon ? 16 : 2;
+					Source::m_pRenderer->DrawText(Source::m_hFont, x + w / 2, y + h + dy, FONT_ALIGN_CENTER_H, Color::White, "%0.fm", dist);
 				}
 			}
 
@@ -2496,6 +2749,27 @@ void PaintGround(C_BaseEntity* ent)
 	}
 }	
 
+void PaintPeekMarker(C_CSPlayer* player)
+{
+	using Direct3D9::Color;
+
+	if (!Config::Misc->AutoPeek || !s_bPeekArmed)
+		return;
+
+	Vector3 vScreen;
+
+	if (!Source::WorldToScreen(s_vPeekStart, vScreen))
+		return;
+
+	Color color = s_bPeekReturning ? Color(255, 200, 0, 255) : Color(0, 255, 120, 255);
+
+	Source::m_pRenderer->DrawCircle(vScreen.x, vScreen.y, 12.0f, 24.0f, color);
+	Source::m_pRenderer->DrawText(Source::m_hFont, vScreen.x, vScreen.y + 16.0f, FONT_ALIGN_CENTER_H, color, XorStr("PEEK"));
+
+	float dist = player->m_vecOrigin().DistTo(s_vPeekStart) / 50.0f;
+	Source::m_pRenderer->DrawText(Source::m_hFont, vScreen.x, vScreen.y + 28.0f, FONT_ALIGN_CENTER_H, Color::White, "%0.fm", dist);
+}
+
 void ESP()
 {
 	auto player = C_CSPlayer::GetLocalPlayer();
@@ -2617,6 +2891,8 @@ void ESP()
 
 		PaintEntity(enemy);
 	}
+
+		PaintPeekMarker(player);
 }
 /*
 int size = Source::m_pEntList->GetHighestEntityIndex();

@@ -500,6 +500,10 @@ namespace Config
 		ESP->Bomb						= LoadBool( main, XorStr( "esp.bomb" ) );
 		ESP->Target						= LoadInt( main, XorStr( "esp.target" ) );
 		ESP->Fov						= LoadBool(main, XorStr("esp.draw.fov"));
+		ESP->Dormant					= LoadBool( main, XorStr( "esp.dormant" ) );
+		ESP->OutOfFOV					= LoadBool( main, XorStr( "esp.out.of.fov" ) );
+		ESP->Snaplines					= LoadBool( main, XorStr( "esp.snaplines" ) );
+		ESP->Distance					= LoadBool( main, XorStr( "esp.distance" ) );
 
 		Render->ChamsMode = LoadInt(main, XorStr("render.chams.mode"));
 		Render->ChamsOutlined = LoadBool(main, XorStr("render.chams.outlined"));
@@ -562,6 +566,8 @@ namespace Config
 		Misc->AutoPistolDelay		= LoadInt( main, XorStr( "misc.auto.pistol.delay" ) );
 		Misc->AutoStrafe				= LoadInt( main, XorStr( "misc.auto.strafe" ) );
 		Misc->BombWarning				= LoadBool( main, XorStr( "misc.bomb.warning" ) );
+		Misc->AutoPeek					= LoadBool( main, XorStr( "misc.auto.peek" ) );
+		Misc->AutoPeekKey				= LoadInt( main, XorStr( "misc.auto.peek.key" ) );
 		Misc->Crosshair					= LoadInt( main, XorStr( "misc.crosshair" ) );
 		Misc->Outlined					= LoadBool( main, XorStr( "misc.crosshair.outlined" ) );
 		Misc->ShowRecoil				= LoadBool( main, XorStr( "misc.crosshair.show.recoil" ) );
@@ -972,6 +978,10 @@ namespace Config
 		SaveBool( main, XorStr( "esp.bomb" ), ESP->Bomb );
 		SaveInt( main, XorStr( "esp.target" ), ESP->Target );
 		SaveBool(main, XorStr("esp.draw.fov"), ESP->Fov);
+		SaveBool( main, XorStr( "esp.dormant" ), ESP->Dormant );
+		SaveBool( main, XorStr( "esp.out.of.fov" ), ESP->OutOfFOV );
+		SaveBool( main, XorStr( "esp.snaplines" ), ESP->Snaplines );
+		SaveBool( main, XorStr( "esp.distance" ), ESP->Distance );
 
 		SaveInt(main, XorStr("render.chams.mode"), Render->ChamsMode);
 		SaveBool(main, XorStr("render.chams.visible"), Render->ChamsColored);
@@ -1037,6 +1047,8 @@ namespace Config
 		SaveInt( main, XorStr( "misc.auto.pistol.delay" ), Misc->AutoPistolDelay );
 		SaveInt( main, XorStr( "misc.auto.strafe" ), Misc->AutoStrafe );
 		SaveBool( main, XorStr( "misc.bomb.warning" ), Misc->BombWarning );
+		SaveBool( main, XorStr( "misc.auto.peek" ), Misc->AutoPeek );
+		SaveInt( main, XorStr( "misc.auto.peek.key" ), Misc->AutoPeekKey );
 		SaveInt( main, XorStr( "misc.crosshair" ), Misc->Crosshair );
 		SaveBool( main, XorStr( "misc.crosshair.outlined" ), Misc->Outlined );
 		SaveBool( main, XorStr( "misc.crosshair.show.recoil" ), Misc->ShowRecoil );

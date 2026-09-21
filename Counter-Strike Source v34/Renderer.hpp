@@ -47,6 +47,8 @@ namespace Direct3D9
 
 
 		void									DrawLine( int x0, int y0, int x1, int y1, const Color& color );
+		void									DrawTriangle( int x0, int y0, int x1, int y1, int x2, int y2, const Color& color );
+		void									DrawTriangleOut( int x0, int y0, int x1, int y1, int x2, int y2, const Color& color, const Color& out = Color::Black );
 
 		void								DrawRectRainbow(int x, int y, int width, int height, float flSpeed, float & flRainbow);
 

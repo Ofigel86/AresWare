@@ -232,6 +232,10 @@ namespace Config
 		bool	Bomb = false;		// Show Bomb
 
 		int		Target = 0;			// 0 - Everyone | 1 - Enemy | 2 - Friendly
+		bool	Dormant = false;	// show last known pos of dormant players
+		bool	OutOfFOV = false;	// off-screen direction arrows
+		bool	Snaplines = false;	// line from screen bottom to player
+		bool	Distance = false;	// distance text under the box
 	};
 
 	struct RenderList
@@ -397,12 +401,16 @@ namespace Config
 
 		int		Restriction = 0;		// 0 - Off | 1 - SMAC | 2 - Ultr@
 		bool	AntiSMAC = false;		// sanitize usercmd angles (SMAC eye-test)
+		bool	AutoPeek = false;	// return to peek start on key release
+		int		AutoPeekKey = 0;
 
 		void Clamp()
 		{
 			LimitValue( ChokedPackets, 1, 32 );
 			LimitValue( SpeedKey, 0, 128 );
 			LimitValue( SpeedFactor, 1, 15 );
+			LimitValue( AutoPeekKey, 0, 128 );
+			LimitValue( AutoPistolDelay, 0, 500 );
 		}
 	};
 

@@ -275,4 +275,28 @@ namespace Direct3D9
 		}
 	}
 
+	void Renderer::DrawTriangle( int x0, int y0, int x1, int y1, int x2, int y2, const Color& color )
+	{
+		Vertex vertices[ 3 ] =
+		{
+			Vertex( x0, y0, 1.0f, color ),
+			Vertex( x1, y1, 1.0f, color ),
+			Vertex( x2, y2, 1.0f, color )
+		};
+
+		m_pDevice->SetFVF( Vertex::FVF );
+		m_pDevice->SetTexture( 0, nullptr );
+		m_pDevice->SetPixelShader( nullptr );
+
+		m_pDevice->DrawPrimitiveUP( D3DPT_TRIANGLELIST, 1, vertices, sizeof( Vertex ) );
+	}
+
+	void Renderer::DrawTriangleOut( int x0, int y0, int x1, int y1, int x2, int y2, const Color& color, const Color& out )
+	{
+		DrawTriangle( x0, y0, x1, y1, x2, y2, color );
+		DrawLine( x0, y0, x1, y1, out );
+		DrawLine( x1, y1, x2, y2, out );
+		DrawLine( x2, y2, x0, y0, out );
+	}
+
 }

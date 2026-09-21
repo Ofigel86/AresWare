@@ -610,7 +610,8 @@ const char* BoxList[ ] =
 {
 	"Off",
 	"Normal",
-	"Corners"
+	"Corners",
+	"3D"
 };
 
 const char* InfoTypeList[ ] =
@@ -633,7 +634,8 @@ const char* ChamsModeList[ ] =
 	"Flat",
 	"Shadow",
 	"Shadow Flat",
-	"Chipolino"
+	"Chipolino",
+	"Wireframe"
 };
 
 const char* ChamsTargetList[ ] =
@@ -991,13 +993,13 @@ namespace Feature
 			ImGui::PushFont( fntBody );
 			ImVec2 pos = ImGui::GetWindowPos();
 			ImDrawList* d = ImGui::GetWindowDrawList();
-			d->AddRectFilledMultiColor( pos, ImVec2( pos.x + 810.0f, pos.y + 670.0f ), AW::Col( 218, 72, 3 ), AW::Col( 201, 71, 0 ), AW::Col( 150, 42, 0 ), AW::Col( 165, 48, 0 ) );
+			d->AddRectFilledMultiColor( pos, ImVec2( pos.x + 810.0f, pos.y + 670.0f ), AW::Col( 200, 10, 10 ), AW::Col( 185, 5, 5 ), AW::Col( 130, 0, 0 ), AW::Col( 145, 0, 0 ) );
 			d->AddRectFilled( ImVec2( pos.x + 10.0f, pos.y + 67.0f ), ImVec2( pos.x + 800.0f, pos.y + 658.0f ), AW::Col( 238, 238, 238 ) );
-			d->AddLine( ImVec2( pos.x + 10.0f, pos.y + 67.0f ), ImVec2( pos.x + 10.0f, pos.y + 658.0f ), AW::Col( 255, 190, 140 ) );
-			d->AddLine( ImVec2( pos.x + 799.0f, pos.y + 67.0f ), ImVec2( pos.x + 799.0f, pos.y + 658.0f ), AW::Col( 255, 190, 140 ) );
-			d->AddLine( ImVec2( pos.x + 10.0f, pos.y + 657.0f ), ImVec2( pos.x + 800.0f, pos.y + 657.0f ), AW::Col( 255, 190, 140 ) );
+			d->AddLine( ImVec2( pos.x + 10.0f, pos.y + 67.0f ), ImVec2( pos.x + 10.0f, pos.y + 658.0f ), AW::Col( 255, 120, 120 ) );
+			d->AddLine( ImVec2( pos.x + 799.0f, pos.y + 67.0f ), ImVec2( pos.x + 799.0f, pos.y + 658.0f ), AW::Col( 255, 120, 120 ) );
+			d->AddLine( ImVec2( pos.x + 10.0f, pos.y + 657.0f ), ImVec2( pos.x + 800.0f, pos.y + 657.0f ), AW::Col( 255, 120, 120 ) );
 			ImGui::PushFont( fntTitle );
-			d->AddText( ImVec2( pos.x + 15.0f, pos.y + 6.0f ), AW::Col( 130, 25, 5 ), XorStr( "ARESWARE for Counter-Strike: Source" ) );
+			d->AddText( ImVec2( pos.x + 15.0f, pos.y + 6.0f ), AW::Col( 130, 0, 0 ), XorStr( "ARESWARE for Counter-Strike: Source" ) );
 			d->AddText( ImVec2( pos.x + 14.0f, pos.y + 5.0f ), AW::Col( 255, 255, 255 ), XorStr( "ARESWARE for Counter-Strike: Source" ) );
 			ImGui::PopFont();
 			float tabW = 790.0f / 7.0f;
@@ -1597,6 +1599,10 @@ namespace Feature
 			AW::Checkbox( XorStr( "Name" ), &Config::ESP->Name );
 			AW::Checkbox( XorStr( "Weapon" ), &Config::ESP->Weapon );
 			AW::Checkbox( XorStr( "Aim Spot" ), &Config::ESP->AimSpot );
+			AW::Checkbox( XorStr( "Dormant" ), &Config::ESP->Dormant );
+			AW::Checkbox( XorStr( "OOF Arrows" ), &Config::ESP->OutOfFOV );
+			AW::Checkbox( XorStr( "Snaplines" ), &Config::ESP->Snaplines );
+			AW::Checkbox( XorStr( "Distance" ), &Config::ESP->Distance );
 			AW::EndPanel();
 			AW::BeginPanel( XorStr( "Information" ), ImVec2( pos.x + 273.0f, pos.y + 130.0f ), ImVec2( 255.0f, 522.0f ), 110.0f );
 			AW::Combo( XorStr( "Health" ), &Config::ESP->Health, InfoTypeList, ARRAYSIZE( InfoTypeList ) );
@@ -1673,6 +1679,10 @@ namespace Feature
 			if( Config::Misc->AutoPistol )
 				AW::SliderInt( XorStr( "Refire Delay" ), &Config::Misc->AutoPistolDelay, 0, 500, XorStr( "%d ms" ) );
 			AW::Combo( XorStr( "Auto Strafe" ), &Config::Misc->AutoStrafe, AutoStrafeList, ARRAYSIZE( AutoStrafeList ) );
+			AW::Checkbox( XorStr( "Auto Peek" ), &Config::Misc->AutoPeek );
+
+			if( Config::Misc->AutoPeek )
+				AW::KeyBox( XorStr( "Peek Key" ), &Config::Misc->AutoPeekKey );
 		}
 
 		AW::Checkbox( XorStr( "Bomb Warning" ), &Config::Misc->BombWarning );

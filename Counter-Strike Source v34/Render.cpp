@@ -14,6 +14,8 @@ namespace Feature
 		m_pMatOut = CreateMaterial(false, false);
 		
 		m_pOut = CreateMaterial(false, true, false);
+		m_pWireIn = CreateMaterial(false, true, true);
+		m_pWireOut = CreateMaterial(false, false, true);
 	}
 
 	void Render::OnDrawModel(void* ecx, ModelRenderInfo_t* info)
@@ -79,6 +81,14 @@ namespace Feature
 			pOut = m_pMatOut;
 		}
 		
+		else if (Config::Render->ChamsMode == 5) // Wireframe
+		{
+			if (Config::Render->ChamsVisOnly == 0)
+			{
+				pIn = m_pWireIn;
+			}
+			pOut = m_pWireOut;
+		}
 		Color color = Config::Colors->ChamsOutlinedC;
 
 		if (Config::Render->ChamsOutlined)

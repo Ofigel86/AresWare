@@ -24,6 +24,9 @@ namespace Feature
 		IMaterial*	m_pMatIn;
 		IMaterial*	m_pMatOut;
 
+		IMaterial*	m_pWireIn;
+		IMaterial*	m_pWireOut;
+
 		IMaterial*	m_pOut;
 		IMaterial*	m_pIn;
 	};
