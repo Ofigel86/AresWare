@@ -475,6 +475,9 @@ struct mstudiohitboxset_t
 
 	mstudiobbox_t* GetHitbox(int i) const
 	{
+		if (i < 0 || i >= numhitboxes)
+			return nullptr;
+
 		return (mstudiobbox_t*)(((byte*)this) + hitboxindex) + i;
 	}
 
@@ -528,6 +531,9 @@ struct studiohdr_t
 
 	mstudiohitboxset_t* GetHitboxSet(int i) const
 	{
+		if (i < 0 || i >= numhitboxsets)
+			return nullptr;
+
 		return (mstudiohitboxset_t*)(((byte*)this) + hitboxsetindex) + i;
 	}
 };

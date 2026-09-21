@@ -90,6 +90,7 @@ namespace Config
 			LimitValue( RCSAmountY, 0, 100 );
 			LimitValue( MinDamage, 0, 100 );
 			LimitValue( HitScanScale, 0.0f, 1.0f );
+			LimitValue( Spot, 0, 19 );
 		}
 	};
 
