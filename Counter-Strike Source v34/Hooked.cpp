@@ -71,18 +71,20 @@ void RenderSkeleton(C_CSPlayer* player, matrix3x4_t* transform, const Color& col
 }
 
 // Optimal auto-strafer, ported from the epoximotion report (acos-optimal core §4+§6,
-// WASD Direction Control §5). The former Normal/Boost implementation was broken and is fully
+// WASD Direction Control §5: work.yaw -= DirectionOffset(buttons), formula version). The former Normal/Boost implementation was broken and is fully
 // replaced: ApplyStrafe only wrote forwardmove (rotation incomplete — sidemove never rotated),
 // abs() truncated the yaw delta to int, and the Boost math ran in Normal mode too (misplaced
 // closing brace), so both modes did the same thing. New modes:
 //   1 - Optimal: acos-optimal side strafe around the velocity yaw.
-//   2 - Optimal + WASD: same core, reference yaw comes from the Direction Control table.
+//   2 - Optimal + WASD: same core, work.yaw -= DirectionOffset(buttons) (§5 formula).
 // Porting notes vs the report:
+//   - The report's two flags (misc+0x02 enabled, misc+0xda directional) map onto our
+//     0/1/2 combo, which covers the same meaningful states.
 //   - No 90-tick ring buffer: CS:S v34 exposes live m_vecVelocity in CreateMove.
 //   - No bhop gate: the report requires its own bhop enabled (config quirk); ours strafes
 //     standalone (manual or auto bhop alike).
-//   - No hardcoded m_flMaxspeed @ +0xF60 (CS:GO-only, fragile — report §11.7): the gain term
-//     uses the canonical live form instead, see below.
+//   - No hardcoded m_flMaxspeed @ +0xF60 (build-specific, fragile — report §11.7):
+//     the gain term uses the canonical live form instead, see below.
 void AutoStrafe( CUserCmd* cmd, C_CSPlayer* player )
 {
 	const int iMode = Config::Misc->AutoStrafe;
@@ -125,29 +127,39 @@ void AutoStrafe( CUserCmd* cmd, C_CSPlayer* player )
 	// Report §4: pure side strafe; the writeback rotation aims it at targetYaw.
 	cmd->forwardmove = 0.0f;
 
-	// Report §5: WASD Direction Control (mode 2). Order of the if-chain matters; the S+A
-	// entry (view + 225 deg, effectively +135 deg) is verbatim, including its quirk.
+	// Report §5: WASD Direction Control (mode 2), exact branch emulation. The S+A
+	// entry yields 225 deg (subtracted => effectively +135 deg) — verbatim quirk.
 	float flWorkYaw = cmd->viewangles.y;
-	bool bNegative = false;
 
 	if( iMode == 2 )
 	{
 		const int iButtons = cmd->buttons;
-		const float flViewYaw = cmd->viewangles.y;
+		float flDir = 0.0f;
 
-		if( ( iButtons & IN_FORWARD ) && ( iButtons & IN_MOVERIGHT ) )
-			flWorkYaw = flViewYaw + 45.0f;
-		else if( ( iButtons & IN_FORWARD ) && ( iButtons & IN_MOVELEFT ) )
-			flWorkYaw = flViewYaw + 315.0f;
-		else if( ( iButtons & IN_BACK ) && ( iButtons & IN_MOVERIGHT ) )
-			flWorkYaw = flViewYaw + 135.0f;
-		else if( ( iButtons & IN_BACK ) && ( iButtons & IN_MOVELEFT ) )
-			flWorkYaw = flViewYaw + 225.0f;
-		else if( iButtons & IN_FORWARD )
-			flWorkYaw = flViewYaw + 90.0f;
-		else if( iButtons & IN_BACK )
-			flWorkYaw = flViewYaw + 270.0f;
-		// A / D alone: work yaw stays = view yaw (report §5, negative stays false).
+		if( iButtons & IN_MOVELEFT )
+		{
+			flDir = -90.0f;
+
+			if( iButtons & IN_MOVERIGHT )
+				flDir += 90.0f;
+
+			if( iButtons & IN_FORWARD )
+				flDir *= 0.5f;
+			else if( iButtons & IN_BACK )
+				flDir = flDir * -0.5f + 180.0f;
+		}
+		else
+		{
+			if( iButtons & IN_MOVERIGHT )
+				flDir += 90.0f;
+
+			if( iButtons & IN_FORWARD )
+				flDir *= 0.5f;
+			else if( iButtons & IN_BACK )
+				flDir = flDir * -0.5f + 180.0f;
+		}
+
+		flWorkYaw -= flDir;
 	}
 
 	const Vector3 vecVelocity = player->m_vecVelocity();
@@ -173,8 +185,8 @@ void AutoStrafe( CUserCmd* cmd, C_CSPlayer* player )
 
 		float flCos = ( flCap - flClampedGain ) / flSpeed2D;
 
-		if( flCos < 0.0f )
-			flCos = 0.0f;
+		if( flCos < -1.0f )
+			flCos = -1.0f;
 		else if( flCos > 1.0f )
 			flCos = 1.0f;
 
@@ -182,13 +194,10 @@ void AutoStrafe( CUserCmd* cmd, C_CSPlayer* player )
 		const float flVelocityYaw = ToDegrees( atan2f( vecVelocity.y, vecVelocity.x ) );
 		const bool bPositive = AngleNormalize( flWorkYaw - flVelocityYaw ) > 0.0f;
 
-		// Report §6.2: the +/-90 deg compensates the side-axis offset + rotation direction
-		// so the resulting wish direction equals velYaw +/- optimal. bNegative is set by no
-		// §5 branch (kept for fidelity with the report's second limb).
-		if( !bNegative )
-			flTargetYaw = bPositive ? flVelocityYaw + flOptimal - 90.0f : flVelocityYaw - flOptimal + 90.0f;
-		else
-			flTargetYaw = bPositive ? flVelocityYaw - flOptimal + 90.0f : flVelocityYaw + flOptimal - 90.0f;
+		// Report §6.2/§9: the +/-90 deg compensates the side-axis offset + rotation
+		// direction so the resulting wish direction equals velYaw +/- optimal.
+		const float flAdd = bPositive ? flOptimal : -flOptimal;
+		flTargetYaw = flVelocityYaw + flAdd + ( bPositive ? -90.0f : 90.0f );
 
 		cmd->sidemove = bPositive ? -flSideSpeed : flSideSpeed;
 	}
