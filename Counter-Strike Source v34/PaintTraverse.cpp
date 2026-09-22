@@ -96,18 +96,9 @@ void BoundingBoxESP( )
 {
 	BasePlayer* LocalPlayer = ( BasePlayer* )g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
 	if( !LocalPlayer ) return;
-
-	if( !g_CVars.Visuals.ESP.Box 
-		&& !g_CVars.Visuals.ESP.Name 
-		&& !g_CVars.Visuals.ESP.Health 
-		&& !g_CVars.Visuals.ESP.Weapon 
-		&& !g_CVars.Visuals.ESP.Bone 
-		&& !g_CVars.Visuals.ESP.Hit 
-		&& !g_CVars.Visuals.ESP.AimSpot ) return;
-
+	if( !g_CVars.Visuals.ESP.Box && !g_CVars.Visuals.ESP.Name && !g_CVars.Visuals.ESP.Health && !g_CVars.Visuals.ESP.Weapon && !g_CVars.Visuals.ESP.Bone && !g_CVars.Visuals.ESP.Hit && !g_CVars.Visuals.ESP.AimSpot ) return;
 	player_info_t PlayerInfo;
 	Color colour;
-
 	for( int Index = 1; Index <= g_pGlobals->maxClients; Index++ )
 	{
 		BasePlayer* Ent = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( Index );
@@ -118,109 +109,103 @@ void BoundingBoxESP( )
 		{
 			if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
 		}
-
 		Vector vPlayerFoot, vPlayerFootScreen, vPlayerHead, vPlayerHeadScreen;
-
-		if( g_CVars.PlayerList.Friend[ Index ] )
-		{
-			colour = Color::White( );
-		}
+		if( g_CVars.PlayerList.Friend[ Index ] ) colour = Color::White( );
 		else
 		{
-			if( Ent->m_iTeamNum( ) == 2 ) colour = g_CVars.ColorSelector.ESP.TT; //Color::Red( );
-			else if( Ent->m_iTeamNum( ) == 3 ) colour = g_CVars.ColorSelector.ESP.CT; //Color::LightBlue( );
+			if( Ent->m_iTeamNum( ) == 2 ) colour = g_CVars.ColorSelector.ESP.TT;
+			else if( Ent->m_iTeamNum( ) == 3 ) colour = g_CVars.ColorSelector.ESP.CT;
 		}
-
 		vPlayerFoot = Ent->GetAbsOrigin( );
 		bool bDucking = Ent->m_fFlags( ) & FL_DUCKING;
 		if( bDucking ) vPlayerHead = vPlayerFoot + Vector( 0.f, 0.f, 53.5f );
 		else vPlayerHead = vPlayerFoot + Vector( 0.f, 0.f, 72.f );
-
 		if( !g_Stuff.WorldToScreen( vPlayerFoot, vPlayerFootScreen ) ) continue;
 		if( !g_Stuff.WorldToScreen( vPlayerHead, vPlayerHeadScreen ) ) continue;
-
 		if( g_CVars.Visuals.ESP.Bone ) g_Drawing.DrawBones( Ent, Color( 255, 255, 255, 160 ) );
-
 		float Height = vPlayerFootScreen.y - vPlayerHeadScreen.y;
 		float HalfWidth = Height * .225f;
 		if( bDucking ) HalfWidth *= 1.345794392523364f;
-
-		Vector box = Vector( ( vPlayerHeadScreen.x - HalfWidth ), vPlayerHeadScreen.y, 0.f );
-		if( g_CVars.Visuals.ESP.Box ) g_Drawing.OutlinedBox( box.x, box.y, ( HalfWidth * 2 ), Height, Color( colour.r( ), colour.g( ), colour.b( ), 160 ), Color( 0, 0, 0, 128 ) );
-
-		if( g_CVars.Visuals.ESP.AimSpot ) g_Drawing.DrawAimSpot( Ent, g_CVars.Aimbot.Hitbox, Color( 255, 255, 255, 160 ) );
-
+		float W = HalfWidth * 2.f;
+		float X = vPlayerHeadScreen.x - HalfWidth;
+		float Y = vPlayerHeadScreen.y;
+		if( g_CVars.Visuals.ESP.Box )
+		{
+			int len = (int)(W * 0.25f);
+			if( len < 4 ) len = 4;
+			if( len > (int)(Height * 0.25f)) len = (int)(Height * 0.25f);
+			Color outline = Color( 0, 0, 0, 160 );
+			Color boxCol = Color( colour.r( ), colour.g( ), colour.b( ), 200 );
+			g_Drawing.FilledRect( X - 1, Y - 1, len + 2, 2, outline );
+			g_Drawing.FilledRect( X - 1, Y - 1, 2, len + 2, outline );
+			g_Drawing.FilledRect( X + W - len - 1, Y - 1, len + 2, 2, outline );
+			g_Drawing.FilledRect( X + W - 1, Y - 1, 2, len + 2, outline );
+			g_Drawing.FilledRect( X - 1, Y + Height - 1, len + 2, 2, outline );
+			g_Drawing.FilledRect( X - 1, Y + Height - len - 1, 2, len + 2, outline );
+			g_Drawing.FilledRect( X + W - len - 1, Y + Height - 1, len + 2, 2, outline );
+			g_Drawing.FilledRect( X + W - 1, Y + Height - len - 1, 2, len + 2, outline );
+			g_Drawing.FilledRect( X, Y, len, 1, boxCol );
+			g_Drawing.FilledRect( X, Y, 1, len, boxCol );
+			g_Drawing.FilledRect( X + W - len, Y, len, 1, boxCol );
+			g_Drawing.FilledRect( X + W - 1, Y, 1, len, boxCol );
+			g_Drawing.FilledRect( X, Y + Height - 1, len, 1, boxCol );
+			g_Drawing.FilledRect( X, Y + Height - len, 1, len, boxCol );
+			g_Drawing.FilledRect( X + W - len, Y + Height - 1, len, 1, boxCol );
+			g_Drawing.FilledRect( X + W - 1, Y + Height - len, 1, len, boxCol );
+		}
+		if( g_CVars.Visuals.ESP.AimSpot ) g_Drawing.DrawAimSpot( Ent, g_CVars.Aimbot.Hitbox, Color( 255, 80, 80, 220 ) );
 		g_pEngineClient->GetPlayerInfo( Index, &PlayerInfo );
-
+		float textY = Y - 14;
 		if( g_CVars.Visuals.ESP.Name )
 		{
-			g_Drawing.MenuStringNormal( true, false, box.x + HalfWidth, box.y - 13, Color( 255, 255, 255, 200 ),
-				( g_CVars.PlayerList.Friend[ Index ] ) ? /*Friend: %s*/XorStr<0xE1,11,0x9B2BE55F>("\xA7\x90\x8A\x81\x8B\x82\xDD\xC8\xCC\x99"+0x9B2BE55F).s : /*%s*/XorStr<0x72,3,0x0FA22CF9>("\x57\x00"+0x0FA22CF9).s, PlayerInfo.name );
+			g_Drawing.MenuStringNormal( true, false, X + HalfWidth, textY, Color( 255, 255, 255, 255 ), ( g_CVars.PlayerList.Friend[ Index ] ) ? XorStr<0xE1,11,0x9B2BE55F>("\xA7\x90\x8A\x81\x8B\x82\xDD\xC8\xCC\x99"+0x9B2BE55F).s : XorStr<0x72,3,0x0FA22CF9>("\x57\x00"+0x0FA22CF9).s, PlayerInfo.name );
+			textY -= 12;
 		}
-
 		int Health = Ent->m_iHealth( );
-		if( Health > 0 )
+		if( Health < 0 ) Health = 0;
+		if( Health > 100 ) Health = 100;
+		if( g_CVars.Visuals.ESP.Health && Health > 0 )
 		{
-			int maxhp = 100;
-			int Scale = Health * 2.55f;
-			Color patch( 0, 0, 0, 128 );
-			if( Health > 100 )
-			{
-				patch.SetColor( 40, 40, 40, 128 );
-				Health = 100;
-			}
-
-			if( g_CVars.Visuals.ESP.Health )
-			{
-				box.y += Height + 3;
-
-				g_Drawing.OutlinedRect( box.x - 1, box.y - 1, ( HalfWidth * 2 ) + 2, 4, patch );
-				g_Drawing.FilledRect( box.x, box.y, ( HalfWidth * 2 ), 2, patch );
-				g_Drawing.FilledRect( box.x, box.y, ( ( Health / ( double ) maxhp ) * ( HalfWidth * 2 ) ), 2, Color( ( 255 - Scale ), Scale, 0, 160 ) );
-			}
+			int barH = (int)(Height * (Health / 100.f));
+			int barY = (int)(Y + Height - barH);
+			g_Drawing.FilledRect( X - 6, Y - 1, 4, Height + 2, Color( 0, 0, 0, 160 ) );
+			g_Drawing.OutlinedRect( X - 6, Y - 1, 4, Height + 2, Color( 0, 0, 0, 200 ) );
+			int r = 255 - (int)(Health * 2.55f);
+			int g = (int)(Health * 2.55f);
+			Color healthCol = Color( r, g, 0, 220 );
+			g_Drawing.FilledRect( X - 5, barY, 2, barH, healthCol );
+			if( Health < 100 ) g_Drawing.FilledRect( X - 5, Y, 2, Height - barH, Color( 20, 20, 20, 160 ) );
 		}
- 
 		CSWeapon* Weapon = ( CSWeapon* ) Ent->GetActiveBaseCombatWeapon( );
 		if( Weapon )
 		{
-			if( g_CVars.Visuals.ESP.Health ) box.y += 3;
-			else box.y += Height + 3;
-
 			const char *tmp = Weapon->GetWeaponAlias( );
-
 			char weaponName[ 0xFF ];
 			strcpy( weaponName, tmp );
-
 			char *c = weaponName;
-			while ( *c )
-			{
-				*c = toupper( *c );
-				++c;
-			}
-
-			if( g_CVars.Visuals.ESP.Weapon ) g_Drawing.MenuStringNormal( true, false, box.x + HalfWidth, box.y, Color( 255, 255, 255, 200 ), /*%s*/XorStr<0x20,3,0x3EFE7DA2>("\x05\x52"+0x3EFE7DA2).s, weaponName );
+			while ( *c ) { *c = toupper( *c ); ++c; }
+			if( g_CVars.Visuals.ESP.Weapon ) g_Drawing.MenuStringNormal( true, false, X + HalfWidth, Y + Height + 4, Color( 220, 220, 220, 220 ), XorStr<0x20,3,0x3EFE7DA2>("\x05\x52"+0x3EFE7DA2).s, weaponName );
+			Vector origin = Ent->GetAbsOrigin( );
+			float dist = LocalPlayer->GetAbsOrigin( ).DistTo( origin );
+			int d = (int)(dist * 0.0254f);
+			char buf[16];
+			g_Drawing.MenuStringNormal( true, false, X + HalfWidth, Y + Height + 16, Color( 180, 180, 180, 180 ), XorStr<0x72,3,0x0FA22CF9>("\x57\x00"+0x0FA22CF9).s, d );
 		}
-
 		Vector clientorigin = pBackupData[ Index ].m_Origin;
 		Vector serverorigin = pPlayerHistory[ Index ][ 0 ].m_Origin;
-
 		if( g_CVars.Aimbot.Interpolation.LagPrediction > 0 && clientorigin != Vector( 0, 0, 0 ) && serverorigin != Vector( 0, 0, 0 ) )
 		{
 			Vector w2s[ 2 ];
-
-			if( !g_Stuff.WorldToScreen( clientorigin, w2s[ 0 ] ) ) continue;
-			if( !g_Stuff.WorldToScreen( serverorigin, w2s[ 1 ] ) ) continue;
-
-			Color client = Color( 255, 60, 60, 160 );
-			Color server = Color( 160, 200, 255, 160 );
-
-			g_Drawing.Line( w2s[ 0 ].x, w2s[ 0 ].y, w2s[ 1 ].x, w2s[ 1 ].y, Color( 255, 255, 255, 160 ) );
-
-			g_Drawing.FilledRect( w2s[ 0 ].x - 2, w2s[ 0 ].y - 2, 5, 5, client );
-			g_Drawing.OutlinedRect( w2s[ 0 ].x - 2, w2s[ 0 ].y - 2, 5, 5, Color( 0, 0, 0, 160 ) );
-
-			g_Drawing.FilledRect( w2s[ 1 ].x - 2, w2s[ 1 ].y - 2, 5, 5, server );
-			g_Drawing.OutlinedRect( w2s[ 1 ].x - 2, w2s[ 1 ].y - 2, 5, 5, Color( 0, 0, 0, 160 ) );
+			if( g_Stuff.WorldToScreen( clientorigin, w2s[ 0 ] ) && g_Stuff.WorldToScreen( serverorigin, w2s[ 1 ] ) )
+			{
+				Color client = Color( 255, 60, 60, 160 );
+				Color server = Color( 160, 200, 255, 160 );
+				g_Drawing.Line( w2s[ 0 ].x, w2s[ 0 ].y, w2s[ 1 ].x, w2s[ 1 ].y, Color( 255, 255, 255, 160 ) );
+				g_Drawing.FilledRect( w2s[ 0 ].x - 2, w2s[ 0 ].y - 2, 5, 5, client );
+				g_Drawing.OutlinedRect( w2s[ 0 ].x - 2, w2s[ 0 ].y - 2, 5, 5, Color( 0, 0, 0, 160 ) );
+				g_Drawing.FilledRect( w2s[ 1 ].x - 2, w2s[ 1 ].y - 2, 5, 5, server );
+				g_Drawing.OutlinedRect( w2s[ 1 ].x - 2, w2s[ 1 ].y - 2, 5, 5, Color( 0, 0, 0, 160 ) );
+			}
 		}
 	}
 }
@@ -247,14 +232,14 @@ void GroundESP( )
 		Vector vMax = *( Vector* )( ( DWORD ) Ent + 0x174 );
 
 		Vector lbf, lbb, ltb, ltf, rtb, rbb, rbf, rtf, vBounds[ ] = {
-			Vector( vMin.x, vMin.y, vMin.z ), // left bottom back corner
-			Vector( vMin.x, vMax.y, vMin.z ), // left bottom front corner
-			Vector( vMax.x, vMax.y, vMin.z ), // left top front corner
-			Vector( vMax.x, vMin.y, vMin.z ), // left top back corner
-			Vector( vMax.x, vMax.y, vMax.z ), // right top front corner
-			Vector( vMin.x, vMax.y, vMax.z ), // right bottom front corner
-			Vector( vMin.x, vMin.y, vMax.z ), // right bottom back corner
-			Vector( vMax.x, vMin.y, vMax.z )  // right top back corner
+			Vector( vMin.x, vMin.y, vMin.z ),
+			Vector( vMin.x, vMax.y, vMin.z ),
+			Vector( vMax.x, vMax.y, vMin.z ),
+			Vector( vMax.x, vMin.y, vMin.z ),
+			Vector( vMax.x, vMax.y, vMax.z ),
+			Vector( vMin.x, vMax.y, vMax.z ),
+			Vector( vMin.x, vMin.y, vMax.z ),
+			Vector( vMax.x, vMin.y, vMax.z )
 		};
 
 		Vector p[ 8 ];
@@ -388,16 +373,10 @@ void __fastcall Hooked_PaintTraverse( void* ptr, int edx, unsigned int vguiPanel
 	{
 		DWORD dwDisconnectMsg = ( DWORD )GetModuleHandleA( /*engine.dll*/XorStr<0x8D,11,0xF704AB59>("\xE8\xE0\xE8\xF9\xFF\xF7\xBD\xF0\xF9\xFA"+0xF704AB59).s ) + 0x2E15C8;
         DWORD dwOld;
-        //VirtualProtect( ( LPVOID ) dwDisconnectMsg, 4, PAGE_READWRITE, &dwOld );
-        //char msg[ 19 ];
-        //strcpy( msg, "you suck" );
-        //WriteProcessMemory( GetCurrentProcess( ), ( LPVOID ) dwDisconnectMsg, &msg, sizeof( msg ), 0 );
-        //VirtualProtect( ( LPVOID ) dwDisconnectMsg, 4, dwOld, &dwOld );
 
 		g_Drawing.FontInit( );
 		g_Whitelist.Init( );
 
-		// leet ruski antiban ))))) xaxaxax
 		static ConVar* cvar_xbox_autothrottle = g_pCvar->FindVar( /*xbox_autothrottle*/XorStr<0x1C,18,0xFE51A435>("\x64\x7F\x71\x67\x7F\x40\x57\x57\x4B\x51\x4E\x55\x47\x5D\x5E\x47\x49"+0xFE51A435).s );
 		static ConVar* cvar_xbox_throttlebias = g_pCvar->FindVar( /*xbox_throttlebias*/XorStr<0xB6,18,0x1151B3C8>("\xCE\xD5\xD7\xC1\xE5\xCF\xD4\xCF\xD1\xCB\xB4\xAD\xA7\xA1\xAD\xA4\xB5"+0x1151B3C8).s );
 		static ConVar* cvar_xbox_throttlespoof = g_pCvar->FindVar( /*xbox_throttlespoof*/XorStr<0x90,19,0x3676A912>("\xE8\xF3\xFD\xEB\xCB\xE1\xFE\xE5\xF7\xED\xEE\xF7\xF9\xEE\xEE\xF0\xCF\xC7"+0x3676A912).s );

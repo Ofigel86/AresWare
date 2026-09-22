@@ -192,7 +192,6 @@ void Drawing::String( bool center, int x, int y, Color color, const char* input,
 
 	Color outline = Color( 0, 0, 0, color.a( ) );
 
-	// === 1337 outline fix for chars ===
 
 	g_pSurface->DrawSetTextColor( outline );
 	g_pSurface->DrawSetTextPos( x - 1, y );
@@ -226,7 +225,6 @@ void Drawing::String( bool center, int x, int y, Color color, const char* input,
 	g_pSurface->DrawSetTextPos( x + 1, y + 1 );
 	g_pSurface->DrawPrintText( wbuf, wcslen( wbuf ), Valve::vgui::FontDrawType_t::FONT_DRAW_DEFAULT );
 
-	// ==================================
 
 	g_pSurface->DrawSetTextColor( color );
 	g_pSurface->DrawSetTextPos( x, y );
@@ -347,7 +345,6 @@ void Drawing::GradientHorizontal( int x, int y, int w, int h, Color from, Color 
 			from.g( ) - ( val_g * i ), 
 			from.b( ) - ( val_b * i ), 
 			alpha );
-		//Line( x, y + i, x + w, y + i, color );
 		FilledRect( x, y + i, w, 1, color );
 	}
 }
@@ -377,7 +374,6 @@ void Drawing::GradientVertical( int x, int y, int w, int h, Color from, Color to
 			from.g( ) - ( val_g * i ), 
 			from.b( ) - ( val_b * i ), 
 			alpha );
-		//Line( x + i, y, x + i, y + h, color );
 		FilledRect( x + i, y, 1, h, color );
 	}
 }
@@ -430,49 +426,45 @@ void Drawing::DrawBones( BasePlayer* Ent, Color color )
 	Vector points[ 19 ];
 	Vector pointstransformed[ 19 ];
 	Vector pointsw2s[ 19 ];
-
 	matrix3x4_t matrix[ 128 ];
 	if( !( Ent->SetupBones( matrix, 128, 0x100, Ent->m_flSimulationTime( ) ) ) ) return;
 	void* pModel = Ent->GetModel( );
 	if( !pModel ) return;
 	studiohdr_t* studiohdr = g_pModelInfo->GetStudiomodel( pModel );
-	mstudiohitboxset_t* studiohitboxset = studiohdr->pHitboxSet( Ent->m_nHitboxSet( ) );	
+	if( !studiohdr ) return;
+	mstudiohitboxset_t* studiohitboxset = studiohdr->pHitboxSet( Ent->m_nHitboxSet( ) );
 	if( !studiohitboxset ) return;
-
 	for( int i = 0; i <= 18; i++ )
 	{
 		mstudiobbox_t* studiobbox = studiohitboxset->pHitbox( i );
-		if( !studiobbox ) return;
+		if( !studiobbox ) continue;
 		points[ i ] = ( studiobbox->bbmax + studiobbox->bbmin ) * .5f;
 		VectorTransform( points[ i ], matrix[ studiobbox->bone ], pointstransformed[ i ] );
-
-		if( !g_Stuff.WorldToScreen( pointstransformed[ i ], pointsw2s[ i ] ) ) return;
+		if( !g_Stuff.WorldToScreen( pointstransformed[ i ], pointsw2s[ i ] ) ) pointsw2s[i].Init(0,0,0);
 	}
+	bool valid = true;
+	for( int i = 0; i <= 18; i++ ) if( pointsw2s[i].x == 0 && pointsw2s[i].y == 0 ) valid = false;
+	if( !valid ) return;
 
-	// left leg
 	Line( ( int )pointsw2s[ 4 ].x, ( int )pointsw2s[ 4 ].y, ( int )pointsw2s[ 3 ].x, ( int )pointsw2s[ 3 ].y, color );
 	Line( ( int )pointsw2s[ 3 ].x, ( int )pointsw2s[ 3 ].y, ( int )pointsw2s[ 2 ].x, ( int )pointsw2s[ 2 ].y, color );
 	Line( ( int )pointsw2s[ 2 ].x, ( int )pointsw2s[ 2 ].y, ( int )pointsw2s[ 1 ].x, ( int )pointsw2s[ 1 ].y, color );
 	Line( ( int )pointsw2s[ 1 ].x, ( int )pointsw2s[ 1 ].y, ( int )pointsw2s[ 0 ].x, ( int )pointsw2s[ 0 ].y, color );
 	
-	// right leg
 	Line( ( int )pointsw2s[ 8 ].x, ( int )pointsw2s[ 8 ].y, ( int )pointsw2s[ 7 ].x, ( int )pointsw2s[ 7 ].y, color );
 	Line( ( int )pointsw2s[ 7 ].x, ( int )pointsw2s[ 7 ].y, ( int )pointsw2s[ 6 ].x, ( int )pointsw2s[ 6 ].y, color );
 	Line( ( int )pointsw2s[ 6 ].x, ( int )pointsw2s[ 6 ].y, ( int )pointsw2s[ 5 ].x, ( int )pointsw2s[ 5 ].y, color );
 	Line( ( int )pointsw2s[ 5 ].x, ( int )pointsw2s[ 5 ].y, ( int )pointsw2s[ 0 ].x, ( int )pointsw2s[ 0 ].y, color );
 
-	// penis to head
 	Line( ( int )pointsw2s[ 0 ].x, ( int )pointsw2s[ 0 ].y, ( int )pointsw2s[ 9 ].x, ( int )pointsw2s[ 9 ].y, color );
 	Line( ( int )pointsw2s[ 9 ].x, ( int )pointsw2s[ 9 ].y, ( int )pointsw2s[ 10 ].x, ( int )pointsw2s[ 10 ].y, color );
 	Line( ( int )pointsw2s[ 10 ].x, ( int )pointsw2s[ 10 ].y, ( int )pointsw2s[ 11 ].x, ( int )pointsw2s[ 11 ].y, color );
 	Line( ( int )pointsw2s[ 11 ].x, ( int )pointsw2s[ 11 ].y, ( int )pointsw2s[ 12 ].x, ( int )pointsw2s[ 12 ].y, color );
 
-	// right hand
 	Line( ( int )pointsw2s[ 11 ].x, ( int )pointsw2s[ 11 ].y, ( int )pointsw2s[ 16 ].x, ( int )pointsw2s[ 16 ].y, color );
 	Line( ( int )pointsw2s[ 16 ].x, ( int )pointsw2s[ 16 ].y, ( int )pointsw2s[ 17 ].x, ( int )pointsw2s[ 17 ].y, color );
 	Line( ( int )pointsw2s[ 17 ].x, ( int )pointsw2s[ 17 ].y, ( int )pointsw2s[ 18 ].x, ( int )pointsw2s[ 18 ].y, color );
 
-	// left hand
 	Line( ( int )pointsw2s[ 11 ].x, ( int )pointsw2s[ 11 ].y, ( int )pointsw2s[ 13 ].x, ( int )pointsw2s[ 13 ].y, color );
 	Line( ( int )pointsw2s[ 13 ].x, ( int )pointsw2s[ 13 ].y, ( int )pointsw2s[ 14 ].x, ( int )pointsw2s[ 14 ].y, color );
 	Line( ( int )pointsw2s[ 14 ].x, ( int )pointsw2s[ 14 ].y, ( int )pointsw2s[ 15 ].x, ( int )pointsw2s[ 15 ].y, color );
@@ -486,46 +478,25 @@ void Drawing::DrawHitbox( BasePlayer* Ent, int iHitbox, Color color )
 	void* pModel = Ent->GetModel( );
 	if( !pModel ) return;
 	studiohdr_t* studiohdr = g_pModelInfo->GetStudiomodel( pModel );
-	mstudiohitboxset_t* studiohitboxset = studiohdr->pHitboxSet( Ent->m_nHitboxSet( ) );	
+	if( !studiohdr ) return;
+	mstudiohitboxset_t* studiohitboxset = studiohdr->pHitboxSet( Ent->m_nHitboxSet( ) );
 	if( !studiohitboxset ) return;
 	mstudiobbox_t* studiobbox = studiohitboxset->pHitbox( iHitbox );
 	if( !studiobbox ) return;
-
+	Vector center = ( studiobbox->bbmin + studiobbox->bbmax ) * 0.5f;
+	Vector ext = ( studiobbox->bbmax - studiobbox->bbmin ) * 0.5f;
 	Vector points[ 9 ];
-
-	float scalecenter = g_pGlobals->interval_per_tick;
-	points[ 8 ] = ( studiobbox->bbmax + studiobbox->bbmin ) * 0.5f;
-	points[ 0 ] = studiobbox->bbmin + points[ 0 ] * scalecenter;
-
-	points[ 1 ].x = studiobbox->bbmin.x + points[ 0 ].x * scalecenter;
-	points[ 1 ].y = studiobbox->bbmax.y - points[ 0 ].y * scalecenter;
-	points[ 1 ].z = studiobbox->bbmin.z + points[ 0 ].z * scalecenter;
-
-	points[ 2 ].x = studiobbox->bbmax.x - points[ 0 ].x * scalecenter;
-	points[ 2 ].y = studiobbox->bbmax.y - points[ 0 ].y * scalecenter;
-	points[ 2 ].z = studiobbox->bbmin.z + points[ 0 ].z * scalecenter;
-
-	points[ 3 ].x = studiobbox->bbmax.x - points[ 0 ].x * scalecenter;
-	points[ 3 ].y = studiobbox->bbmin.y + points[ 0 ].y * scalecenter;
-	points[ 3 ].z = studiobbox->bbmin.z + points[ 0 ].z * scalecenter;
-
-	points[ 4 ] = studiobbox->bbmax - points[ 0 ] * scalecenter;
-
-	points[ 5 ].x = studiobbox->bbmin.x + points[ 0 ].x * scalecenter;
-	points[ 5 ].y = studiobbox->bbmax.y - points[ 0 ].y * scalecenter;
-	points[ 5 ].z = studiobbox->bbmax.z - points[ 0 ].z * scalecenter;
-		      
-	points[ 6 ].x = studiobbox->bbmin.x + points[ 0 ].x * scalecenter;
-	points[ 6 ].y = studiobbox->bbmin.y + points[ 0 ].y * scalecenter;
-	points[ 6 ].z = studiobbox->bbmax.z - points[ 0 ].z * scalecenter;
-
-	points[ 7 ].x = studiobbox->bbmax.x - points[ 0 ].x * scalecenter;
-	points[ 7 ].y = studiobbox->bbmin.y + points[ 0 ].y * scalecenter;
-	points[ 7 ].z = studiobbox->bbmax.z - points[ 0 ].z * scalecenter;
-
+	points[0] = Vector( center.x - ext.x, center.y - ext.y, center.z - ext.z );
+	points[1] = Vector( center.x - ext.x, center.y + ext.y, center.z - ext.z );
+	points[2] = Vector( center.x + ext.x, center.y + ext.y, center.z - ext.z );
+	points[3] = Vector( center.x + ext.x, center.y - ext.y, center.z - ext.z );
+	points[4] = Vector( center.x + ext.x, center.y + ext.y, center.z + ext.z );
+	points[5] = Vector( center.x - ext.x, center.y + ext.y, center.z + ext.z );
+	points[6] = Vector( center.x - ext.x, center.y - ext.y, center.z + ext.z );
+	points[7] = Vector( center.x + ext.x, center.y - ext.y, center.z + ext.z );
+	points[8] = center;
 	Vector pointsTransformed[ 9 ];
 	for( int i = 0; i <= 8; i++ ) VectorTransform( points[ i ], matrix[ studiobbox->bone ], pointsTransformed[ i ] );
-
 	Box3D( pointsTransformed, color );
 }
 
@@ -536,29 +507,25 @@ void Drawing::DrawAimSpot( BasePlayer* Ent, int iHitbox, Color color )
 	void* pModel = Ent->GetModel( );
 	if( !pModel ) return;
 	studiohdr_t* studiohdr = g_pModelInfo->GetStudiomodel( pModel );
-	mstudiohitboxset_t* studiohitboxset = studiohdr->pHitboxSet( Ent->m_nHitboxSet( ) );	
+	if( !studiohdr ) return;
+	mstudiohitboxset_t* studiohitboxset = studiohdr->pHitboxSet( Ent->m_nHitboxSet( ) );
 	if( !studiohitboxset ) return;
 	mstudiobbox_t* studiobbox = studiohitboxset->pHitbox( iHitbox );
 	if( !studiobbox ) return;
-
-	float scalecenter = g_pGlobals->interval_per_tick;
-
-	Vector points[ ] = { ( ( studiobbox->bbmin + studiobbox->bbmax ) * .5f ),
-		Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ) };
-
-	Vector pointsTransformed[ 9 ], pts[ 9 ];
-	VectorTransform( points[ 0 ], matrix[ studiobbox->bone ], pointsTransformed[ 0 ] );
-
-	if( g_Stuff.WorldToScreen( pointsTransformed[ 0 ], pts[ 0 ] ) )
+	float scale = g_CVars.Aimbot.PointScale;
+	if( scale < 0.f ) scale = 0.f;
+	if( scale > 1.f ) scale = 1.f;
+	Vector center = ( studiobbox->bbmin + studiobbox->bbmax ) * 0.5f;
+	Vector ext = ( studiobbox->bbmax - studiobbox->bbmin ) * 0.5f * scale;
+	Vector point = center;
+	if( scale < 0.99f ) point = Vector( center.x, center.y, center.z );
+	Vector pointTransformed;
+	VectorTransform( point, matrix[ studiobbox->bone ], pointTransformed );
+	Vector screen;
+	if( g_Stuff.WorldToScreen( pointTransformed, screen ) )
 	{
-		g_Drawing.FilledRect( pts[ 0 ].x - 2, pts[ 0 ].y - 2, 5, 5, color );
-		g_Drawing.OutlinedRect( pts[ 0 ].x - 2, pts[ 0 ].y - 2, 5, 5, Color( 0, 0, 0, 160 ) );
+		g_Drawing.FilledRect( screen.x - 3, screen.y - 3, 6, 6, color );
+		g_Drawing.OutlinedRect( screen.x - 3, screen.y - 3, 6, 6, Color( 0, 0, 0, 160 ) );
+		g_Drawing.FilledRect( screen.x - 1, screen.y - 1, 2, 2, Color( 255, 255, 255, 255 ) );
 	}
 }
