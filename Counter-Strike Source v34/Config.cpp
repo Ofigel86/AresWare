@@ -33,35 +33,39 @@ void WritePrivateProfileInteger( LPCSTR lpAppName, LPCSTR lpKeyName, INT flValue
 void GetPrivateProfileColor( LPCSTR lpAppName, LPCSTR lpKeyName, Color &cvar, LPCSTR lpFileName )
 {
 	char szData[ 32 ];
-	char *red, *green, *blue;
+	char *red = nullptr, *green = nullptr, *blue = nullptr;
 	GetPrivateProfileStringA( lpAppName, lpKeyName, "r0,g0,b0", szData, 32, lpFileName );
 
-	int len = strlen( szData );
+	int len = (int)strlen( szData );
 	for( int i = 0; i < len; i++ )
 	{
-		if( szData[ i ] == 'r' && szData[ i + 2 ] == ',' ) red = &szData[ i + 1 ];
-		else if( szData[ i ] == 'r' && szData[ i + 3 ] == ',' ) red = &szData[ i + 1 ];
-		else if( szData[ i ] == 'r' && szData[ i + 4 ] == ',' ) red = &szData[ i + 1 ];
+		if( szData[ i ] == 'r' && i + 2 < len && szData[ i + 2 ] == ',' ) red = &szData[ i + 1 ];
+		else if( szData[ i ] == 'r' && i + 3 < len && szData[ i + 3 ] == ',' ) red = &szData[ i + 1 ];
+		else if( szData[ i ] == 'r' && i + 4 < len && szData[ i + 4 ] == ',' ) red = &szData[ i + 1 ];
 
-		if( szData[ i ] == 'g' && szData[ i + 2 ] == ',' ) green = &szData[ i + 1 ];
-		else if( szData[ i ] == 'g' && szData[ i + 3 ] == ',' ) green = &szData[ i + 1 ];
-		else if( szData[ i ] == 'g' && szData[ i + 4 ] == ',' ) green = &szData[ i + 1 ];
+		if( szData[ i ] == 'g' && i + 2 < len && szData[ i + 2 ] == ',' ) green = &szData[ i + 1 ];
+		else if( szData[ i ] == 'g' && i + 3 < len && szData[ i + 3 ] == ',' ) green = &szData[ i + 1 ];
+		else if( szData[ i ] == 'g' && i + 4 < len && szData[ i + 4 ] == ',' ) green = &szData[ i + 1 ];
 
 		if( szData[ i ] == 'b' ) blue = &szData[ i + 1 ];
 	}
 
-	len = strlen( red );
-	
-	for( int i = 0; i < len; i++ )
+	if( !red || !green || !blue )
 	{
-		if( red[ i ] == ',' && red[ i + 1 ] == 'g' ) red[ i ] = 0;
+		cvar = Color( 0, 0, 0, 255 );
+		return;
 	}
 
-	len = strlen( green );
-
+	len = (int)strlen( red );
 	for( int i = 0; i < len; i++ )
 	{
-		if( green[ i ] == ',' && green[ i + 1 ] == 'b' ) green[ i ] = 0;
+		if( red[ i ] == ',' && i + 1 < len && red[ i + 1 ] == 'g' ) { red[ i ] = 0; break; }
+	}
+
+	len = (int)strlen( green );
+	for( int i = 0; i < len; i++ )
+	{
+		if( green[ i ] == ',' && i + 1 < len && green[ i + 1 ] == 'b' ) { green[ i ] = 0; break; }
 	}
 
 	std::string r, g, b;
@@ -69,7 +73,9 @@ void GetPrivateProfileColor( LPCSTR lpAppName, LPCSTR lpKeyName, Color &cvar, LP
 	g = green;
 	b = blue;
 
-	cvar = Color( atoi( r.c_str( ) ), atoi( g.c_str( ) ), atoi( b.c_str( ) ), 255 );
+	int ri = atoi( r.c_str( ) ), gi = atoi( g.c_str( ) ), bi = atoi( b.c_str( ) );
+	ri = max( 0, min( 255, ri ) ); gi = max( 0, min( 255, gi ) ); bi = max( 0, min( 255, bi ) );
+	cvar = Color( ri, gi, bi, 255 );
 }
 
 void WritePrivateProfileColor( LPCSTR lpAppName, LPCSTR lpKeyName, Color flValue, LPCSTR lpFileName )
@@ -179,7 +185,7 @@ void CConfig::Load( void )
 	g_CVars.Miscellaneous.AntiAim.DuckInAir = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "DuckInAir", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.AntiAim.RealValue = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "RealValue", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.AntiAim.FakeValue = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "FakeValue", 0, path.c_str( ) );
-	g_CVars.Miscellaneous.AntiAim.TurnOff = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "EnemyCheck", 0, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.TurnOff = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "EnemyCheck", 0, path.c_str( ) ) != 0;
 
 	g_CVars.Miscellaneous.Fakelag.Active = GetPrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, /*Active*/XorStr<0x05,7,0x27ACD844>("\x44\x65\x73\x61\x7F\x6F"+0x27ACD844).s, 0, path.c_str( ) );
 	g_CVars.Miscellaneous.Fakelag.Mode = GetPrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, /*Mode*/XorStr<0xA1,5,0x038D62E9>("\xEC\xCD\xC7\xC1"+0x038D62E9).s, 0, path.c_str( ) );
@@ -247,7 +253,7 @@ void CConfig::Save( void )
 	WritePrivateProfileFloat( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*PointScale*/XorStr<0xBE,11,0x1EFB65EC>("\xEE\xD0\xA9\xAF\xB6\x90\xA7\xA4\xAA\xA2"+0x1EFB65EC).s, g_CVars.Aimbot.PointScale, path.c_str( ) );
 	WritePrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*SnapLimiter*/XorStr<0xCD,12,0xE92FD079>("\x9E\xA0\xAE\xA0\x9D\xBB\xBE\xBD\xA1\xB3\xA5"+0xE92FD079).s, g_CVars.Aimbot.SnapLimiter, path.c_str( ) );
 	WritePrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AngleLimit*/XorStr<0x55,11,0x2BCB8202>("\x14\x38\x30\x34\x3C\x16\x32\x31\x34\x2A"+0x2BCB8202).s, g_CVars.Aimbot.AngleLimit, path.c_str( ) );
-	WritePrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AngleLimitTens*/XorStr<0x4F,15,0x42DB868E>("\x0E\x3E\x36\x3E\x36\x18\x3C\x3B\x3E\x2C\x0D\x3F\x35\x2F"+0x42DB868E).s, g_CVars.Aimbot.AngleLimitTens, path.c_str( ) );
+	WritePrivateProfileFloat( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AngleLimitTens*/XorStr<0x4F,15,0x42DB868E>("\x0E\x3E\x36\x3E\x36\x18\x3C\x3B\x3E\x2C\x0D\x3F\x35\x2F"+0x42DB868E).s, g_CVars.Aimbot.AngleLimitTens, path.c_str( ) );
 	WritePrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*MinDamage*/XorStr<0x43,10,0xD1CF37C2>("\x0E\x2D\x2B\x02\x26\x25\x28\x2D\x2E"+0xD1CF37C2).s, g_CVars.Aimbot.MinDamage, path.c_str( ) );
 	WritePrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*Key*/XorStr<0x19,4,0xBAF51996>("\x52\x7F\x62"+0xBAF51996).s, g_CVars.Aimbot.Key, path.c_str( ) );
 
@@ -309,7 +315,7 @@ void CConfig::Save( void )
 	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "DuckInAir", g_CVars.Miscellaneous.AntiAim.DuckInAir, path.c_str( ) );
 	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "RealValue", g_CVars.Miscellaneous.AntiAim.RealValue, path.c_str( ) );
 	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "FakeValue", g_CVars.Miscellaneous.AntiAim.FakeValue, path.c_str( ) );
-	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "EnemyCheck", g_CVars.Miscellaneous.AntiAim.TurnOff, path.c_str( ) );
+	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "EnemyCheck", g_CVars.Miscellaneous.AntiAim.TurnOff ? 1 : 0, path.c_str( ) );
 
 	WritePrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, /*Active*/XorStr<0x05,7,0x27ACD844>("\x44\x65\x73\x61\x7F\x6F"+0x27ACD844).s, g_CVars.Miscellaneous.Fakelag.Active, path.c_str( ) );
 	WritePrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, /*Mode*/XorStr<0xA1,5,0x038D62E9>("\xEC\xCD\xC7\xC1"+0x038D62E9).s, g_CVars.Miscellaneous.Fakelag.Mode, path.c_str( ) );

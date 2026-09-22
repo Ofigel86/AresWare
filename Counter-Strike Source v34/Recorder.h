@@ -51,6 +51,7 @@ class CMovementRecorder
 {
 public:
 	CMovementRecorder( void );
+	~CMovementRecorder( void );
 
 	void RecordMovement( CUserCmd* pCmd, BasePlayer* LocalPlayer, QAngle viewangle );
 	CRecord *Movements;

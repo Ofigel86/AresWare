@@ -9,7 +9,11 @@ void __fastcall Hooked_FrameStageNotify( void* ecx, void* edx, ClientFrameStage_
 
 	if( g_pEngineClient->IsInGame( ) )
 	{
-		if( curStage == FRAME_UNDEFINED ) return;
+		if( curStage == FRAME_UNDEFINED )
+		{
+			CreateMoveVMT->Function< FrameStageNotify_t >( 32 )( ecx, curStage );
+			return;
+		}
 	}
 
 	static bool once;
@@ -43,8 +47,8 @@ void __fastcall Hooked_FrameStageNotify( void* ecx, void* edx, ClientFrameStage_
 			if( Entity == 0 ) continue;
 			if( Index == g_pEngineClient->GetLocalPlayer( ) ) continue;
 			if( Entity->m_lifeState( ) != 0 ) continue;
-			if( Entity->m_iHealth( ) > 0 && Entity->m_iHealth( ) < 500 );
-			if( !g_CVars.Aimbot.FriendlyFire )
+			if( Entity->m_iHealth( ) <= 0 || Entity->m_iHealth( ) >= 500 ) continue;
+			if( !g_CVars.Aimbot.FriendlyFire && LocalPlayer )
 			{
 				if( Entity->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
 			}

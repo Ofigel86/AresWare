@@ -364,7 +364,7 @@ void sendcmd( const char* input, ... )
 	char buf[ 256 ];
 
 	va_start( va_alist, input );
-	vsprintf( buf, input, va_alist );
+	vsnprintf( buf, sizeof(buf), input, va_alist );
 	va_end( va_alist );
 
 	g_pEngineClient->ExecuteClientCmd( buf );
@@ -388,6 +388,8 @@ void CorrectTickCount( CUserCmd* pCmd )
 	static ConVar* cvar_sv_client_min_interp_ratio = g_pCvar->FindVar( /*sv_client_min_interp_ratio*/XorStr<0x9B,27,0x783554E3>("\xE8\xEA\xC2\xFD\xF3\xC9\xC4\xCC\xD7\xFB\xC8\xCF\xC9\xF7\xC0\xC4\xDF\xC9\xDF\xDE\xF0\xC2\xD0\xC6\xDA\xDB"+0x783554E3).s );
 	static ConVar* cvar_sv_client_max_interp_ratio = g_pCvar->FindVar( /*sv_client_max_interp_ratio*/XorStr<0xAF,27,0xED44D950>("\xDC\xC6\xEE\xD1\xDF\xDD\xD0\xD8\xC3\xE7\xD4\xDB\xC3\xE3\xD4\xD0\xCB\xA5\xB3\xB2\x9C\xB6\xA4\xB2\xAE\xA7"+0xED44D950).s );
 
+	if( !cvar_cl_interp || !cvar_cl_updaterate || !cvar_cl_interp_ratio || !cvar_sv_minupdaterate || !cvar_sv_maxupdaterate || !cvar_sv_client_min_interp_ratio || !cvar_sv_client_max_interp_ratio )
+		return;
 	float cl_interp = cvar_cl_interp->GetFloat( );
 	int cl_updaterate = cvar_cl_updaterate->GetInt( ),
 	sv_maxupdaterate = cvar_sv_maxupdaterate->GetInt( ),
@@ -422,13 +424,14 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 	CreateMoveVMT->Function< CreateMove_t >( 18 )( edx, sequence_number, input_sample_frametime, active );
 
 	BasePlayer* LocalPlayer = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
-	CSWeapon* Weapon = ( CSWeapon* ) LocalPlayer->GetActiveBaseCombatWeapon( );
 	if( !LocalPlayer ) return;
+	CSWeapon* Weapon = ( CSWeapon* ) LocalPlayer->GetActiveBaseCombatWeapon( );
 
 	if( !g_pInput ) return;
 
 	bSendPacket = true;
 	CUserCmd* pCmd = g_pInput->GetUserCmd( sequence_number );
+	if( !pCmd ) return;
 
 	g_TickCount = pCmd->tick_count;
 

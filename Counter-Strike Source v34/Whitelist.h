@@ -13,4 +13,4 @@ public:
 
 extern Whitelist g_Whitelist;
 
-#endif __WHITELIST_H__
+#endif // __WHITELIST_H__

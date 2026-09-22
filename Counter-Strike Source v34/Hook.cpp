@@ -3,11 +3,15 @@
 
 static DWORD ConvertToDWORD( float const number )
 {
-	return *reinterpret_cast< DWORD const* >( &number );
+	DWORD ret;
+	memcpy( &ret, &number, sizeof( ret ) );
+	return ret;
 }
 static float ConvertToFloat( DWORD const number )
 {
-	return *reinterpret_cast< float const* >( &number );
+	float ret;
+	memcpy( &ret, &number, sizeof( ret ) );
+	return ret;
 }
 
 enum
@@ -44,21 +48,24 @@ CreateInterface_t Interfaces[ 8 ];
 
 void* FindInterface( int interface_s, char* interfaceversion )
 {
+	if( interface_s < 0 || interface_s >= 8 || !Interfaces[ interface_s ] || !interfaceversion )
+		return nullptr;
 	char buffer[ 0xFF ];
 	int index = 0xFF;
 	do
 	{
-		if( index <= 10 ) sprintf_s( buffer, /*%s00%i*/XorStr<0x2F,7,0xF36659C9>("\x0A\x43\x01\x02\x16\x5D"+0xF36659C9).s, interfaceversion, index );
-		if( index >= 10 ) sprintf_s( buffer, /*%s0%i*/XorStr<0x37,6,0x377C3525>("\x12\x4B\x09\x1F\x52"+0x377C3525).s, interfaceversion, index );
 		if( index >= 100 ) sprintf_s( buffer, /*%s%i*/XorStr<0x9D,5,0x8C23DD66>("\xB8\xED\xBA\xC9"+0x8C23DD66).s, interfaceversion, index );
+		else if( index >= 10 ) sprintf_s( buffer, /*%s0%i*/XorStr<0x37,6,0x377C3525>("\x12\x4B\x09\x1F\x52"+0x377C3525).s, interfaceversion, index );
+		else sprintf_s( buffer, /*%s00%i*/XorStr<0x2F,7,0xF36659C9>("\x0A\x43\x01\x02\x16\x5D"+0xF36659C9).s, interfaceversion, index );
 
 		if( Interfaces[ interface_s ]( buffer, 0 ) ) break;
 		index--;
 
 	} while ( index >= 0 );
 
-	//printf( "%s", buffer );
-	void* ret = Interfaces[ interface_s ]( buffer, 0 );
+	void* ret = nullptr;
+	if( index >= 0 )
+		ret = Interfaces[ interface_s ]( buffer, 0 );
 	return ret;
 }
 

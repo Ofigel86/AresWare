@@ -3,7 +3,7 @@
 void Crosshair( )
 {
 	BasePlayer* LocalPlayer = ( BasePlayer* )g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
-	ConVar* crosshair = g_pCvar->FindVar( /*crosshair*/XorStr<0x6F,10,0xF1A82E3B>("\x0C\x02\x1E\x01\x00\x1C\x14\x1F\x05"+0xF1A82E3B).s );
+	static ConVar* crosshair = g_pCvar->FindVar( /*crosshair*/XorStr<0x6F,10,0xF1A82E3B>("\x0C\x02\x1E\x01\x00\x1C\x14\x1F\x05"+0xF1A82E3B).s );
 
 	int x = screen_x / 2;
 	int y = screen_y / 2;
@@ -75,24 +75,20 @@ void DrawHitmarker( Color color )
 
 void HitESP( )
 {
-	std::vector< hit_s >::iterator iter = hit.begin( );
-
-	for( int iHit = 0; iHit < ( int )hit.size( ); iHit++ )
+	for( auto it = hit.begin( ); it != hit.end( ); )
 	{
-		BasePlayer* Ent = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( hit[ iHit ].idx );
-
-		if( hit[ iHit ].time < g_pGlobals->curtime )
+		if( it->time < g_pGlobals->curtime )
 		{
-			hit.erase( iter );
+			it = hit.erase( it );
 			continue;
 		}
 
-		if( hit[ iHit ].time >= g_pGlobals->curtime )
+		if( it->time >= g_pGlobals->curtime )
 		{
-			if( g_CVars.Visuals.ESP.Hit ) DrawHitmarker( Color( 255, 255, 255, 192 * ( TIME_TO_TICKS( hit[ iHit ].time - g_pGlobals->curtime ) ) / 60 ) );
+			if( g_CVars.Visuals.ESP.Hit ) DrawHitmarker( Color( 255, 255, 255, 192 * ( TIME_TO_TICKS( it->time - g_pGlobals->curtime ) ) / 60 ) );
 		}
 
-		iter++;
+		++it;
 	}
 }
 

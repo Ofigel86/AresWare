@@ -20,7 +20,7 @@ bool bMouse = false;
 
 void UnHookLoop( )
 {
-	while( 1 == 1 && 0 == 0 ) 
+	while( true )
 	{
 		if( GetAsyncKeyState( VK_F12 ) & 1 )
 		{
@@ -28,6 +28,7 @@ void UnHookLoop( )
 			Sleep( 1000 );
 			FreeLibraryAndExitThread( g_hModule, 0 );
 		}
+		Sleep( 10 );
 	}
 }
 
@@ -77,15 +78,17 @@ void printconsole( const char* msg, ... )
 	char szBuffer[ 2048 ];
 
 	va_start( va_alist, msg );
-	auto len = vsprintf_s( szBuffer, msg, va_alist );
+	int len = vsnprintf( szBuffer, sizeof( szBuffer ) - 3, msg, va_alist );
 	va_end( va_alist );
+
+	if( len < 0 ) len = 0;
+	if( len > ( int )sizeof( szBuffer ) - 3 ) len = sizeof( szBuffer ) - 3;
 
 	szBuffer[ len + 0 ] = '\r';
 	szBuffer[ len + 1 ] = '\n';
 	szBuffer[ len + 2 ] = '\0';
-	len = len + 2;
 
-	printf( szBuffer );
+	printf( "%s", szBuffer );
 }
 
 void runconsole( )
@@ -97,7 +100,8 @@ void runconsole( )
 		SetConsoleTextAttribute( GetStdHandle( STD_OUTPUT_HANDLE ), FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_RED );
 	}
 }
-#include "Security.h"
+ // Security.h removed - file not found, optional virtualizer stub
+// #include "Security.h"
 
 char g_DllPath[ MAX_PATH ];
 int __stdcall DllMain( HMODULE hMod, DWORD dwReason, PVOID lpReserved )

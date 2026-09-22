@@ -9,90 +9,87 @@
 #include "Main.h"
 
 CVMTHook::CVMTHook(void* instance)
+	: m_pInstance(nullptr), m_pOriginalVTable(nullptr), m_pNewVTable(nullptr), m_iNumIndices(0)
 {
-	HANDLE hProcessHeap;
+	if( !instance )
+		return;
 
-	if( instance )
+	m_pInstance = (void***) instance;
+	m_pOriginalVTable = *m_pInstance;
+	
+	// Count number of pointers in the table - bounded and validated
+	m_iNumIndices = 0;
+	const size_t kMaxIndices = 150;
+	while(m_iNumIndices < kMaxIndices && m_pOriginalVTable[m_iNumIndices])
 	{
-		m_pInstance = (void***) instance;
-		m_pOriginalVTable = *m_pInstance;
-		
-		//Count number of Pointers in the table
+		MEMORY_BASIC_INFORMATION mbi;
+		if( !VirtualQuery( m_pOriginalVTable[m_iNumIndices], &mbi, sizeof(mbi) ) )
+			break;
+		if( !(mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) )
+			break;
+		m_iNumIndices++;
+	}
 
-		m_iNumIndices = 0;
-		
-		//TODO: check if pointer into .text section
-		while(m_pOriginalVTable[m_iNumIndices])
-		{
-			m_iNumIndices++;
-		}
+	if( m_iNumIndices == 0 )
+		return;
 
-
-		//Allocate memory on the heap for our own copy of the table
-
-		hProcessHeap = GetProcessHeap();
-
-		if( hProcessHeap )
-		{
-			m_pNewVTable = (void**) HeapAlloc(hProcessHeap, 0, sizeof(void*) * m_iNumIndices);
-			if( m_pNewVTable )
-			{
-				memcpy(m_pNewVTable, m_pOriginalVTable, sizeof(void*) * m_iNumIndices);
-				SetHookEnabled();
-			}
-			CloseHandle(hProcessHeap);
-		}
+	// Allocate memory on the heap for our own copy of the table
+	m_pNewVTable = (void**) HeapAlloc(GetProcessHeap(), 0, sizeof(void*) * m_iNumIndices);
+	if( m_pNewVTable )
+	{
+		memcpy(m_pNewVTable, m_pOriginalVTable, sizeof(void*) * m_iNumIndices);
+		SetHookEnabled(true);
 	}
 }
 
 CVMTHook::~CVMTHook()
 {
-	HANDLE hProcessHeap;
-
-	//Reset the VTable pointer
-	if( *m_pInstance == m_pNewVTable )
+	// Reset the VTable pointer
+	if( m_pInstance && m_pNewVTable && *m_pInstance == m_pNewVTable )
 	{
 		*m_pInstance = m_pOriginalVTable;
 	}
 
-	//Free our copy of the VTable
-	hProcessHeap = GetProcessHeap();
-	if(hProcessHeap)
+	// Free our copy of the VTable
+	if( m_pNewVTable )
 	{
-
-		HeapFree(hProcessHeap, 0, m_pNewVTable);
-		CloseHandle(hProcessHeap);
+		HeapFree(GetProcessHeap(), 0, m_pNewVTable);
+		m_pNewVTable = nullptr;
 	}
 }
 
 void* CVMTHook::GetOriginalFunction(size_t iIndex)
 {
+	if( iIndex >= m_iNumIndices )
+		return nullptr;
 	return m_pOriginalVTable[iIndex];
 }
 
 void* CVMTHook::HookFunction(size_t iIndex, void* pfnHook)
 {
-	//Valid index?
+	// Valid index?
 	if(iIndex >= m_iNumIndices)
 		return NULL;
 	
-	//Write new pointer
+	// Write new pointer
 	m_pNewVTable[iIndex] = pfnHook;
 
-	//And return pointer to original function
+	// And return pointer to original function
 	return m_pOriginalVTable[iIndex];
 }
 
 void CVMTHook::SetHookEnabled(bool bEnabled)
 {
+	if( !m_pInstance || !m_pNewVTable || !m_pOriginalVTable )
+		return;
 	if(bEnabled)
 	{
-		//Point to our copy of the VTable
+		// Point to our copy of the VTable
 		*m_pInstance = m_pNewVTable;
 	}
 	else
 	{
-		//Point to the original VTable
+		// Point to the original VTable
 		*m_pInstance = m_pOriginalVTable;
 	}
 }

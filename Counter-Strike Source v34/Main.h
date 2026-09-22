@@ -260,8 +260,6 @@ enum ButtonCode_t
 	KEY_XSTICK2_UP,								// VAXIS NEGATIVE
 };
 
-#include "Main.h"
-
 #include <time.h>
 #include "ade32.h"
 #include "detours2.h"

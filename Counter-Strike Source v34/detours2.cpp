@@ -28,9 +28,13 @@ DWORD CDetour::DetourFunction(DWORD dwAddress, void *pFunction)
     bOldLocation = new BYTE[iOpcodeLength];
     dwOrigAddress = dwAddress;
     
-    DWORD dwHookedAddr = (DWORD)VirtualAlloc(0, iOpcodeLength, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    DWORD dwHookedAddr = (DWORD)VirtualAlloc(0, iOpcodeLength+5, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
     if(!dwHookedAddr)
+    {
+        delete []bOldLocation;
+        bOldLocation = nullptr;
         return 0;
+    }
 
     //Copy content from function to our new allocated space for retouring and orig func
     memcpy(bOldLocation, (void*)dwAddress, iOpcodeLength);
@@ -71,4 +75,7 @@ void CDetour::RetourFunction()
     //Set protections back
     VirtualProtect((void*)dwOrigAddress, iOpcodeLength, dwOld, &dwOld);
     delete []bOldLocation;
+    bOldLocation = nullptr;
+    // Note: VirtualAlloc block at dwHookedAddr is leaked intentionally for hook lifetime; caller stores it as trampoline.
+    // It will be freed on process exit; explicit VirtualFree would invalidate trampoline.
 }

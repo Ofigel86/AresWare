@@ -25,7 +25,9 @@ void Drawing::FontInit( )
 
 void Drawing::DrawPolygon( int count, Valve::vgui::Vertex_t* Vertexs, Color color )
 {
-	static int Texture = g_pSurface->CreateNewTextureID( true );
+	static int Texture = 0;
+	if( Texture == 0 )
+		Texture = g_pSurface->CreateNewTextureID( true );
 	unsigned char buffer[ 4 ] = { 255, 255, 255, 255 };
 	
 	g_pSurface->DrawSetTextureRGBA( Texture, buffer, 1, 1 );
@@ -62,13 +64,13 @@ void Drawing::DrawCircle( int x, int y, int radius, Color color )
 	while( a >= b )
 	{
 		FilledRect( x + a, y + b, 1, 1, color );
-		FilledRect( x + a, y + b, 1, 1, color );
-		FilledRect( x - a, y + b, 1, 1, color );
 		FilledRect( x - a, y + b, 1, 1, color );
 		FilledRect( x - a, y - b, 1, 1, color );
-		FilledRect( x - a, y - b, 1, 1, color );
 		FilledRect( x + a, y - b, 1, 1, color );
-		FilledRect( x + a, y - b, 1, 1, color );
+		FilledRect( x + b, y + a, 1, 1, color );
+		FilledRect( x - b, y + a, 1, 1, color );
+		FilledRect( x - b, y - a, 1, 1, color );
+		FilledRect( x + b, y - a, 1, 1, color );
 
 		
 		if( err > 0 )
@@ -92,10 +94,10 @@ void Drawing::MenuStringNormal( bool centerx, bool centery, int x, int y, Color 
 	wchar_t wbuf[ 1024 ];
 
 	va_start( va_alist, input );
-	vsprintf( buf, input, va_alist );
+	vsnprintf( buf, sizeof(buf), input, va_alist );
 	va_end( va_alist );
 
-	MultiByteToWideChar( CP_UTF8, 0, buf, 256, wbuf, 256 );
+	MultiByteToWideChar( CP_UTF8, 0, buf, 1024, wbuf, 1024 );
 
 	g_pSurface->DrawSetTextFont( g_MenuFontNormal );
 	
@@ -121,10 +123,10 @@ void Drawing::MenuStringBold( bool centerx, bool centery, int x, int y, Color co
 	wchar_t wbuf[ 1024 ];
 
 	va_start( va_alist, input );
-	vsprintf( buf, input, va_alist );
+	vsnprintf( buf, sizeof(buf), input, va_alist );
 	va_end( va_alist );
 
-	MultiByteToWideChar( CP_UTF8, 0, buf, 256, wbuf, 256 );
+	MultiByteToWideChar( CP_UTF8, 0, buf, 1024, wbuf, 1024 );
 
 	g_pSurface->DrawSetTextFont( g_MenuFontBold );
 	
@@ -150,10 +152,10 @@ void Drawing::MenuString2( bool centerx, bool centery, int x, int y, Color color
 	wchar_t wbuf[ 1024 ];
 
 	va_start( va_alist, input );
-	vsprintf( buf, input, va_alist );
+	vsnprintf( buf, sizeof(buf), input, va_alist );
 	va_end( va_alist );
 
-	MultiByteToWideChar( CP_UTF8, 0, buf, 256, wbuf, 256 );
+	MultiByteToWideChar( CP_UTF8, 0, buf, 1024, wbuf, 1024 );
 
 	g_pSurface->DrawSetTextFont( g_Font );
 	g_pSurface->DrawSetTextColor( color );
@@ -174,10 +176,10 @@ void Drawing::String( bool center, int x, int y, Color color, const char* input,
 	wchar_t wbuf[ 1024 ];
 
 	va_start( va_alist, input );
-	vsprintf( buf, input, va_alist );
+	vsnprintf( buf, sizeof(buf), input, va_alist );
 	va_end( va_alist );
 
-	MultiByteToWideChar( CP_UTF8, 0, buf, 256, wbuf, 256 );
+	MultiByteToWideChar( CP_UTF8, 0, buf, 1024, wbuf, 1024 );
 
 	g_pSurface->DrawSetTextFont( g_Font );	
 
@@ -238,10 +240,10 @@ void Drawing::StringNormal( bool center, int x, int y, Color color, const char* 
 	wchar_t wbuf[ 1024 ];
 
 	va_start( va_alist, input );
-	vsprintf( buf, input, va_alist );
+	vsnprintf( buf, sizeof(buf), input, va_alist );
 	va_end( va_alist );
 
-	MultiByteToWideChar( CP_UTF8, 0, buf, 256, wbuf, 256 );
+	MultiByteToWideChar( CP_UTF8, 0, buf, 1024, wbuf, 1024 );
 
 	g_pSurface->DrawSetTextFont( g_Font );
 	g_pSurface->DrawSetTextColor( color );
@@ -264,10 +266,10 @@ void Drawing::BigString( bool center, int x, int y, Color color, const char* inp
 	wchar_t wbuf[ 1024 ];
 
 	va_start( va_alist, input );
-	vsprintf( buf, input, va_alist );
+	vsnprintf( buf, sizeof(buf), input, va_alist );
 	va_end( va_alist );
 
-	MultiByteToWideChar( CP_UTF8, 0, buf, 256, wbuf, 256 );
+	MultiByteToWideChar( CP_UTF8, 0, buf, 1024, wbuf, 1024 );
 
 	g_pSurface->DrawSetTextFont( g_WelcomeFont );
 	g_pSurface->DrawSetTextColor( color );

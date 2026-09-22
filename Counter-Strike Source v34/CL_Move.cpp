@@ -11,7 +11,7 @@ void Hooked_CL_Move( float accumulated_extra_samples, bool bFinalTick )
 	if( g_CVars.Miscellaneous.Speedhack && GetAsyncKeyState( 0x45 ) )
 	{
 		g_bCL_Move = true;
-		for( int i = 0; i <= g_CVars.Miscellaneous.SpeedhackValue; i++ ) _CL_Move( accumulated_extra_samples, bFinalTick );
+		for( int i = 0; i < g_CVars.Miscellaneous.SpeedhackValue; i++ ) _CL_Move( accumulated_extra_samples, bFinalTick );
 	}
 
 	g_bCL_Move = false;

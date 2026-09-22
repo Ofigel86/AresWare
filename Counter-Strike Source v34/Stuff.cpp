@@ -1,5 +1,5 @@
 #include "Main.h"
-#include "SDK/checksum_md5.cpp"
+#include "SDK/checksum_md5.h"
 
 CVars g_CVars;
 Stuff g_Stuff;
@@ -11,8 +11,8 @@ void CVars::Init( )
 
 	Accuracy.NoSpreadMode = 1;
 
-	Menu.x = screen_x / 2 - ( Menu.h / 2 );
-	Menu.y = screen_y / 2 - ( Menu.w / 2 );
+	Menu.x = screen_x / 2 - ( Menu.w / 2 );
+	Menu.y = screen_y / 2 - ( Menu.h / 2 );
 
 	Radar.x = 20;
 	Radar.y = 20;
@@ -136,32 +136,32 @@ bool mouse2holdreleased = false;
 
 void Stuff::Mouse::Wrapper( )
 {
-	if( GetAsyncKeyState( VK_LBUTTON ) & 1 ) mouse1pressed = true;
-	else if( !( GetAsyncKeyState( VK_LBUTTON ) & 1 ) )
+	if( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 ) mouse1pressed = true;
+	else if( !( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 ) )
 	{
 		if( mouse1pressed ) mouse1released = true;
 		else mouse1released = false;
 		mouse1pressed = false;
 	}
 
-	if( ( GetAsyncKeyState( VK_RBUTTON ) & 1 ) ) mouse2pressed = true;
-	else if( !( GetAsyncKeyState( VK_RBUTTON ) & 1 ) )
+	if( ( GetAsyncKeyState( VK_RBUTTON ) & 0x8000 ) ) mouse2pressed = true;
+	else if( !( GetAsyncKeyState( VK_RBUTTON ) & 0x8000 ) )
 	{
 		if( mouse2pressed ) mouse2released = true;
 		else mouse2released = false;
 		mouse2pressed = false;
 	}
 
-	if( GetAsyncKeyState( VK_LBUTTON ) ) mouse1holdpressed = true;
-	else if( !( GetAsyncKeyState( VK_LBUTTON ) ) )
+	if( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 ) mouse1holdpressed = true;
+	else if( !( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 ) )
 	{
 		if( mouse1holdpressed ) mouse1holdreleased = true;
 		else  mouse1holdreleased = false;
 		mouse1holdpressed = false;
 	}
 
-	if( ( GetAsyncKeyState( VK_RBUTTON ) ) ) mouse2holdpressed = true;
-	else if( !( GetAsyncKeyState( VK_RBUTTON ) ) )
+	if( ( GetAsyncKeyState( VK_RBUTTON ) & 0x8000 ) ) mouse2holdpressed = true;
+	else if( !( GetAsyncKeyState( VK_RBUTTON ) & 0x8000 ) )
 	{
 		if( mouse2holdpressed ) mouse2holdreleased = true;
 		else mouse2holdreleased = false;
@@ -222,15 +222,15 @@ void Stuff::Mouse::DragRadar( int &x, int &y, int w, int h )
 	{
 		if( !pos )
 		{
-			dx = mouse_x - g_CVars.Menu.x;
-			dy = mouse_y - g_CVars.Menu.y;
+			dx = mouse_x - g_CVars.Radar.x;
+			dy = mouse_y - g_CVars.Radar.y;
 			pos = true;
 		}
 
-		g_CVars.Menu.x = mouse_x;
-		g_CVars.Menu.y = mouse_y;
-		g_CVars.Menu.x -= dx;
-		g_CVars.Menu.y -= dy;
+		g_CVars.Radar.x = mouse_x;
+		g_CVars.Radar.y = mouse_y;
+		g_CVars.Radar.x -= dx;
+		g_CVars.Radar.y -= dy;
 	}
 	else pos = false;
 }
@@ -395,6 +395,9 @@ void Stuff::ForceCVars( )
 	static ConVar* cvar_sv_maxupdaterate = g_pCvar->FindVar( /*sv_maxupdaterate*/XorStr<0x59,17,0x8813350D>("\x2A\x2C\x04\x31\x3C\x26\x2A\x10\x05\x03\x17\x01\x17\x07\x13\x0D"+0x8813350D).s );
 	static ConVar* cvar_sv_client_min_interp_ratio = g_pCvar->FindVar( /*sv_client_min_interp_ratio*/XorStr<0x81,27,0x45846C2E>("\xF2\xF4\xDC\xE7\xE9\xEF\xE2\xE6\xFD\xD5\xE6\xE5\xE3\xD1\xE6\xFE\xE5\xF7\xE1\xE4\xCA\xE4\xF6\xEC\xF0\xF5"+0x45846C2E).s );
 	static ConVar* cvar_sv_client_max_interp_ratio = g_pCvar->FindVar( /*sv_client_max_interp_ratio*/XorStr<0xAC,27,0x4AC3C6D1>("\xDF\xDB\xF1\xCC\xDC\xD8\xD7\xDD\xC0\xEA\xDB\xD6\xC0\xE6\xD3\xD5\xC8\xD8\xCC\xCF\x9F\xB3\xA3\xB7\xAD\xAA"+0x4AC3C6D1).s );
+
+	if( !cvar_cl_interp_ratio || !cvar_cl_interp || !cvar_cl_updaterate || !cvar_sv_maxupdaterate || !cvar_sv_minupdaterate || !cvar_sv_client_min_interp_ratio || !cvar_sv_client_max_interp_ratio || !sv_cheats || !r_lightaverage )
+		return;
 
 	if( cvar_cl_interp_ratio->GetInt( ) == 2 ) cvar_cl_interp_ratio->SetValue( 1 );
 	float cl_interp = cvar_cl_interp->GetFloat( );

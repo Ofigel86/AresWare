@@ -9,7 +9,7 @@ bool Aimbot::CheckVisible( Vector& vecAbsStart, Vector& vecAbsEnd, BasePlayer* T
 
 	trace_t Trace;
 	Ray_t Ray;
-	TraceFilterSkipTwoEntities TraceFilter( Target, 0 );
+	TraceFilterSkipTwoEntities TraceFilter( Target, LocalPlayer );
 
 	// todo: proper vis check
 
@@ -26,7 +26,7 @@ bool Aimbot::CheckVisibleAWallCheck( Vector& vecAbsStart, Vector& vecAbsEnd, Bas
 
 	trace_t Trace;
 	Ray_t Ray;
-	TraceFilterSkipTwoEntities traceFilter( Target, 0 );
+	TraceFilterSkipTwoEntities traceFilter( Target, LocalPlayer );
 
 	// todo: proper vis check
 

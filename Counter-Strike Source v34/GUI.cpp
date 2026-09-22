@@ -21,10 +21,11 @@ static void ColorToFloat3( const Color& c, float out[ 3 ] )
 
 static Color Float3ToColor( const float in[ 3 ] )
 {
+	auto clampByte = []( float v ) -> int { int iv = ( int )( v * 255.0f ); if( iv < 0 ) return 0; if( iv > 255 ) return 255; return iv; };
 	return Color(
-		( int )( in[ 0 ] * 255.0f ),
-		( int )( in[ 1 ] * 255.0f ),
-		( int )( in[ 2 ] * 255.0f ),
+		clampByte( in[ 0 ] ),
+		clampByte( in[ 1 ] ),
+		clampByte( in[ 2 ] ),
 		255
 	);
 }

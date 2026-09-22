@@ -17,15 +17,22 @@ CMovementRecorder::CMovementRecorder( )
 	AutoPlayer = false;
 }
 
+CMovementRecorder::~CMovementRecorder( )
+{
+	delete[] Movements;
+	delete[] DrawPath;
+	delete[] TempCmd;
+}
+
 std::string szDirFileDemosDll( const char* pszName )
 {
-	char appdata[ 0xFF ];
-	strcpy( appdata, /*C:\\*/XorStr<0x5E,4,0x2C453A01>("\x1D\x65\x3C"+0x2C453A01).s ); //m_pszDllPath );	
-	strcat( appdata, /*\\Demos\\*/XorStr<0x8C,8,0xB5FB852C>("\xD0\xC9\xEB\xE2\xFF\xE2\xCE"+0xB5FB852C).s );
-	strcat( appdata, pszName );
+	char appdata[ MAX_PATH ];
+	const char* prefix = /*C:\\*/XorStr<0x5E,4,0x2C453A01>("\x1D\x65\x3C"+0x2C453A01).s;
+	const char* demos = /*\\Demos\\*/XorStr<0x8C,8,0xB5FB852C>("\xD0\xC9\xEB\xE2\xFF\xE2\xCE"+0xB5FB852C).s;
+	snprintf( appdata, sizeof(appdata), "%s%s%s", prefix, demos, pszName ? pszName : "" );
 	puts( appdata );
 
-	return appdata;
+	return std::string( appdata );
 }
 
 float GetSpeedByDistance( float distance )
