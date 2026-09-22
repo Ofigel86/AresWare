@@ -1,6 +1,11 @@
 #include "Main.h"
 #include "SDK/checksum_md5.h"
 
+unsigned int MD5_PseudoRandom(unsigned int nSeed)
+{
+	return (nSeed * 1103515245u + 12345u) & 0x7fffffff;
+}
+
 CVars g_CVars;
 Stuff g_Stuff;
 

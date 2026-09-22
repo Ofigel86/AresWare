@@ -185,7 +185,6 @@
     <ClCompile Include="Recorder.cpp" />
     <ClCompile Include="OverrideView.cpp" />
     <ClCompile Include="RunCommand.cpp" />
-    <ClCompile Include="SDK\checksum_md5.cpp" />
     <ClCompile Include="SDK\NetvarManager.cpp" />
     <ClCompile Include="Stuff.cpp" />
     <ClCompile Include="VMTHook.cpp" />
