@@ -24,33 +24,29 @@ static bool angelfix = false;
 
 void AntiAimPitch( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 {
-	// note: lisp doesnt do shit in css, needs max float
 
 	switch( g_CVars.Miscellaneous.AntiAim.Pitch )
 	{
 		case 0: break;
-		case 1: pCmd->viewangles.x = 180.f; break;																// normal
-		case 2: pCmd->viewangles.x = -180.f; break; 															// inverse normal
-		case 3: pCmd->viewangles.x = 70.f; break;																// safe
-		case 4: pCmd->viewangles.x = -179.990005f; break; 														// fakedown
-		case 5: pCmd->viewangles.x = 697049.f; break;															// lisp down
-		case 6: pCmd->viewangles.x = 696871.f; break; 															// lisp up
-		case 7: pCmd->viewangles.x = ( bSendPacket ) ? 697049.f : 696871.f; break; 								// fake lisp down
-		case 8: pCmd->viewangles.x = ( bSendPacket ) ? 696871.f : 697049.f; break; 								// fake lisp up
+		case 1: pCmd->viewangles.x = 180.f; break;
+		case 2: pCmd->viewangles.x = -180.f; break;
+		case 3: pCmd->viewangles.x = 70.f; break;
+		case 4: pCmd->viewangles.x = -179.990005f; break;
+		case 5: pCmd->viewangles.x = 697049.f; break;
+		case 6: pCmd->viewangles.x = 696871.f; break;
+		case 7: pCmd->viewangles.x = ( bSendPacket ) ? 697049.f : 696871.f; break;
+		case 8: pCmd->viewangles.x = ( bSendPacket ) ? 696871.f : 697049.f; break;
 	}
 }
-
-static bool twitch, twitchfake, edgetwitch, edgetwitchfake;
 
 void AntiAimYaw( CUserCmd* pCmd, BasePlayer* LocalPlayer, bool fake, bool half )
 {
 	Vector Velocity = LocalPlayer->m_vecVelocity( );
-	
 	if( fake )
 	{
 		switch( g_CVars.Miscellaneous.AntiAim.Yaw )
 		{
-			case 0: 
+			case 0:
 			{
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
@@ -85,14 +81,13 @@ void AntiAimYaw( CUserCmd* pCmd, BasePlayer* LocalPlayer, bool fake, bool half )
 			}
 			case 3:
 			{
-				twitchfake = !twitch;
-				twitchfake = !twitchfake;
+				bool jitter = (pCmd->command_number % 2) == 0;
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					case 0: pCmd->viewangles.y += ( twitchfake ) ? 180.f : 0.f; break;
-					case 1: pCmd->viewangles.y += 180.f + ( ( twitchfake ) ? -179.990005f : 0.f ); break;
-					case 2: pCmd->viewangles.y = ( twitchfake ) ? 90.f : -90.f; break;
-					case 3: pCmd->viewangles.y = 180.f + ( ( twitchfake ) ? 90.f : -89.990005f ); break;
+					case 0: pCmd->viewangles.y += jitter ? 180.f : 0.f; break;
+					case 1: pCmd->viewangles.y += 180.f + (jitter ? -179.990005f : 0.f); break;
+					case 2: pCmd->viewangles.y = jitter ? 90.f : -90.f; break;
+					case 3: pCmd->viewangles.y = 180.f + (jitter ? 90.f : -89.990005f); break;
 				}
 				break;
 			}
@@ -120,13 +115,12 @@ void AntiAimYaw( CUserCmd* pCmd, BasePlayer* LocalPlayer, bool fake, bool half )
 			}
 			case 6:
 			{
+				bool jitter = (pCmd->command_number % 2) == 0;
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					twitchfake = !twitch;
-					twitchfake = !twitchfake;
 					case 0: pCmd->viewangles.y += 697075.087936f; break;
 					case 1: pCmd->viewangles.y += 697018.087936f; break;
-					case 2: pCmd->viewangles.y += ( twitchfake ) ? 696960.f : 697140.f; break;
+					case 2: pCmd->viewangles.y += jitter ? 696960.f : 697140.f; break;
 					case 3:
 					{
 						int value = ( g_iGameTicks % 4 );
@@ -161,13 +155,13 @@ void AntiAimYaw( CUserCmd* pCmd, BasePlayer* LocalPlayer, bool fake, bool half )
 			case 2: pCmd->viewangles.y += 270.f; break;
 			case 3:
 			{
-				twitch = !twitch;
+				bool jitter = (pCmd->command_number % 2) == 0;
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					case 0: pCmd->viewangles.y += ( twitch ) ? 180.f : 0.f; break;
-					case 1: pCmd->viewangles.y += 180.f + ( ( twitch ) ? -179.990005f : 0.f ); break;
-					case 2: pCmd->viewangles.y = ( twitch ) ? 90.f : -90.f; break;
-					case 3: pCmd->viewangles.y = 180.f + ( ( twitch ) ? 90.f : -89.990005f ); break;
+					case 0: pCmd->viewangles.y += jitter ? 0.f : 180.f; break;
+					case 1: pCmd->viewangles.y += 180.f + (jitter ? 0.f : -179.990005f); break;
+					case 2: pCmd->viewangles.y = jitter ? -90.f : 90.f; break;
+					case 3: pCmd->viewangles.y = 180.f + (jitter ? -89.990005f : 90.f); break;
 				}
 				break;
 			}
@@ -175,16 +169,16 @@ void AntiAimYaw( CUserCmd* pCmd, BasePlayer* LocalPlayer, bool fake, bool half )
 			case 5: pCmd->viewangles.y = 0.f; break;
 			case 6:
 			{
-				twitch = !twitch;
+				bool jitter = (pCmd->command_number % 2) == 0;
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
 					case 0: pCmd->viewangles.y -= 696805.f; break;
 					case 1: pCmd->viewangles.y -= 696805.f; break;
-					case 2: pCmd->viewangles.y += ( twitch ) ? 696960.f : 697140.f; break; 
-					case 3: // fake 4-step spin
+					case 2: pCmd->viewangles.y += jitter ? 696960.f : 697140.f; break;
+					case 3:
 					{
 						int value = ( g_iGameTicks % 4 );
-						switch ( value ) 
+						switch ( value )
 						{
 							case 0: pCmd->viewangles.y = 696960.f; break;
 							case 1: pCmd->viewangles.y = 697050.f; break;
@@ -226,7 +220,6 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 	}
 	else tmpLagticks = LagValue;
 
-	// creds to machete for giving me this brilliant idea lol
 	int DeltaTicks = _clamp( abs( queue - tmpLagticks ), 0, 15 );
 
 	if( g_CVars.Miscellaneous.Fakelag.Active )
@@ -242,7 +235,7 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 				if( DeltaTicks > 0 ) ShouldChoke = true;
 			}
 		}
-		else if( g_CVars.Miscellaneous.Fakelag.Mode == 2 ) // thx polak
+		else if( g_CVars.Miscellaneous.Fakelag.Mode == 2 )
 		{
 			float Velocity2D = Velocity.Length2D( ) * g_pGlobals->interval_per_tick;
 
@@ -327,14 +320,13 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 			{
 				if( bSendPacket )
 				{
-					edgetwitch = !edgetwitch;
-					WallDTC = g_Stuff.AntiAim.WallDetection( LocalPlayer, pCmd, ( edgetwitch ) ? 0.f : 180.f );
+					bool jitter = (pCmd->command_number % 2) == 0;
+					WallDTC = g_Stuff.AntiAim.WallDetection( LocalPlayer, pCmd, jitter ? 0.f : 180.f );
 				}
 				else
 				{
-					edgetwitchfake = !edgetwitch;
-					edgetwitchfake = !edgetwitchfake;
-					WallDTC = g_Stuff.AntiAim.WallDetection( LocalPlayer, pCmd, ( edgetwitch ) ? 0.f : 180.f );
+					bool jitter = (pCmd->command_number % 2) == 0;
+					WallDTC = g_Stuff.AntiAim.WallDetection( LocalPlayer, pCmd, jitter ? 180.f : 0.f );
 				}
 			}
 		}
@@ -453,24 +445,24 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 
 	g_iGameTicks++;
 
-	if( g_CVars.MovementRecorder.Active ) // todo: fix
+	if( g_CVars.MovementRecorder.Active )
 	{
-		if( GetAsyncKeyState( VK_F6 ) ) MovementRecorder.State = RECORDING; // record
-		if( GetAsyncKeyState( VK_F7 ) ) // save
+		if( GetAsyncKeyState( VK_F6 ) ) MovementRecorder.State = RECORDING;
+		if( GetAsyncKeyState( VK_F7 ) )
 		{
 			g_Macro.CurrentName = /*demo_1*/XorStr<0x15,7,0xEF9CCFF8>("\x71\x73\x7A\x77\x46\x2B"+0xEF9CCFF8).s;
 			g_Macro.Save = true;
 			g_Macro.Load = false;
 		}
-		if( GetAsyncKeyState( VK_F8 ) ) // load
+		if( GetAsyncKeyState( VK_F8 ) )
 		{
 			g_Macro.CurrentName = /*demo_1*/XorStr<0x3E,7,0x37290FEA>("\x5A\x5A\x2D\x2E\x1D\x72"+0x37290FEA).s;
 			g_Macro.Load = true;
 			g_Macro.Save = false;
 		}
-		if( GetAsyncKeyState( VK_F9 ) ) MovementRecorder.State = PLAYING; // play
-		if( GetAsyncKeyState( VK_F10 ) ) MovementRecorder.State = NOTHING; // stop playing/recording
-		if( GetAsyncKeyState( VK_F11 ) ) MovementRecorder.State = STARTPOS; // find startposition
+		if( GetAsyncKeyState( VK_F9 ) ) MovementRecorder.State = PLAYING;
+		if( GetAsyncKeyState( VK_F10 ) ) MovementRecorder.State = NOTHING;
+		if( GetAsyncKeyState( VK_F11 ) ) MovementRecorder.State = STARTPOS;
 
 		MovementRecorder.RecordMovement( pCmd, LocalPlayer, pCmd->viewangles );
 	}
@@ -478,7 +470,6 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 	if( LocalPlayer->m_lifeState( ) != 0 ) return;
 
 	if( g_CVars.Miscellaneous.BunnyHop ) g_Stuff.BunnyHop( pCmd, LocalPlayer );
-	//if( g_CVars.Miscellaneous.EdgeJump ) g_Stuff.EdgeJump( pCmd, LocalPlayer );
 
 	g_Prediction.Start( pCmd, LocalPlayer );
 	EyePosition = LocalPlayer->EyePosition( );
@@ -500,7 +491,7 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 				delta_y = g_Stuff.GuwopNormalize( pCmd->viewangles.y - tmp.y );
 
 				if( g_CVars.Aimbot.AngleLimit >= 180 ) limit = 180;
-				else limit = float( g_CVars.Aimbot.AngleLimit ) + g_CVars.Aimbot.AngleLimitTens; // eks dee
+				else limit = float( g_CVars.Aimbot.AngleLimit ) + g_CVars.Aimbot.AngleLimitTens;
 
 				if( !( ( delta_x < limit && delta_x > -limit ) && ( delta_y < limit && delta_y > -limit ) ) ) pCmd->viewangles = tmp;
 			}
@@ -559,7 +550,6 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 
 	if( g_CVars.Miscellaneous.AirStuck )
 	{
-		// todo: fix local pos so the shots while stuck are accurate
 		if( GetAsyncKeyState( 'F' ) & 1 ) g_CVars.Miscellaneous.AirStuckPress = !g_CVars.Miscellaneous.AirStuckPress;
 
 		if( g_CVars.Miscellaneous.AirStuckPress )
