@@ -96,6 +96,74 @@ void HitESP( )
 	}
 }
 
+// dormant ESP storage - last known positions - size 65 to include index 64
+static Vector g_DormantOrigin[65];
+static float g_DormantLastSeen[65];
+static bool g_DormantValid[65] = {false};
+
+void DrawOutOfFOVArrow( BasePlayer* Ent, Color col )
+{
+	// out of fov arrow - shows enemies outside screen - safe, no crash on map enter
+	if( !Ent ) return;
+	if( screen_x < 100 || screen_y < 100 ) return;
+	BasePlayer* LocalPlayer = nullptr;
+	__try
+	{
+		LocalPlayer = ( BasePlayer* )g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER) { return; }
+	if( !LocalPlayer ) return;
+
+	Vector localPos, entPos;
+	__try
+	{
+		localPos = LocalPlayer->GetAbsOrigin( );
+		entPos = Ent->GetAbsOrigin( );
+		if( localPos == Vector(0,0,0) || entPos == Vector(0,0,0) ) return;
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER) { return; }
+
+	QAngle viewAngles;
+	g_pEngineClient->GetViewAngles( viewAngles );
+
+	float yaw = 0.f;
+	__try
+	{
+		yaw = DEG2RAD( viewAngles.y - RAD2DEG( atan2f( entPos.y - localPos.y, entPos.x - localPos.x ) ) - 90.f );
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER) { return; }
+
+	float radius = 200.f;
+	float arrowSize = 15.f;
+	int centerX = screen_x / 2;
+	int centerY = screen_y / 2;
+
+	float x = centerX + radius * cosf( yaw );
+	float y = centerY + radius * sinf( yaw );
+
+	// clamp to screen edge - safe
+	if( x < 50 ) x = 50;
+	if( x > screen_x - 50 ) x = screen_x - 50;
+	if( y < 50 ) y = 50;
+	if( y > screen_y - 50 ) y = screen_y - 50;
+
+	if( x < 0 || y < 0 || x > screen_x || y > screen_y ) return;
+
+	// draw triangle arrow pointing to enemy - safe
+	__try
+	{
+		Vector p1( x, y, 0 );
+		Vector p2( x - arrowSize * cosf( yaw - DEG2RAD(30) ), y - arrowSize * sinf( yaw - DEG2RAD(30) ), 0 );
+		Vector p3( x - arrowSize * cosf( yaw + DEG2RAD(30) ), y - arrowSize * sinf( yaw + DEG2RAD(30) ), 0 );
+
+		g_Drawing.Line( p1.x, p1.y, p2.x, p2.y, col );
+		g_Drawing.Line( p2.x, p2.y, p3.x, p3.y, col );
+		g_Drawing.Line( p3.x, p3.y, p1.x, p1.y, col );
+		g_Drawing.FilledRect( x-2, y-2, 4, 4, col );
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER) {}
+}
+
 void BoundingBoxESP( )
 {
 	BasePlayer* LocalPlayer = ( BasePlayer* )g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
@@ -114,16 +182,44 @@ void BoundingBoxESP( )
 
 	for( int Index = 1; Index <= g_pGlobals->maxClients; Index++ )
 	{
-		BasePlayer* Ent = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( Index );
+		BasePlayer* Ent = nullptr;
+		__try { Ent = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( Index ); }
+		__except(EXCEPTION_EXECUTE_HANDLER) { continue; }
 		if( !Ent || Ent == LocalPlayer ) continue;
-		if( Ent->IsDormant( ) ) continue;
-		if( !( Ent->m_lifeState( ) == 0 ) ) continue;
-		if( g_CVars.Visuals.ESP.EnemyOnly )
+		__try
 		{
-			if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
+			if( !( Ent->m_lifeState( ) == 0 ) ) continue;
+			if( g_CVars.Visuals.ESP.EnemyOnly )
+			{
+				if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
+			}
+		}
+		__except(EXCEPTION_EXECUTE_HANDLER) { continue; }
+
+		bool bDormant = false;
+		__try { bDormant = Ent->IsDormant( ); }
+		__except(EXCEPTION_EXECUTE_HANDLER) { continue; }
+		if( bDormant && !g_CVars.Visuals.ESP.Dormant ) continue; // dormant ESP disabled
+		Vector vPlayerFoot;
+
+		if( bDormant )
+		{
+			// dormant ESP - use last known position, make gray, no text dormant
+			if( !g_DormantValid[Index] ) continue; // no last pos
+			// if dormant too long (>10 sec) don't show
+			if( g_pGlobals->curtime - g_DormantLastSeen[Index] > 10.f ) continue;
+			vPlayerFoot = g_DormantOrigin[Index];
+		}
+		else
+		{
+			vPlayerFoot = Ent->GetAbsOrigin( );
+			// save for dormant
+			g_DormantOrigin[Index] = vPlayerFoot;
+			g_DormantLastSeen[Index] = g_pGlobals->curtime;
+			g_DormantValid[Index] = true;
 		}
 
-		Vector vPlayerFoot, vPlayerFootScreen, vPlayerHead, vPlayerHeadScreen;
+		Vector vPlayerFootScreen, vPlayerHead, vPlayerHeadScreen;
 
 		if( g_CVars.PlayerList.Friend[ Index ] )
 		{
@@ -131,34 +227,53 @@ void BoundingBoxESP( )
 		}
 		else
 		{
-			if( Ent->m_iTeamNum( ) == 2 ) colour = g_CVars.ColorSelector.ESP.TT; //Color::Red( );
-			else if( Ent->m_iTeamNum( ) == 3 ) colour = g_CVars.ColorSelector.ESP.CT; //Color::LightBlue( );
+			if( Ent->m_iTeamNum( ) == 2 ) colour = g_CVars.ColorSelector.ESP.TT;
+			else if( Ent->m_iTeamNum( ) == 3 ) colour = g_CVars.ColorSelector.ESP.CT;
 		}
 
-		vPlayerFoot = Ent->GetAbsOrigin( );
-		bool bDucking = Ent->m_fFlags( ) & FL_DUCKING;
+		// dormant = gray, transparent
+		Color drawCol = colour;
+		Color textCol = Color( 255, 255, 255, 200 );
+		if( bDormant )
+		{
+			drawCol = Color( 130, 130, 130, 100 ); // серый для дорманта, без надписи dormant
+			textCol = Color( 180, 180, 180, 150 );
+		}
+
+		bool bDucking = false;
+		if( !bDormant ) bDucking = Ent->m_fFlags( ) & FL_DUCKING;
 		if( bDucking ) vPlayerHead = vPlayerFoot + Vector( 0.f, 0.f, 53.5f );
 		else vPlayerHead = vPlayerFoot + Vector( 0.f, 0.f, 72.f );
 
-		if( !g_Stuff.WorldToScreen( vPlayerFoot, vPlayerFootScreen ) ) continue;
-		if( !g_Stuff.WorldToScreen( vPlayerHead, vPlayerHeadScreen ) ) continue;
+		bool bOnScreenFoot = g_Stuff.WorldToScreen( vPlayerFoot, vPlayerFootScreen );
+		bool bOnScreenHead = g_Stuff.WorldToScreen( vPlayerHead, vPlayerHeadScreen );
 
-		if( g_CVars.Visuals.ESP.Bone ) g_Drawing.DrawBones( Ent, Color( 255, 255, 255, 160 ) );
+		// out of fov arrow - if not on screen, draw arrow
+		if( !bOnScreenFoot || !bOnScreenHead )
+		{
+			if( !bDormant && g_CVars.Visuals.ESP.OutOfFOV ) // don't show oof for dormant, check config
+			{
+				DrawOutOfFOVArrow( Ent, drawCol );
+			}
+			continue;
+		}
+
+		if( !bDormant && g_CVars.Visuals.ESP.Bone ) g_Drawing.DrawBones( Ent, Color( 255, 255, 255, 160 ) );
 
 		float Height = vPlayerFootScreen.y - vPlayerHeadScreen.y;
 		float HalfWidth = Height * .225f;
 		if( bDucking ) HalfWidth *= 1.345794392523364f;
 
 		Vector box = Vector( ( vPlayerHeadScreen.x - HalfWidth ), vPlayerHeadScreen.y, 0.f );
-		if( g_CVars.Visuals.ESP.Box ) g_Drawing.OutlinedBox( box.x, box.y, ( HalfWidth * 2 ), Height, Color( colour.r( ), colour.g( ), colour.b( ), 160 ), Color( 0, 0, 0, 128 ) );
+		if( g_CVars.Visuals.ESP.Box ) g_Drawing.OutlinedBox( box.x, box.y, ( HalfWidth * 2 ), Height, Color( drawCol.r( ), drawCol.g( ), drawCol.b( ), bDormant ? 100 : 160 ), Color( 0, 0, 0, bDormant ? 80 : 128 ) );
 
-		if( g_CVars.Visuals.ESP.AimSpot ) g_Drawing.DrawAimSpot( Ent, g_CVars.Aimbot.Hitbox, Color( 255, 255, 255, 160 ) );
+		if( !bDormant && g_CVars.Visuals.ESP.AimSpot ) g_Drawing.DrawAimSpot( Ent, g_CVars.Aimbot.Hitbox, Color( 255, 255, 255, 160 ) );
 
 		g_pEngineClient->GetPlayerInfo( Index, &PlayerInfo );
 
 		if( g_CVars.Visuals.ESP.Name )
 		{
-			g_Drawing.MenuStringNormal( true, false, box.x + HalfWidth, box.y - 13, Color( 255, 255, 255, 200 ),
+			g_Drawing.MenuStringNormal( true, false, box.x + HalfWidth, box.y - 13, textCol,
 				( g_CVars.PlayerList.Friend[ Index ] ) ? /*Friend: %s*/XorStr<0xE1,11,0x9B2BE55F>("\xA7\x90\x8A\x81\x8B\x82\xDD\xC8\xCC\x99"+0x9B2BE55F).s : /*%s*/XorStr<0x72,3,0x0FA22CF9>("\x57\x00"+0x0FA22CF9).s, PlayerInfo.name );
 		}
 
@@ -180,11 +295,15 @@ void BoundingBoxESP( )
 
 				g_Drawing.OutlinedRect( box.x - 1, box.y - 1, ( HalfWidth * 2 ) + 2, 4, patch );
 				g_Drawing.FilledRect( box.x, box.y, ( HalfWidth * 2 ), 2, patch );
-				g_Drawing.FilledRect( box.x, box.y, ( ( Health / ( double ) maxhp ) * ( HalfWidth * 2 ) ), 2, Color( ( 255 - Scale ), Scale, 0, 160 ) );
+				if( bDormant )
+					g_Drawing.FilledRect( box.x, box.y, ( ( Health / ( double ) maxhp ) * ( HalfWidth * 2 ) ), 2, Color( 100, 100, 100, 100 ) );
+				else
+					g_Drawing.FilledRect( box.x, box.y, ( ( Health / ( double ) maxhp ) * ( HalfWidth * 2 ) ), 2, Color( ( 255 - Scale ), Scale, 0, bDormant ? 100 : 160 ) );
 			}
 		}
  
-		CSWeapon* Weapon = ( CSWeapon* ) Ent->GetActiveBaseCombatWeapon( );
+		CSWeapon* Weapon = nullptr;
+		if( !bDormant ) Weapon = ( CSWeapon* ) Ent->GetActiveBaseCombatWeapon( );
 		if( Weapon )
 		{
 			if( g_CVars.Visuals.ESP.Health ) box.y += 3;
@@ -202,13 +321,13 @@ void BoundingBoxESP( )
 				++c;
 			}
 
-			if( g_CVars.Visuals.ESP.Weapon ) g_Drawing.MenuStringNormal( true, false, box.x + HalfWidth, box.y, Color( 255, 255, 255, 200 ), /*%s*/XorStr<0x20,3,0x3EFE7DA2>("\x05\x52"+0x3EFE7DA2).s, weaponName );
+			if( g_CVars.Visuals.ESP.Weapon ) g_Drawing.MenuStringNormal( true, false, box.x + HalfWidth, box.y, textCol, /*%s*/XorStr<0x20,3,0x3EFE7DA2>("\x05\x52"+0x3EFE7DA2).s, weaponName );
 		}
 
 		Vector clientorigin = pBackupData[ Index ].m_Origin;
 		Vector serverorigin = pPlayerHistory[ Index ][ 0 ].m_Origin;
 
-		if( g_CVars.Aimbot.Interpolation.LagPrediction > 0 && clientorigin != Vector( 0, 0, 0 ) && serverorigin != Vector( 0, 0, 0 ) )
+		if( !bDormant && g_CVars.Aimbot.Interpolation.LagPrediction > 0 && clientorigin != Vector( 0, 0, 0 ) && serverorigin != Vector( 0, 0, 0 ) )
 		{
 			Vector w2s[ 2 ];
 
