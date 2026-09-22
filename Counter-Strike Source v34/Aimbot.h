@@ -61,8 +61,12 @@ public:
 	bool CheckVisible( Vector&, Vector&, BasePlayer*, BasePlayer* );
 	bool CheckVisibleAWallCheck( Vector&, Vector&, BasePlayer*, BasePlayer* );
 	void GetHitbox( int, BasePlayer* );
+	matrix3x4_t* GetBoneMatrix( BasePlayer* );
 	bool GetBone( int, BasePlayer*, Vector& );
 	int GetTotalDamage( BaseEntity*, CSWeapon*, BaseEntity** );
+	float AngleDeviation( const Vector&, CUserCmd* );
+	bool ScanTarget( BasePlayer*, BasePlayer*, const int*, int, bool, Vector& );
+	void ApplyAngles( CUserCmd* );
 	void Reset( );
 	void Main( CUserCmd*, BasePlayer* );
 	Vector vecDirection, vecFinalDirection, TempDirection;
@@ -70,9 +74,16 @@ public:
 	int Shots[ 64 ];
 	int TargetIndex, Temp;
 	float Distance;
+	float Deviation;
 	bool IsAimbotting;
 	QAngle qFinalAngle;
 	Vector mins[ 64 ], maxs[ 64 ];
+	matrix3x4_t BoneCache[ 128 ];
+	int BoneCacheIndex;
+	// optimized bone cache per entity to avoid repeated SetupBones (FPS)
+	matrix3x4_t BoneCacheArray[ 64 ][ 128 ];
+	bool BoneCacheValid[ 64 ];
+	float BoneCacheSimTime[ 64 ];
 };
 
 extern Aimbot g_Aimbot;

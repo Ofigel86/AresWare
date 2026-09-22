@@ -2,6 +2,8 @@
 #ifndef __GUI_H_
 #define __GUI_H_
 
+class AimbotSettings;
+
 class GUI
 {
 public:
@@ -10,7 +12,10 @@ public:
 	void DrawImGui( void );
 
 private:
-	void RenderAimbotTab( void );
+	void RenderAimbotTab( void ); // legacy wrapper, now redirects to Rage
+	void RenderLegitTab( void );
+	void RenderRageTab( void );
+	void RenderAimbotCommon( AimbotSettings& profile, bool bIsLegit );
 	void RenderVisualsTab( void );
 	void RenderMiscTab( void );
 	void RenderPlayerListTab( void );

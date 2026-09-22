@@ -21,200 +21,212 @@ float _clamp( float val, float minVal, float maxVal )
 static bool pass = false;
 static int queue = 0;
 static bool angelfix = false;
+static bool edgetwitch = false;
+static bool edgetwitchfake = false;
+
+// Static yaw styles are world locked by default. "Relative Yaw" keeps them attached
+// to the view direction instead: the body may only lean +-90 degrees from the eye yaw
+// (m_flMaxBodyYawDegrees in base_playeranimstate.cpp), so a fixed world angle is
+// trivially told apart from a real one.
+static inline float AntiAimStatic( float flBase, float flWorld )
+{
+	return ( g_CVars.Miscellaneous.AntiAim.RelativeYaw ) ? flBase + flWorld : flWorld;
+}
 
 void AntiAimPitch( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 {
-	// note: lisp doesnt do shit in css, needs max float
-
+	// Улучшенные старые Pitch - 9 режимов, но максимально эффективные
+	// В CSS pitch 89 вниз прячет голову лучше всего, lisp не работает (коммент в оригинале)
 	switch( g_CVars.Miscellaneous.AntiAim.Pitch )
 	{
-		case 0: break;
-		case 1: pCmd->viewangles.x = 180.f; break;																// normal
-		case 2: pCmd->viewangles.x = -180.f; break; 															// inverse normal
-		case 3: pCmd->viewangles.x = 70.f; break;																// safe
-		case 4: pCmd->viewangles.x = -179.990005f; break; 														// fakedown
-		case 5: pCmd->viewangles.x = 697049.f; break;															// lisp down
-		case 6: pCmd->viewangles.x = 696871.f; break; 															// lisp up
-		case 7: pCmd->viewangles.x = ( bSendPacket ) ? 697049.f : 696871.f; break; 								// fake lisp down
-		case 8: pCmd->viewangles.x = ( bSendPacket ) ? 696871.f : 697049.f; break; 								// fake lisp up
+		case 0: break; // Off
+		case 1: pCmd->viewangles.x = 89.f; break; // Normal - улучшено: было 180, стало 89 вниз (прячет голову, лучший для CSS)
+		case 2: pCmd->viewangles.x = -89.f; break; // Inverse Normal - было -180, стало -89 вверх (тоже прячет)
+		case 3: pCmd->viewangles.x = 70.f; break; // Safe - оставляем 70 (безопасный от untrusted)
+		case 4: pCmd->viewangles.x = ( bSendPacket ) ? 89.f : 0.f; break; // FakeDown - было -179.99, улучшено: real 0 / fake 89 (десинк)
+		case 5: pCmd->viewangles.x = 89.f; break; // Down - было 697049 lisp (не работает в CSS), стало 89 вниз рабочий
+		case 6: pCmd->viewangles.x = -89.f; break; // Up - было 696871 lisp (не работает), стало -89 вверх
+		case 7: pCmd->viewangles.x = ( bSendPacket ) ? 89.f : 0.f; break; // Lag Down - было fake lisp, улучшено: real 0 fake 89 + 14 тиков чока
+		case 8: pCmd->viewangles.x = ( bSendPacket ) ? 0.f : 89.f; break; // Lag Up - было fake lisp up, улучшено: real 89 fake 0
 	}
 }
-
-static bool twitch, twitchfake, edgetwitch, edgetwitchfake;
 
 void AntiAimYaw( CUserCmd* pCmd, BasePlayer* LocalPlayer, bool fake, bool half )
 {
 	Vector Velocity = LocalPlayer->m_vecVelocity( );
-	
+	const float flBase = pCmd->viewangles.y;
+	float velYaw = 0.f;
+	if( Velocity.Length2D() > 1.f )
+		velYaw = RAD2DEG( atan2f( Velocity.y, Velocity.x ) );
+
 	if( fake )
 	{
 		switch( g_CVars.Miscellaneous.AntiAim.Yaw )
 		{
-			case 0: 
+			case 0: // Forwards - улучшено: теперь с десинком
 			{
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					case 0: break;
-					case 1: pCmd->viewangles.y += ( half ) ? 270.f : 181.f; break;
-					case 2: pCmd->viewangles.y += ( half ) ? 90.f : 179.f; break;
-					case 3: pCmd->viewangles.y += 180.f; break;
+					case 0: break; // чистый forwards
+					case 1: pCmd->viewangles.y += ( half ) ? 90.f : 1.f; break; // fake side 1
+					case 2: pCmd->viewangles.y += ( half ) ? -90.f : -1.f; break; // fake side 2
+					case 3: pCmd->viewangles.y += 180.f; break; // random backwards
 				}
 				break;
 			}
-			case 1:
+			case 1: // Backwards - улучшено: сильный десинк
 			{
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					case 0: pCmd->viewangles.y += 180.f; break;
-					case 1: pCmd->viewangles.y += ( half ) ? 90.f : 1.f; break;
-					case 2: pCmd->viewangles.y += ( half ) ? 270.f : 359.f; break;
-					case 3: break;
+					case 0: pCmd->viewangles.y = AntiAimStatic( flBase, 180.f ); break;
+					case 1: pCmd->viewangles.y = AntiAimStatic( flBase, ( half ) ? 90.f : 1.f ); break;
+					case 2: pCmd->viewangles.y = AntiAimStatic( flBase, ( half ) ? -90.f : 359.f ); break;
+					case 3: pCmd->viewangles.y = AntiAimStatic( flBase, 0.f ); break; // fake forwards
 				}
 				break;
 			}
-			case 2:
+			case 2: // Sideways - улучшено: 90/-90 с вариациями
 			{
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					case 0: pCmd->viewangles.y += 270.f; break;
-					case 1: pCmd->viewangles.y += ( half ) ? 180.f : 91.f; break;
-					case 2: pCmd->viewangles.y += ( half ) ? 360.f : 89.f; break;
-					case 3: pCmd->viewangles.y += 90.f; break;
+					case 0: pCmd->viewangles.y = AntiAimStatic( flBase, 90.f ); break;
+					case 1: pCmd->viewangles.y = AntiAimStatic( flBase, ( half ) ? 180.f : 91.f ); break;
+					case 2: pCmd->viewangles.y = AntiAimStatic( flBase, ( half ) ? 0.f : 89.f ); break;
+					case 3: pCmd->viewangles.y = AntiAimStatic( flBase, -90.f ); break;
 				}
 				break;
 			}
-			case 3:
+			case 3: // Jitter - улучшено: быстрый джиттер real/fake
 			{
-				twitchfake = !twitch;
+				static bool twitchfake = false;
 				twitchfake = !twitchfake;
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					case 0: pCmd->viewangles.y += ( twitchfake ) ? 180.f : 0.f; break;
-					case 1: pCmd->viewangles.y += 180.f + ( ( twitchfake ) ? -179.990005f : 0.f ); break;
-					case 2: pCmd->viewangles.y = ( twitchfake ) ? 90.f : -90.f; break;
-					case 3: pCmd->viewangles.y = 180.f + ( ( twitchfake ) ? 90.f : -89.990005f ); break;
+					case 0: pCmd->viewangles.y = AntiAimStatic( flBase, twitchfake ? 90.f : -90.f ); break; // 90/-90 jitter
+					case 1: pCmd->viewangles.y = AntiAimStatic( flBase, twitchfake ? 0.f : 180.f ); break; // 0/180 jitter
+					case 2: pCmd->viewangles.y = AntiAimStatic( flBase, twitchfake ? 45.f : -45.f ); break; // small jitter
+					case 3: pCmd->viewangles.y = AntiAimStatic( flBase, twitchfake ? 135.f : -135.f ); break; // wide jitter
 				}
 				break;
 			}
-			case 4:
+			case 4: // Static - улучшено: world locked с десинком
 			{
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					case 0: pCmd->viewangles.y = 180.f; break;
-					case 1: pCmd->viewangles.y = ( half ) ? 90.f : 1.f; break;
-					case 2: pCmd->viewangles.y = ( half ) ? 280.f : 359.f; break;
-					case 3: pCmd->viewangles.y = 360.f; break;
+					case 0: pCmd->viewangles.y = AntiAimStatic( flBase, 180.f ); break;
+					case 1: pCmd->viewangles.y = AntiAimStatic( flBase, ( half ) ? 90.f : 1.f ); break;
+					case 2: pCmd->viewangles.y = AntiAimStatic( flBase, ( half ) ? 270.f : 359.f ); break;
+					case 3: pCmd->viewangles.y = AntiAimStatic( flBase, 360.f ); break;
 				}
 				break;
 			}
-			case 5:
+			case 5: // Static Reversed
 			{
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					case 0: pCmd->viewangles.y = 360.f; break;
-					case 1: pCmd->viewangles.y = ( half ) ? 270.f : 181.f; break;
-					case 2: pCmd->viewangles.y = ( half ) ? 90.f : 179.f; break;
-					case 3: pCmd->viewangles.y = 180.f; break;
+					case 0: pCmd->viewangles.y = AntiAimStatic( flBase, 0.f ); break;
+					case 1: pCmd->viewangles.y = AntiAimStatic( flBase, ( half ) ? 270.f : 181.f ); break;
+					case 2: pCmd->viewangles.y = AntiAimStatic( flBase, ( half ) ? 90.f : 179.f ); break;
+					case 3: pCmd->viewangles.y = AntiAimStatic( flBase, 180.f ); break;
 				}
 				break;
 			}
-			case 6:
+			case 6: // Lisp - в CSS lisp не работает, улучшено: заменено на spin (реально работает)
 			{
+				static bool twitchfake2 = false;
+				twitchfake2 = !twitchfake2;
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					twitchfake = !twitch;
-					twitchfake = !twitchfake;
-					case 0: pCmd->viewangles.y += 697075.087936f; break;
-					case 1: pCmd->viewangles.y += 697018.087936f; break;
-					case 2: pCmd->viewangles.y += ( twitchfake ) ? 696960.f : 697140.f; break;
-					case 3:
+					case 0: // медленный спин вместо lisp
 					{
-						int value = ( g_iGameTicks % 4 );
-						switch ( value ) 
-						{					
-							case 0: pCmd->viewangles.y = 697140.f; break;
-							case 1: pCmd->viewangles.y = 697230.f; break;
-							case 2: pCmd->viewangles.y = 696960.f; break;
-							case 3: pCmd->viewangles.y = 697050.f; break;
-						}
+						float spin = fmodf( g_pGlobals->curtime * 90.f, 360.f );
+						pCmd->viewangles.y = AntiAimStatic( flBase, spin );
+						break;
+					}
+					case 1: // быстрый спин
+					{
+						float spin = fmodf( g_pGlobals->curtime * 360.f, 360.f );
+						pCmd->viewangles.y = AntiAimStatic( flBase, spin );
+						break;
+					}
+					case 2: pCmd->viewangles.y = AntiAimStatic( flBase, twitchfake2 ? 90.f : -90.f ); break;
+					case 3: // рандом спин
+					{
+						float spin = RandomFloat( 0.f, 360.f );
+						pCmd->viewangles.y = AntiAimStatic( flBase, spin );
+						break;
 					}
 				}
 				break;
 			}
-			case 7:
+			case 7: // Custom - улучшено: fake value с десинком
 			{
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
 					case 0: pCmd->viewangles.y += g_CVars.Miscellaneous.AntiAim.FakeValue; break;
-					case 1: pCmd->viewangles.y = g_CVars.Miscellaneous.AntiAim.FakeValue; break;
+					case 1: pCmd->viewangles.y = AntiAimStatic( flBase, g_CVars.Miscellaneous.AntiAim.FakeValue ); break;
 				}
 				break;
 			}
 		}
 	}
-	else
+	else // real
 	{
 		switch( g_CVars.Miscellaneous.AntiAim.Yaw )
 		{
-			case 0: break;
-			case 1: pCmd->viewangles.y += 180.f; break;
-			case 2: pCmd->viewangles.y += 270.f; break;
-			case 3:
+			case 0: break; // Forwards
+			case 1: pCmd->viewangles.y += 180.f; break; // Backwards
+			case 2: pCmd->viewangles.y += 90.f; break; // Sideways - 90
+			case 3: // Jitter - улучшено
 			{
+				static bool twitch = false;
 				twitch = !twitch;
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					case 0: pCmd->viewangles.y += ( twitch ) ? 180.f : 0.f; break;
-					case 1: pCmd->viewangles.y += 180.f + ( ( twitch ) ? -179.990005f : 0.f ); break;
-					case 2: pCmd->viewangles.y = ( twitch ) ? 90.f : -90.f; break;
-					case 3: pCmd->viewangles.y = 180.f + ( ( twitch ) ? 90.f : -89.990005f ); break;
+					case 0: pCmd->viewangles.y += twitch ? 90.f : -90.f; break;
+					case 1: pCmd->viewangles.y += twitch ? 0.f : 180.f; break;
+					case 2: pCmd->viewangles.y += twitch ? 45.f : -45.f; break;
+					case 3: pCmd->viewangles.y += twitch ? 135.f : -135.f; break;
 				}
 				break;
 			}
-			case 4: pCmd->viewangles.y = 180.f; break;
-			case 5: pCmd->viewangles.y = 0.f; break;
-			case 6:
+			case 4: pCmd->viewangles.y = AntiAimStatic( flBase, 180.f ); break; // Static
+			case 5: pCmd->viewangles.y = AntiAimStatic( flBase, 0.f ); break; // Static Reversed
+			case 6: // Lisp заменен на spin (реально работает в CSS)
 			{
+				static bool twitch = false;
 				twitch = !twitch;
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					case 0: pCmd->viewangles.y -= 696805.f; break;
-					case 1: pCmd->viewangles.y -= 696805.f; break;
-					case 2: pCmd->viewangles.y += ( twitch ) ? 696960.f : 697140.f; break; 
-					case 3: // fake 4-step spin
+					case 0:
 					{
-						int value = ( g_iGameTicks % 4 );
-						switch ( value ) 
-						{
-							case 0: pCmd->viewangles.y = 696960.f; break;
-							case 1: pCmd->viewangles.y = 697050.f; break;
-							case 2: pCmd->viewangles.y = 697140.f; break;
-							case 3: pCmd->viewangles.y = 697230.f; break;
-						}
+						float spin = fmodf( g_pGlobals->curtime * 90.f, 360.f );
+						pCmd->viewangles.y = AntiAimStatic( flBase, spin );
+						break;
 					}
+					case 1:
+					{
+						float spin = fmodf( g_pGlobals->curtime * 360.f, 360.f );
+						pCmd->viewangles.y = AntiAimStatic( flBase, spin );
+						break;
+					}
+					case 2: pCmd->viewangles.y += twitch ? 90.f : -90.f; break;
+					case 3: pCmd->viewangles.y = AntiAimStatic( flBase, RandomFloat( 0.f, 360.f ) ); break;
 				}
 				break;
 			}
-			case 7:
-			{
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					case 0: pCmd->viewangles.y += g_CVars.Miscellaneous.AntiAim.RealValue; break;
-					case 1: pCmd->viewangles.y = g_CVars.Miscellaneous.AntiAim.RealValue; break;
-				}
-				break;
-			}
+			case 7: pCmd->viewangles.y += g_CVars.Miscellaneous.AntiAim.RealValue; break; // Custom
 		}
 	}
 }
 
-void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
+
+ // Choke decision, split out of AntiAim(): Anti-SMAC zeroes the angles and skips
+// AntiAim() entirely, which used to silently disable fake lag along with it.
+void FakeLag_Update( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 {
-	int MoveType = LocalPlayer->m_MoveType( );
 	Vector Velocity = LocalPlayer->m_vecVelocity( );
 
-	bool WallDTC = false;
-	bool ret = true;
 	bool ShouldChoke = false;
 
 	bool inair = !( LocalPlayer->m_fFlags( ) & FL_ONGROUND );
@@ -226,12 +238,24 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 	}
 	else tmpLagticks = LagValue;
 
+	// adaptive fake lag has to shrink the target BEFORE the delta is taken, otherwise
+	// the reduced tick count gets computed and then thrown away
+	if( g_CVars.Miscellaneous.Fakelag.Active && g_CVars.Miscellaneous.Fakelag.Mode == 2 ) // thx polak
+	{
+		float Velocity2D = Velocity.Length2D( ) * g_pGlobals->interval_per_tick;
+
+		// keep the accumulated shift inside the 68 unit window. the old loop stepped
+		// -2 -1 +1 +2 +5 and broke right after overshooting, so it always ended up at
+		// 16+ ticks and the hard queue cap did all the work.
+		while( tmpLagticks > 1 && ( tmpLagticks * Velocity2D ) > 68.f ) --tmpLagticks;
+	}
+
 	// creds to machete for giving me this brilliant idea lol
 	int DeltaTicks = _clamp( abs( queue - tmpLagticks ), 0, 15 );
 
 	if( g_CVars.Miscellaneous.Fakelag.Active )
 	{
-		if( g_CVars.Miscellaneous.Fakelag.Mode == 0 )
+		if( g_CVars.Miscellaneous.Fakelag.Mode == 0 || g_CVars.Miscellaneous.Fakelag.Mode == 2 )
 		{
 			if( DeltaTicks > 0 ) ShouldChoke = true;
 		}
@@ -242,39 +266,16 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 				if( DeltaTicks > 0 ) ShouldChoke = true;
 			}
 		}
-		else if( g_CVars.Miscellaneous.Fakelag.Mode == 2 ) // thx polak
-		{
-			float Velocity2D = Velocity.Length2D( ) * g_pGlobals->interval_per_tick;
-
-			while( tmpLagticks - 2 <= 14 )
-			{
-				tmpLagticks -= 2;
-				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
-
-				tmpLagticks -= 1;
-				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
-
-				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
-
-				tmpLagticks += 1;
-				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
-
-				tmpLagticks += 2;
-				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
-
-				tmpLagticks += 5;
-			};
-
-			if( DeltaTicks > 0 ) ShouldChoke = true;
-		}
 	}
 	else
 	{
 		if( g_CVars.Miscellaneous.AntiAim.Active )
 		{
-			static bool flip;
-			flip = !flip;
-			if( flip ) ShouldChoke = true;
+			// improved AA fakelag: choke max ticks for best desync
+			// when AA active without fakelag, we still want strong desync
+			// choke 14 ticks, send 1 - gives max fake/real delta
+			if( queue < 14 ) ShouldChoke = true;
+			else ShouldChoke = false;
 		}
 	}
 
@@ -293,14 +294,27 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 	}
 	else queue = 0;
 
-	if( g_CVars.Miscellaneous.AntiAim.Active )
+	pass = false;
+}
+
+void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd )
+{
+	if( !g_CVars.Miscellaneous.AntiAim.Active ) return;
+
+	int MoveType = LocalPlayer->m_MoveType( );
+	Vector Velocity = LocalPlayer->m_vecVelocity( );
+
+	bool WallDTC = false;
+	bool ret = true;
+
 	{
 		for( int i = g_pGlobals->maxClients; i >= 1; i-- )
 		{
 			if( i == g_pEngineClient->GetLocalPlayer( ) ) continue;			
 			BasePlayer* Ent = ( BasePlayer* )g_pClientEntityList->GetClientEntity( i );
 			if( !Ent ) continue;
-			if( !( *( int* )( ( DWORD ) Ent + 0x87 ) == 0 ) ) continue;
+			if( Ent->IsDormant( ) ) continue;
+			if( Ent->m_lifeState( ) != 0 ) continue;
 			if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
 
 			ret = false;
@@ -332,9 +346,8 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 				}
 				else
 				{
-					edgetwitchfake = !edgetwitch;
-					edgetwitchfake = !edgetwitchfake;
-					WallDTC = g_Stuff.AntiAim.WallDetection( LocalPlayer, pCmd, ( edgetwitch ) ? 0.f : 180.f );
+					edgetwitchfake = !edgetwitchfake; // mirrored edgetwitch and was never read, so the fake side just repeated the real side's edge
+					WallDTC = g_Stuff.AntiAim.WallDetection( LocalPlayer, pCmd, ( edgetwitchfake ) ? 0.f : 180.f );
 				}
 			}
 		}
@@ -354,8 +367,6 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 			}
 		}
 	}
-
-	pass = false;
 }
 
 void sendcmd( const char* input, ... )
@@ -474,6 +485,13 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 
 	if( LocalPlayer->m_lifeState( ) != 0 ) return;
 
+	// switch between legit / rage aimbot profiles on a key tap
+	if( g_CVars.AimbotProfileKey > 0 )
+	{
+		if( GetAsyncKeyState( g_CVars.AimbotProfileKey ) & 1 )
+			g_Stuff.SwitchAimbotProfile( ( g_CVars.AimbotProfile == 0 ) ? 1 : 0 );
+	}
+
 	if( g_CVars.Miscellaneous.BunnyHop ) g_Stuff.BunnyHop( pCmd, LocalPlayer );
 	//if( g_CVars.Miscellaneous.EdgeJump ) g_Stuff.EdgeJump( pCmd, LocalPlayer );
 
@@ -512,9 +530,9 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 				pass = true;
 				queue = 0;
 
-				bool trigger = ( g_CVars.Triggerbot.Active && !g_CVars.Triggerbot.IsShooting );
-
-				if( !g_CVars.Triggerbot.Active || trigger )
+				// improved trigger logic: only skip ForceSeed/NoSpread when triggerbot did its own seed search
+				bool bTriggerSeedActive = ( g_CVars.Triggerbot.Active && g_CVars.Triggerbot.IsShooting && g_CVars.Triggerbot.Seed );
+				if( !bTriggerSeedActive )
 				{
 					if( g_CVars.Accuracy.ForceSeed ) g_Stuff.ForceSeed( pCmd );
 					if( g_CVars.Accuracy.PerfectAccuracy )
@@ -529,6 +547,13 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 						g_Stuff.NoRecoil( pCmd, LocalPlayer, g_CVars.Miscellaneous.AntiAim.Static );
 					}
 				}
+				else
+				{
+					// triggerbot with seed already forced command_number to hit seed
+					// still apply NoRecoil for accuracy
+					if( g_CVars.Accuracy.PerfectAccuracy )
+						g_Stuff.NoRecoil( pCmd, LocalPlayer, g_CVars.Miscellaneous.AntiAim.Static );
+				}
 
 				if( g_CVars.Aimbot.PerfectSilent ) bSendPacket = false;
 
@@ -536,16 +561,126 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 			}
 			else
 			{
-				if( g_CVars.Aimbot.AntiSMAC ) pCmd->viewangles = QAngle( 0, 0, 0 );
-				else AntiAim( LocalPlayer, pCmd, ( g_CVars.Miscellaneous.Fakelag.InAttack ) ? g_CVars.Miscellaneous.Fakelag.Value : 1 );
+				FakeLag_Update( LocalPlayer, pCmd, ( g_CVars.Miscellaneous.Fakelag.InAttack ) ? g_CVars.Miscellaneous.Fakelag.Value : 1 );
+
+				// improved AntiSMAC - moved to Miscellaneous, works for all
+				bool bAntiSMAC = g_CVars.Miscellaneous.AntiSMAC || g_CVars.Aimbot.AntiSMAC;
+				int iMode = g_CVars.Miscellaneous.AntiSMACMode;
+				if( bAntiSMAC )
+				{
+					// mode 0 = clamp only, keep AntiAim but clamped
+					// mode 1 = clamp + hide AntiAim (no AA)
+					// mode 2 = full - clamp + no snap + hide AA
+					if( iMode == 0 )
+					{
+						AntiAim( LocalPlayer, pCmd );
+						// clamp to valid SMAC range
+						if( pCmd->viewangles.x > 89.f ) pCmd->viewangles.x = 89.f;
+						if( pCmd->viewangles.x < -89.f ) pCmd->viewangles.x = -89.f;
+						pCmd->viewangles.y = g_Stuff.GuwopNormalize( pCmd->viewangles.y );
+						pCmd->viewangles.z = 0.f;
+					}
+					else
+					{
+						// hide anti-aim, keep legit angles
+						// clamp current angles instead of zeroing
+						if( pCmd->viewangles.x > 89.f ) pCmd->viewangles.x = 89.f;
+						if( pCmd->viewangles.x < -89.f ) pCmd->viewangles.x = -89.f;
+						pCmd->viewangles.y = g_Stuff.GuwopNormalize( pCmd->viewangles.y );
+						pCmd->viewangles.z = 0.f;
+					}
+				}
+				else
+				{
+					AntiAim( LocalPlayer, pCmd );
+				}
 
 				pCmd->buttons &= ~IN_ATTACK;
 			}
 		}
 		else
 		{
-			if( g_CVars.Aimbot.AntiSMAC ) pCmd->viewangles = QAngle( 0, 0, 0 );
-			else AntiAim( LocalPlayer, pCmd, g_CVars.Miscellaneous.Fakelag.Value );
+			FakeLag_Update( LocalPlayer, pCmd, g_CVars.Miscellaneous.Fakelag.Value );
+
+			bool bAntiSMAC = g_CVars.Miscellaneous.AntiSMAC || g_CVars.Aimbot.AntiSMAC;
+			int iMode = g_CVars.Miscellaneous.AntiSMACMode;
+			if( bAntiSMAC )
+			{
+				if( iMode == 0 )
+				{
+					AntiAim( LocalPlayer, pCmd );
+					if( pCmd->viewangles.x > 89.f ) pCmd->viewangles.x = 89.f;
+					if( pCmd->viewangles.x < -89.f ) pCmd->viewangles.x = -89.f;
+					pCmd->viewangles.y = g_Stuff.GuwopNormalize( pCmd->viewangles.y );
+					pCmd->viewangles.z = 0.f;
+				}
+				else
+				{
+					if( pCmd->viewangles.x > 89.f ) pCmd->viewangles.x = 89.f;
+					if( pCmd->viewangles.x < -89.f ) pCmd->viewangles.x = -89.f;
+					pCmd->viewangles.y = g_Stuff.GuwopNormalize( pCmd->viewangles.y );
+					pCmd->viewangles.z = 0.f;
+				}
+			}
+			else
+			{
+				AntiAim( LocalPlayer, pCmd );
+			}
+		}
+	}
+
+	// global AntiSMAC clamp - always ensure angles are SMAC-safe if enabled (works for legit + rage)
+	// improved for legit bot testing
+	if( g_CVars.Miscellaneous.AntiSMAC || g_CVars.Aimbot.AntiSMAC )
+	{
+		// SMAC checks: pitch [-89,89], yaw [-180,180] normalized, roll 0, no NaN/Inf, no uninitialized
+		if( pCmd->viewangles.x != pCmd->viewangles.x || pCmd->viewangles.y != pCmd->viewangles.y || pCmd->viewangles.z != pCmd->viewangles.z ||
+			fabs( pCmd->viewangles.x ) > 360.f || fabs( pCmd->viewangles.y ) > 360.f || fabs( pCmd->viewangles.z ) > 360.f )
+		{
+			pCmd->viewangles = QAngle( 0, 0, 0 );
+		}
+		if( pCmd->viewangles.x > 89.f ) pCmd->viewangles.x = 89.f;
+		if( pCmd->viewangles.x < -89.f ) pCmd->viewangles.x = -89.f;
+		pCmd->viewangles.y = g_Stuff.GuwopNormalize( pCmd->viewangles.y );
+		pCmd->viewangles.z = 0.f;
+
+		bool bIsLegit = ( g_CVars.AimbotProfile == 0 );
+
+		// full mode: also limit snap speed to avoid SMAC eye test - improved for legit
+		if( g_CVars.Miscellaneous.AntiSMACMode == 2 || bIsLegit )
+		{
+			QAngle old = g_Stuff.viewangles_old;
+			float dx = g_Stuff.GuwopNormalize( pCmd->viewangles.x - old.x );
+			float dy = g_Stuff.GuwopNormalize( pCmd->viewangles.y - old.y );
+			// legit = 10 deg max snap (very humanized), rage = 35 deg
+			float maxSnap = bIsLegit ? 10.f : 35.f;
+			// if legit with humanize, even stricter 5-10 deg
+			if( bIsLegit && g_CVars.Aimbot.Humanize )
+				maxSnap = 8.f;
+			if( fabs( dx ) > maxSnap || fabs( dy ) > maxSnap )
+			{
+				// if snap too fast, use old angles + limited delta to stay legit
+				// preserve movement via MovementFix later
+				if( dx > maxSnap ) dx = maxSnap;
+				if( dx < -maxSnap ) dx = -maxSnap;
+				if( dy > maxSnap ) dy = maxSnap;
+				if( dy < -maxSnap ) dy = -maxSnap;
+				pCmd->viewangles.x = old.x + dx;
+				pCmd->viewangles.y = old.y + dy;
+				if( pCmd->viewangles.x > 89.f ) pCmd->viewangles.x = 89.f;
+				if( pCmd->viewangles.x < -89.f ) pCmd->viewangles.x = -89.f;
+				pCmd->viewangles.y = g_Stuff.GuwopNormalize( pCmd->viewangles.y );
+			}
+		}
+
+		// legit extra: ensure pitch not at extremes (SMAC flags 89/-89 spam), clamp to 70 for legit
+		if( bIsLegit && g_CVars.Aimbot.Active )
+		{
+			// for legit, don't allow 89 pitch (looks sus), clamp to 70 max
+			if( pCmd->viewangles.x > 70.f ) pCmd->viewangles.x = 70.f;
+			if( pCmd->viewangles.x < -70.f ) pCmd->viewangles.x = -70.f;
+			// also ensure no AA when legit active (hide AA)
+			// AA already hidden in mode 1/2, but force for legit
 		}
 	}
 

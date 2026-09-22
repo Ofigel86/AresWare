@@ -64,7 +64,6 @@ void GUI::SetupStyle( void )
 	ImGuiStyle& style = ImGui::GetStyle( );
 	ImVec4* colors = style.Colors;
 
-	// Dark Insomnia Theme with subtle green accents
 	colors[ ImGuiCol_Text ]                  = ImVec4( 0.92f, 0.92f, 0.92f, 1.00f );
 	colors[ ImGuiCol_TextDisabled ]          = ImVec4( 0.45f, 0.45f, 0.45f, 1.00f );
 	colors[ ImGuiCol_WindowBg ]              = ImVec4( 0.12f, 0.12f, 0.14f, 0.96f );
@@ -139,9 +138,15 @@ void GUI::DrawImGui( void )
 	{
 		if( ImGui::BeginTabBar( "MainTabBar", ImGuiTabBarFlags_None ) )
 		{
-			if( ImGui::BeginTabItem( "Aimbot" ) )
+			if( ImGui::BeginTabItem( "Legit Bot" ) )
 			{
-				RenderAimbotTab( );
+				RenderLegitTab( );
+				ImGui::EndTabItem( );
+			}
+
+			if( ImGui::BeginTabItem( "Rage Bot" ) )
+			{
+				RenderRageTab( );
 				ImGui::EndTabItem( );
 			}
 
@@ -177,26 +182,151 @@ void GUI::DrawImGui( void )
 
 void GUI::RenderAimbotTab( void )
 {
+	RenderRageTab( );
+}
+
+void GUI::RenderLegitTab( void )
+{
+	// Legit = humanized: FOV, Smooth, Hitbox, Triggerbot, SnapLimiter
+	auto& profile = g_CVars.Legit;
 	float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemSpacing.x ) * 0.5f;
 
-	// Left Column
-	ImGui::BeginChild( "Aimbot_Left", ImVec2( halfWidth, 0 ), true );
+	ImGui::BeginChild( "Legit_Left", ImVec2( halfWidth, 0 ), true );
 	{
-		ImGui::TextDisabled( "AIMBOT MAIN" );
+		ImGui::TextDisabled( "LEGIT MODE" );
 		ImGui::Separator( );
-		ImGui::Checkbox( "Active", &g_CVars.Aimbot.Active );
-		ImGui::Checkbox( "Auto Shoot", &g_CVars.Aimbot.AutoShoot );
-		ImGui::Checkbox( "Silent Aim", &g_CVars.Aimbot.Silent );
-		ImGui::Checkbox( "Perfect Silent", &g_CVars.Aimbot.PerfectSilent );
-		ImGui::Checkbox( "Multi Spot", &g_CVars.Aimbot.MultiSpot );
-		ImGui::Checkbox( "Body AWP", &g_CVars.Aimbot.BodyAWP );
-		ImGui::Checkbox( "Hit Scan", &g_CVars.Aimbot.HitScan );
-		ImGui::Checkbox( "Perfect Auto Wall", &g_CVars.Aimbot.AutoWall );
-		ImGui::Checkbox( "Anti SMAC", &g_CVars.Aimbot.AntiSMAC );
-		ImGui::Checkbox( "Friendly Fire", &g_CVars.Aimbot.FriendlyFire );
+
+		if( g_CVars.AimbotProfile == 0 )
+			ImGui::TextColored( ImVec4( 0.55f, 0.85f, 0.15f, 1.0f ), "Active: Legit" );
+		else
+			ImGui::TextDisabled( "Active: Rage (switch via key or Rage tab)" );
+
+		const char* profileKeyNames[] = { "Off", "Insert", "Home", "End", "Page Up", "Page Down" };
+		const int profileKeyVK[] = { 0, VK_INSERT, VK_HOME, VK_END, VK_PRIOR, VK_NEXT };
+		int nProfileKeyIdx = 0;
+		for( int k = 1; k < IM_ARRAYSIZE( profileKeyVK ); k++ )
+		{
+			if( profileKeyVK[ k ] == g_CVars.AimbotProfileKey ) { nProfileKeyIdx = k; break; }
+		}
+		if( ImGui::Combo( "Switch Key", &nProfileKeyIdx, profileKeyNames, IM_ARRAYSIZE( profileKeyNames ) ) )
+			g_CVars.AimbotProfileKey = profileKeyVK[ nProfileKeyIdx ];
+
+		if( ImGui::Button( "Use Legit Profile", ImVec2( -1, 0 ) ) )
+			g_Stuff.SwitchAimbotProfile( 0 );
 
 		ImGui::Spacing( );
-		ImGui::TextDisabled( "TRIGGERBOT" );
+		ImGui::TextDisabled( "AIMBOT MAIN (HUMANIZED)" );
+		ImGui::Separator( );
+		if( ImGui::Checkbox( "Active", &profile.Active ) )
+		{
+			if( profile.Active )
+			{
+				// if legit enabled, disable rage
+				g_CVars.Rage.Active = false;
+				g_CVars.AimbotProfile = 0;
+			}
+		}
+		ImGui::Checkbox( "Friendly Fire", &profile.FriendlyFire );
+		ImGui::Checkbox( "Vis Only (no wall)", &profile.VisOnly );
+		ImGui::Checkbox( "On Key", &profile.OnKey );
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "TARGETING (LEGIT)" );
+		ImGui::Separator( );
+
+		const char* aimKeyNames[] = { "Auto", "Mouse 1", "Mouse 2", "Mouse 3", "Mouse 4", "Mouse 5" };
+		ImGui::Combo( "Aim Key", &profile.Key, aimKeyNames, IM_ARRAYSIZE( aimKeyNames ) );
+
+		const char* hitboxNames[] = { "Head", "Neck", "Chest", "Stomach" };
+		int currentHitboxIdx = GetHitboxIndex( profile.Hitbox );
+		if( ImGui::Combo( "Priority Hitbox", &currentHitboxIdx, hitboxNames, IM_ARRAYSIZE( hitboxNames ) ) )
+			profile.Hitbox = HitboxFromIndex( currentHitboxIdx );
+
+		ImGui::TextDisabled( "HITBOX GROUPS (LEGIT)" );
+		if( ImGui::Checkbox( "Head (12)", &profile.HitboxGroup[0] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Checkbox( "Neck (11)", &profile.HitboxGroup[1] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Checkbox( "Chest (9,10,5)", &profile.HitboxGroup[2] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Checkbox( "Stomach (0,1)", &profile.HitboxGroup[3] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Checkbox( "Arms (13,14,16,17)", &profile.HitboxGroup[4] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Checkbox( "Legs (2,3,4,15,6,7,8,18)", &profile.HitboxGroup[5] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Button( "Reset to Head+Chest" ) ) { for(int i=0;i<6;i++) profile.HitboxGroup[i]=false; profile.HitboxGroup[0]=true; profile.HitboxGroup[2]=true; profile.HitboxGroupsMask=(1<<0)|(1<<2); }
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "GROUP PRIORITY (LEGIT)" );
+		const char* groupNames[] = { "Head", "Neck", "Chest", "Stomach", "Arms", "Legs", "None (use order)" };
+		int prioIdx = profile.HitboxPriorityGroup;
+		if( prioIdx < -1 || prioIdx >= 6 ) prioIdx = 6;
+		int comboPrio = (prioIdx==-1)?6:prioIdx;
+		if( ImGui::Combo( "Primary Group", &comboPrio, groupNames, IM_ARRAYSIZE(groupNames) ) )
+		{
+			profile.HitboxPriorityGroup = (comboPrio==6)?-1:comboPrio;
+		}
+		ImGui::TextDisabled( "Custom Order:" );
+		for( int orderPos=0; orderPos<6; orderPos++ )
+		{
+			int gId = profile.HitboxGroupOrder[orderPos];
+			if( gId<0||gId>=6 ) gId=orderPos;
+			ImGui::PushID( orderPos );
+			ImGui::Text( "%d. %s", orderPos+1, groupNames[gId] );
+			ImGui::SameLine( );
+			if( ImGui::SmallButton( "^" ) && orderPos>0 )
+			{
+				int tmp = profile.HitboxGroupOrder[orderPos-1];
+				profile.HitboxGroupOrder[orderPos-1]=profile.HitboxGroupOrder[orderPos];
+				profile.HitboxGroupOrder[orderPos]=tmp;
+			}
+			ImGui::SameLine( );
+			if( ImGui::SmallButton( "v" ) && orderPos<5 )
+			{
+				int tmp = profile.HitboxGroupOrder[orderPos+1];
+				profile.HitboxGroupOrder[orderPos+1]=profile.HitboxGroupOrder[orderPos];
+				profile.HitboxGroupOrder[orderPos]=tmp;
+			}
+			ImGui::PopID( );
+		}
+		if( ImGui::Button( "Reset Order" ) ) { for(int i=0;i<6;i++) profile.HitboxGroupOrder[i]=i; }
+
+		ImGui::SliderFloat( "Point Scale", &profile.PointScale, 0.0f, 1.0f, "%.2f" );
+
+		const char* heightModeNames[] = { "Auto", "Origin", "Center", "Center Fixed", "Highest" };
+		ImGui::Combo( "Height Mode", &profile.HitboxMode, heightModeNames, IM_ARRAYSIZE( heightModeNames ) );
+
+		if( ImGui::SliderFloat( "FOV", &profile.FOV, 1.0f, 180.0f, "%.0f" ) )
+		{
+			if( profile.FOV > 180.0f ) profile.FOV = 180.0f;
+			if( profile.FOV < 1.0f ) profile.FOV = 1.0f;
+		}
+		ImGui::SliderFloat( "Smooth", &profile.Smooth, 1.0f, 20.0f, "%.1f" );
+		ImGui::SliderFloat( "Reaction ms", &profile.ReactionTime, 0.f, 300.f, "%.0f ms" );
+		ImGui::SliderFloat( "AutoDelay ms", &profile.AutoDelayTime, 0.f, 300.f, "%.0f ms" );
+		ImGui::Checkbox( "Auto Delay", &profile.AutoDelay );
+		ImGui::Checkbox( "Humanize", &profile.Humanize );
+		ImGui::SliderFloat( "Humanize Rand", &profile.HumanizeRandom, 0.f, 1.f, "%.2f" );
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "RCS (RECOIL CONTROL)" );
+		ImGui::Separator( );
+		ImGui::Checkbox( "RCS Active", &profile.RCS );
+		const char* rcsModeNames[] = { "Always", "While Shooting" };
+		ImGui::Combo( "RCS Mode", &profile.RCSMode, rcsModeNames, IM_ARRAYSIZE( rcsModeNames ) );
+		ImGui::SliderFloat( "RCS X", &profile.RCSAmountX, 0.f, 2.f, "%.2f" );
+		ImGui::SliderFloat( "RCS Y", &profile.RCSAmountY, 0.f, 2.f, "%.2f" );
+		ImGui::SliderFloat( "RCS Scale", &profile.RCSScale, 0.f, 2.f, "%.2f" );
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "SNAP LIMITER" );
+		ImGui::Separator( );
+		ImGui::Checkbox( "Snap Limiter Active", &profile.SnapLimiter );
+		ImGui::SliderInt( "Angle Limit", &profile.AngleLimit, 0, 180 );
+		ImGui::SliderFloat( "Angle Limit Tens", &profile.AngleLimitTens, 0.0f, 1.0f, "%.2f" );
+	}
+	ImGui::EndChild( );
+
+	ImGui::SameLine( );
+
+	ImGui::BeginChild( "Legit_Right", ImVec2( halfWidth, 0 ), true );
+	{
+		ImGui::TextDisabled( "TRIGGERBOT (LEGIT)" );
 		ImGui::Separator( );
 		ImGui::Checkbox( "Triggerbot Active", &g_CVars.Triggerbot.Active );
 		ImGui::Checkbox( "Seed Check", &g_CVars.Triggerbot.Seed );
@@ -211,42 +341,151 @@ void GUI::RenderAimbotTab( void )
 
 		const char* keyNames[] = { "Auto", "Mouse 1", "Mouse 2", "Mouse 3", "Mouse 4", "Mouse 5" };
 		ImGui::Combo( "Trigger Key", &g_CVars.Triggerbot.Key, keyNames, IM_ARRAYSIZE( keyNames ) );
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "HUMANIZED LEGIT" );
+		ImGui::Separator( );
+		ImGui::TextWrapped( "Max humanized legit bot: smooth curves, random, RCS, reaction delay, vis only, auto delay." );
+		ImGui::BulletText( "FOV 1-25 = legit, 25-45 = semi" );
+		ImGui::BulletText( "Smooth 8-15 = humanized glide" );
+		ImGui::BulletText( "RCS compensates recoil gradually" );
+		ImGui::BulletText( "Humanize adds random to smooth/RCS" );
+		ImGui::BulletText( "Reaction ms = delay before aiming new target" );
+		ImGui::BulletText( "AutoDelay = delay before shooting" );
+		ImGui::BulletText( "VisOnly = no autowall, legit only" );
+		ImGui::BulletText( "Snap Limiter prevents obvious snaps" );
+	}
+	ImGui::EndChild( );
+
+	if( g_CVars.AimbotProfile == 0 )
+		g_Stuff.LoadAimbotSettings( profile );
+}
+
+void GUI::RenderRageTab( void )
+{
+	// Rage = automated: AutoShoot, Silent, MultiSpot, HitScan, AutoWall, Resolver, PosAdjustment, MinDamage
+	auto& profile = g_CVars.Rage;
+	float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemSpacing.x ) * 0.5f;
+
+	ImGui::BeginChild( "Rage_Left", ImVec2( halfWidth, 0 ), true );
+	{
+		ImGui::TextDisabled( "RAGE MODE" );
+		ImGui::Separator( );
+
+		if( g_CVars.AimbotProfile == 1 )
+			ImGui::TextColored( ImVec4( 0.55f, 0.85f, 0.15f, 1.0f ), "Active: Rage" );
+		else
+			ImGui::TextDisabled( "Active: Legit (switch via key or Legit tab)" );
+
+		const char* profileKeyNames[] = { "Off", "Insert", "Home", "End", "Page Up", "Page Down" };
+		const int profileKeyVK[] = { 0, VK_INSERT, VK_HOME, VK_END, VK_PRIOR, VK_NEXT };
+		int nProfileKeyIdx = 0;
+		for( int k = 1; k < IM_ARRAYSIZE( profileKeyVK ); k++ )
+		{
+			if( profileKeyVK[ k ] == g_CVars.AimbotProfileKey ) { nProfileKeyIdx = k; break; }
+		}
+		if( ImGui::Combo( "Switch Key", &nProfileKeyIdx, profileKeyNames, IM_ARRAYSIZE( profileKeyNames ) ) )
+			g_CVars.AimbotProfileKey = profileKeyVK[ nProfileKeyIdx ];
+
+		if( ImGui::Button( "Use Rage Profile", ImVec2( -1, 0 ) ) )
+			g_Stuff.SwitchAimbotProfile( 1 );
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "AIMBOT MAIN (RAGE)" );
+		ImGui::Separator( );
+		if( ImGui::Checkbox( "Active", &profile.Active ) )
+		{
+			if( profile.Active )
+			{
+				// if rage enabled, disable legit
+				g_CVars.Legit.Active = false;
+				g_CVars.AimbotProfile = 1;
+			}
+		}
+		ImGui::Checkbox( "Auto Shoot", &profile.AutoShoot );
+		ImGui::Checkbox( "Silent Aim", &profile.Silent );
+		ImGui::Checkbox( "Perfect Silent", &profile.PerfectSilent );
+		ImGui::Checkbox( "Multi Spot", &profile.MultiSpot );
+		ImGui::Checkbox( "Body AWP", &profile.BodyAWP );
+		if( ImGui::IsItemHovered( ) ) ImGui::SetTooltip( "If ON, AWP forces body (old). If OFF (recommended), head is priority with lower MinDamage for AWP. Fixed head shooting." );
+		ImGui::Checkbox( "Hit Scan", &profile.HitScan );
+		ImGui::Checkbox( "Perfect Auto Wall", &profile.AutoWall );
+		ImGui::Checkbox( "Friendly Fire", &profile.FriendlyFire );
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "TARGETING (RAGE)" );
+		ImGui::Separator( );
+
+		const char* targetSelectionNames[] = { "Distance", "Health", "Next Shot", "Random" };
+		ImGui::Combo( "Target Selection", &profile.TargetSelection, targetSelectionNames, IM_ARRAYSIZE( targetSelectionNames ) );
+
+		ImGui::SliderInt( "Min Damage", &profile.MinDamage, 0, 100 );
+
+		const char* posAdjustmentNames[] = { "Off", "On", "On + History" };
+		ImGui::Combo( "Pos Adjustment", &profile.Interpolation.LagPrediction, posAdjustmentNames, IM_ARRAYSIZE( posAdjustmentNames ) );
+
+		ImGui::Checkbox( "Disable Interpolation (from sega)", &profile.Interpolation.Disable );
+		if( ImGui::IsItemHovered( ) ) ImGui::SetTooltip( "From Segregation - disables interpolation for enemies (like sega Interpolate.hpp return 1). Better hitreg, less lag, enemy positions more accurate." );
+		ImGui::Checkbox( "Lethal Body Aim", &profile.Interpolation.LethalBody );
+		if( ImGui::IsItemHovered( ) ) ImGui::SetTooltip( "If body shot is lethal (health <= damage), aim body for higher hit chance. If low health <=50, prioritize body." );
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "HITBOX GROUPS (RAGE)" );
+		ImGui::TextWrapped( "Select groups to shoot at - aimbot scans enabled groups by priority" );
+		if( ImGui::Checkbox( "Head", &profile.HitboxGroup[0] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Checkbox( "Neck", &profile.HitboxGroup[1] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Checkbox( "Chest", &profile.HitboxGroup[2] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Checkbox( "Stomach", &profile.HitboxGroup[3] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Checkbox( "Arms", &profile.HitboxGroup[4] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Checkbox( "Legs", &profile.HitboxGroup[5] ) ) { profile.HitboxGroupsMask = 0; for(int i=0;i<6;i++) if(profile.HitboxGroup[i]) profile.HitboxGroupsMask|=(1<<i); }
+		if( ImGui::Button( "All Groups" ) ) { for(int i=0;i<6;i++) profile.HitboxGroup[i]=true; profile.HitboxGroupsMask=63; }
+		ImGui::SameLine( );
+		if( ImGui::Button( "Head Only" ) ) { for(int i=0;i<6;i++) profile.HitboxGroup[i]=false; profile.HitboxGroup[0]=true; profile.HitboxGroupsMask=1; }
+		ImGui::SameLine( );
+		if( ImGui::Button( "Body Only" ) ) { for(int i=0;i<6;i++) profile.HitboxGroup[i]=false; profile.HitboxGroup[2]=true; profile.HitboxGroup[3]=true; profile.HitboxGroupsMask=(1<<2)|(1<<3); }
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "GROUP PRIORITY (RAGE)" );
+		const char* groupNamesRage[] = { "Head", "Neck", "Chest", "Stomach", "Arms", "Legs", "None (use order)" };
+		int prioIdxRage = profile.HitboxPriorityGroup;
+		if( prioIdxRage < -1 || prioIdxRage >= 6 ) prioIdxRage = 6;
+		int comboPrioRage = (prioIdxRage==-1)?6:prioIdxRage;
+		if( ImGui::Combo( "Primary Group", &comboPrioRage, groupNamesRage, IM_ARRAYSIZE(groupNamesRage) ) )
+		{
+			profile.HitboxPriorityGroup = (comboPrioRage==6)?-1:comboPrioRage;
+		}
+		ImGui::TextDisabled( "Custom Order:" );
+		for( int orderPos=0; orderPos<6; orderPos++ )
+		{
+			int gId = profile.HitboxGroupOrder[orderPos];
+			if( gId<0||gId>=6 ) gId=orderPos;
+			ImGui::PushID( orderPos+100 );
+			ImGui::Text( "%d. %s", orderPos+1, groupNamesRage[gId] );
+			ImGui::SameLine( );
+			if( ImGui::SmallButton( "^" ) && orderPos>0 )
+			{
+				int tmp = profile.HitboxGroupOrder[orderPos-1];
+				profile.HitboxGroupOrder[orderPos-1]=profile.HitboxGroupOrder[orderPos];
+				profile.HitboxGroupOrder[orderPos]=tmp;
+			}
+			ImGui::SameLine( );
+			if( ImGui::SmallButton( "v" ) && orderPos<5 )
+			{
+				int tmp = profile.HitboxGroupOrder[orderPos+1];
+				profile.HitboxGroupOrder[orderPos+1]=profile.HitboxGroupOrder[orderPos];
+				profile.HitboxGroupOrder[orderPos]=tmp;
+			}
+			ImGui::PopID( );
+		}
+		if( ImGui::Button( "Reset Order" ) ) { for(int i=0;i<6;i++) profile.HitboxGroupOrder[i]=i; }
 	}
 	ImGui::EndChild( );
 
 	ImGui::SameLine( );
 
-	// Right Column
-	ImGui::BeginChild( "Aimbot_Right", ImVec2( halfWidth, 0 ), true );
+	ImGui::BeginChild( "Rage_Right", ImVec2( halfWidth, 0 ), true );
 	{
-		ImGui::TextDisabled( "TARGETING & ADJUSTMENTS" );
-		ImGui::Separator( );
-
-		const char* aimKeyNames[] = { "Auto", "Mouse 1", "Mouse 2", "Mouse 3", "Mouse 4", "Mouse 5" };
-		ImGui::Combo( "Aim Key", &g_CVars.Aimbot.Key, aimKeyNames, IM_ARRAYSIZE( aimKeyNames ) );
-
-		const char* hitboxNames[] = { "Head", "Neck", "Chest", "Stomach" };
-		int currentHitboxIdx = GetHitboxIndex( g_CVars.Aimbot.Hitbox );
-		if( ImGui::Combo( "Hitbox", &currentHitboxIdx, hitboxNames, IM_ARRAYSIZE( hitboxNames ) ) )
-		{
-			g_CVars.Aimbot.Hitbox = HitboxFromIndex( currentHitboxIdx );
-		}
-
-		ImGui::SliderFloat( "Point Scale", &g_CVars.Aimbot.PointScale, 0.0f, 1.0f, "%.2f" );
-
-		const char* heightModeNames[] = { "Auto", "Origin", "Center", "Center Fixed", "Highest" };
-		ImGui::Combo( "Height Mode", &g_CVars.Aimbot.HitboxMode, heightModeNames, IM_ARRAYSIZE( heightModeNames ) );
-
-		const char* targetSelectionNames[] = { "Distance", "Health", "Next Shot", "Random" };
-		ImGui::Combo( "Target Selection", &g_CVars.Aimbot.TargetSelection, targetSelectionNames, IM_ARRAYSIZE( targetSelectionNames ) );
-
-		ImGui::SliderInt( "Min Damage", &g_CVars.Aimbot.MinDamage, 0, 100 );
-
-		const char* posAdjustmentNames[] = { "Off", "On", "On + History" };
-		ImGui::Combo( "Pos Adjustment", &g_CVars.Aimbot.Interpolation.LagPrediction, posAdjustmentNames, IM_ARRAYSIZE( posAdjustmentNames ) );
-
-		ImGui::Spacing( );
-		ImGui::TextDisabled( "ACCURACY" );
+		ImGui::TextDisabled( "ACCURACY (RAGE)" );
 		ImGui::Separator( );
 		ImGui::Checkbox( "Remove Recoil / Spread", &g_CVars.Accuracy.PerfectAccuracy );
 		ImGui::Checkbox( "Force Seed", &g_CVars.Accuracy.ForceSeed );
@@ -255,33 +494,67 @@ void GUI::RenderAimbotTab( void )
 		ImGui::Combo( "NoSpread Mode", &g_CVars.Accuracy.NoSpreadMode, spreadModeNames, IM_ARRAYSIZE( spreadModeNames ) );
 
 		ImGui::Spacing( );
-		ImGui::TextDisabled( "SNAP LIMITER" );
+		ImGui::TextDisabled( "RESOLVER (RAGE) - IMPROVED" );
 		ImGui::Separator( );
-		ImGui::Checkbox( "Snap Limiter Active", &g_CVars.Aimbot.SnapLimiter );
-		ImGui::SliderInt( "Angle Limit", &g_CVars.Aimbot.AngleLimit, 0, 180 );
-		ImGui::SliderFloat( "Angle Limit Tens", &g_CVars.Aimbot.AngleLimitTens, 0.0f, 1.0f, "%.2f" );
-
-		ImGui::Spacing( );
-		ImGui::TextDisabled( "RESOLVER" );
-		ImGui::Separator( );
-		ImGui::Checkbox( "Resolver Active", &g_CVars.Aimbot.Resolver.Active );
+		ImGui::Checkbox( "Resolver Active", &profile.Resolver.Active );
 
 		const char* resolverModeNames[] = { "Everyone", "Selected" };
-		ImGui::Combo( "Resolver Target", &g_CVars.Aimbot.Resolver.Mode, resolverModeNames, IM_ARRAYSIZE( resolverModeNames ) );
+		ImGui::Combo( "Resolver Target", &profile.Resolver.Mode, resolverModeNames, IM_ARRAYSIZE( resolverModeNames ) );
 
-		const char* resolverTypeNames[] = { "Spin", "Back Twitch", "Alternative", "2 bullets" };
-		ImGui::Combo( "Resolver Type", &g_CVars.Aimbot.Resolver.Type, resolverTypeNames, IM_ARRAYSIZE( resolverTypeNames ) );
+		const char* resolverTypeNames[] = { 
+			"Off", 
+			"Bruteforce 4-way", 
+			"Bruteforce 8-way (miss)", 
+			"Velocity", 
+			"LBY / Last Moving", 
+			"Smart v2 (vel+jitter+spin+bf)", 
+			"Jitter", 
+			"180 Backwards", 
+			"90 Left/Right" 
+		};
+		ImGui::Combo( "Resolver Type", &profile.Resolver.Type, resolverTypeNames, IM_ARRAYSIZE( resolverTypeNames ) );
 
-		ImGui::Checkbox( "Smart Resolver", &g_CVars.Aimbot.Resolver.Smart );
+		ImGui::Checkbox( "Smart Resolver", &profile.Resolver.Smart );
+		ImGui::TextWrapped( "Smart: uses yawDelta + velocity + spin/jitter detection + pitch resolver. Bruteforce advances on missed shots." );
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "RESOLVER INFO" );
+		ImGui::Separator( );
+		if( ImGui::CollapsingHeader( "How it works" ) )
+		{
+			ImGui::BulletText( "Velocity: if moving, real yaw = velocity dir" );
+			ImGui::BulletText( "LBY: uses last moving yaw when standing" );
+			ImGui::BulletText( "Bruteforce 8-way cycles 0,90,180,-90,45,-45,135,-135 on miss" );
+			ImGui::BulletText( "Smart v2: vel + jitter detection (flips side) + spin counter + LBY + bf" );
+			ImGui::BulletText( "Jitter: alternates 90/-90 to catch jitter AA" );
+			ImGui::BulletText( "Pitch resolver: 89/-89 -> 0 or last valid pitch" );
+		}
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "RAGE INFO" );
+		ImGui::Separator( );
+		ImGui::TextWrapped( "Rage Bot: AutoShoot/Silent/MultiSpot/HitScan/AutoWall/Resolver/PosAdjustment/MinDamage only. No legit features (FOV/Smooth/Triggerbot/SnapLimiter)." );
+		ImGui::BulletText( "FOV is fixed 180, Smooth 1 for rage" );
+		ImGui::BulletText( "Use Legit tab for humanized settings" );
+		ImGui::BulletText( "Hitbox Groups + Priority: select groups and order" );
 	}
 	ImGui::EndChild( );
+
+	if( g_CVars.AimbotProfile == 1 )
+		g_Stuff.LoadAimbotSettings( profile );
+}
+
+void GUI::RenderAimbotCommon( AimbotSettings& profile, bool bIsLegit )
+{
+	// kept for compatibility, redirects to the proper tab
+	if( bIsLegit ) RenderLegitTab( );
+	else RenderRageTab( );
 }
 
 void GUI::RenderVisualsTab( void )
 {
 	float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemSpacing.x ) * 0.5f;
 
-	// Left Column
 	ImGui::BeginChild( "Visuals_Left", ImVec2( halfWidth, 0 ), true );
 	{
 		ImGui::TextDisabled( "ESP (SURFACE RENDER)" );
@@ -295,6 +568,10 @@ void GUI::RenderVisualsTab( void )
 		ImGui::Checkbox( "Hitmarker", &g_CVars.Visuals.ESP.Hit );
 		ImGui::Checkbox( "Ground ESP", &g_CVars.Visuals.ESP.Ground );
 		ImGui::Checkbox( "Enemy Only", &g_CVars.Visuals.ESP.EnemyOnly );
+		ImGui::Checkbox( "Dormant ESP (gray)", &g_CVars.Visuals.ESP.Dormant );
+		if( ImGui::IsItemHovered( ) ) ImGui::SetTooltip( "Show dormant players gray, without dormant text - last known position, 10 sec timeout" );
+		ImGui::Checkbox( "Out of FOV Arrows", &g_CVars.Visuals.ESP.OutOfFOV );
+		if( ImGui::IsItemHovered( ) ) ImGui::SetTooltip( "Show arrows at screen edge for enemies out of FOV" );
 
 		ImGui::Spacing( );
 		ImGui::TextDisabled( "CHAMS & MODELS" );
@@ -310,7 +587,6 @@ void GUI::RenderVisualsTab( void )
 
 	ImGui::SameLine( );
 
-	// Right Column
 	ImGui::BeginChild( "Visuals_Right", ImVec2( halfWidth, 0 ), true );
 	{
 		ImGui::TextDisabled( "WORLD & SCREEN" );
@@ -357,7 +633,6 @@ void GUI::RenderMiscTab( void )
 {
 	float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemSpacing.x ) * 0.5f;
 
-	// Left Column
 	ImGui::BeginChild( "Misc_Left", ImVec2( halfWidth, 0 ), true );
 	{
 		ImGui::TextDisabled( "ANTI-AIM (HVH)" );
@@ -371,21 +646,25 @@ void GUI::RenderMiscTab( void )
 		ImGui::Combo( "Yaw", &g_CVars.Miscellaneous.AntiAim.Yaw, yawNames, IM_ARRAYSIZE( yawNames ) );
 
 		std::vector< const char* > yawVariations;
-		if( g_CVars.Miscellaneous.AntiAim.Yaw == 3 )
+		if( g_CVars.Miscellaneous.AntiAim.Yaw == 0 )
 		{
-			yawVariations = { "Normal", "Synced", "Static", "Static Synced" };
+			yawVariations = { "Off", "Fake Side 1", "Fake Side 2", "Backwards" };
+		}
+		else if( g_CVars.Miscellaneous.AntiAim.Yaw == 3 )
+		{
+			yawVariations = { "90 / -90", "0 / 180", "45 / -45", "135 / -135" };
 		}
 		else if( g_CVars.Miscellaneous.AntiAim.Yaw == 6 )
 		{
-			yawVariations = { "m3nly", "m3nly #2", "Jitter", "1337" };
+			yawVariations = { "Spin Slow 90/s", "Spin Fast 360/s", "90 / -90 Jitter", "Random Spin" };
 		}
 		else if( g_CVars.Miscellaneous.AntiAim.Yaw == 7 )
 		{
-			yawVariations = { "Additional", "Static" };
+			yawVariations = { "Add Real", "World Locked" };
 		}
 		else
 		{
-			yawVariations = { "Normal", "Fake Side 1", "Fake Side 2", "Random" };
+			yawVariations = { "Normal", "Fake Side 1", "Fake Side 2", "Fake Forwards" };
 		}
 
 		if( g_CVars.Miscellaneous.AntiAim.Variation >= ( int )yawVariations.size( ) )
@@ -396,6 +675,7 @@ void GUI::RenderMiscTab( void )
 		ImGui::SliderFloat( "Custom Real Yaw", &g_CVars.Miscellaneous.AntiAim.RealValue, 0.0f, 360.0f, "%.1f deg" );
 		ImGui::SliderFloat( "Custom Fake Yaw", &g_CVars.Miscellaneous.AntiAim.FakeValue, 0.0f, 360.0f, "%.1f deg" );
 
+		ImGui::Checkbox( "Relative Yaw", &g_CVars.Miscellaneous.AntiAim.RelativeYaw );
 		ImGui::Checkbox( "InAttack Pitch", &g_CVars.Miscellaneous.AntiAim.Static );
 		ImGui::Checkbox( "Wall Detection", &g_CVars.Miscellaneous.AntiAim.WallDetection );
 
@@ -405,12 +685,20 @@ void GUI::RenderMiscTab( void )
 		ImGui::Checkbox( "At Targets", &g_CVars.Miscellaneous.AntiAim.AtTargets );
 		ImGui::Checkbox( "Duck In Air", &g_CVars.Miscellaneous.AntiAim.DuckInAir );
 		ImGui::Checkbox( "Enemy Check", &g_CVars.Miscellaneous.AntiAim.TurnOff );
+
+		ImGui::Spacing( );
+		if( ImGui::CollapsingHeader( "How anti-aim works (improved old)" ) )
+		{
+			ImGui::TextWrapped( "Старые режимы улучшены максимально, без добавления новых. В CSS v34 нет LBY как в CS:GO (LBY = LowerBodyYaw, обновляется при движении). Поэтому LBY Breaker убран - в CSS он не нужен. Вместо lisp (697049) который не работает в CSS, теперь рабочие 89/-89 с десинком." );
+			ImGui::BulletText( "Pitch: Off, Normal=89 down (прячет голову, было 180), Inverse=-89 up (было -180), Safe=70, FakeDown=real 0 fake 89 (десинк, было -179.99), Down=89 (было lisp 697049 нерабочий), Up=-89 (было lisp 696871), LagDown/LagUp=real 0 fake 89 и наоборот с чоком 14 тиков" );
+			ImGui::BulletText( "Yaw: Forwards/Backwards/Sideways теперь с десинком real vs fake (bSendPacket), Jitter 90/-90 и 0/180 и 45/-45, Static world locked, Lisp заменен на Spin 90/s и 360/s (реально работает в CSS), Custom RealValue/FakeValue" );
+			ImGui::BulletText( "Защита головы: Pitch 89 down прячет голову, Fake Pitch десинк, FakeLag чок 14 тиков max (враг видит фейк), Wall DTC прячет за стеной, AtTargets смотрит на врага" );
+		}
 	}
 	ImGui::EndChild( );
 
 	ImGui::SameLine( );
 
-	// Right Column
 	ImGui::BeginChild( "Misc_Right", ImVec2( halfWidth, 0 ), true );
 	{
 		ImGui::TextDisabled( "FAKE LAG" );
@@ -422,6 +710,14 @@ void GUI::RenderMiscTab( void )
 
 		const char* fakelagModes[] = { "Factor", "Switch", "Adaptive" };
 		ImGui::Combo( "Fake Lag Mode", &g_CVars.Miscellaneous.Fakelag.Mode, fakelagModes, IM_ARRAYSIZE( fakelagModes ) );
+
+		ImGui::Spacing( );
+		ImGui::TextDisabled( "ANTI SMAC (GLOBAL)" );
+		ImGui::Separator( );
+		ImGui::Checkbox( "Anti SMAC Active", &g_CVars.Miscellaneous.AntiSMAC );
+		const char* antiSMACModeNames[] = { "Clamp Only", "Hide AA", "Full (Clamp+Limit Snap)" };
+		ImGui::Combo( "AntiSMAC Mode", &g_CVars.Miscellaneous.AntiSMACMode, antiSMACModeNames, IM_ARRAYSIZE( antiSMACModeNames ) );
+		ImGui::TextWrapped( "Works for both Legit and Rage. Clamps pitch/yaw, hides AA, limits snap to 35 deg/tick." );
 
 		ImGui::Spacing( );
 		ImGui::TextDisabled( "MOVEMENT & EXPLOITS" );
@@ -477,15 +773,12 @@ void GUI::RenderPlayerListTab( void )
 			ImGui::TableNextRow( );
 			ImGui::PushID( i );
 
-			// ID
 			ImGui::TableSetColumnIndex( 0 );
 			ImGui::Text( "%d", i );
 
-			// Name
 			ImGui::TableSetColumnIndex( 1 );
 			ImGui::Text( "%s", pInfo.name );
 
-			// Friend
 			ImGui::TableSetColumnIndex( 2 );
 			bool isFriend = g_CVars.PlayerList.Friend[ i ];
 			if( ImGui::Checkbox( "##Friend", &isFriend ) )
@@ -493,7 +786,6 @@ void GUI::RenderPlayerListTab( void )
 				g_CVars.PlayerList.Friend[ i ] = isFriend;
 			}
 
-			// Pitch Override
 			ImGui::TableSetColumnIndex( 3 );
 			int curPitch = g_CVars.PlayerList.Pitch[ i ];
 			if( curPitch < 0 || curPitch > 3 ) curPitch = 0;
@@ -503,7 +795,6 @@ void GUI::RenderPlayerListTab( void )
 				g_CVars.PlayerList.Pitch[ i ] = curPitch;
 			}
 
-			// Yaw Override
 			ImGui::TableSetColumnIndex( 4 );
 			int curYaw = g_CVars.PlayerList.Yaw[ i ];
 			if( curYaw < 0 || curYaw > 5 ) curYaw = 0;

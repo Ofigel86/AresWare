@@ -1,6 +1,66 @@
 #ifndef __STUFF_H__
 #define __STUFF_H_
 
+// saved set of aimbot settings, used for the legit / rage profiles
+class AimbotSettings
+{
+public:
+	bool Active, AutoShoot, AutoWall, MultiSpot, HitScan, FriendlyFire, Silent, PerfectSilent, AntiSMAC, BodyAWP, SnapLimiter;
+	int TargetSelection, Hitbox, HitboxMode, Height, AngleLimit, MinDamage, Key;
+	float AngleLimitTens, PointScale, FOV, Smooth;
+
+	// hitbox groups (bitmask + individual bools for UI)
+	// groups: 0=Head(12),1=Neck(11),2=Chest(9,10,5),3=Stomach(0,1),4=Arms(13,14,16,17),5=Legs(2,3,4,15,6,7,8,18)
+	bool HitboxGroup[6];
+	int HitboxGroupsMask; // for config compat
+	int HitboxGroupOrder[6]; // priority order, 0 = highest, stores group id
+	int HitboxPriorityGroup; // quick primary group override, -1 = use order
+
+	// legit improvements
+	bool RCS;
+	float RCSAmountX, RCSAmountY;
+	float RCSScale;
+	bool Humanize;
+	float HumanizeRandom;
+	float ReactionTime;
+	bool VisOnly;
+	bool AutoDelay;
+	float AutoDelayTime;
+	bool OnKey;
+	int RCSMode; // 0 = always, 1 = while shooting
+
+	class Resolver
+	{
+	public:
+		bool Active, Smart;
+		int Mode, Type;
+		// improved resolver state
+		int BruteforceIndex[ 64 ];
+		float LastLBY[ 64 ];
+		float LastMovingYaw[ 64 ];
+		float LastVelocityYaw[ 64 ];
+		int MissedShots[ 64 ];
+		float LastResolvedYaw[ 64 ];
+		bool IsMoving[ 64 ];
+		float LastPitch[ 64 ];
+		int JitterSide[ 64 ];
+		float LastYaw[ 64 ];
+		float SpinRate[ 64 ];
+		int ShotsFired[ 64 ];
+		int ShotsHit[ 64 ];
+	};
+	Resolver Resolver;
+
+	class Interpolation
+	{
+	public:
+		int LagPrediction;
+		bool Disable; // from sega - disable interpolation
+		bool LethalBody; // lethal body aim
+	};
+	Interpolation Interpolation;
+};
+
 class CVars
 {
 public:
@@ -47,12 +107,47 @@ public:
 		bool Active, AutoShoot, AutoWall, MultiSpot, HitScan, FriendlyFire, Silent, PerfectSilent, AntiSMAC, BodyAWP, SnapLimiter;
 		int TargetSelection, Hitbox, HitboxMode, Height, AngleLimit, MinDamage, Key, AutoHeightMode[ 64 ];
 		float AngleLimitTens, PointScale;
+		float FOV;		// aim cone in degrees, 180 = no limit
+		float Smooth;	// aim smoothing factor, 1 = snap (classic), higher = slower glide
+
+		// hitbox groups
+		bool HitboxGroup[6];
+		int HitboxGroupsMask;
+		int HitboxGroupOrder[6];
+		int HitboxPriorityGroup;
+
+		// legit improvements (live copy)
+		bool RCS;
+		float RCSAmountX, RCSAmountY;
+		float RCSScale;
+		bool Humanize;
+		float HumanizeRandom;
+		float ReactionTime;
+		bool VisOnly;
+		bool AutoDelay;
+		float AutoDelayTime;
+		bool OnKey;
+		int RCSMode;
 
 		class Resolver
 		{
 		public:
 			bool Active, Smart, State[ 64 ], LastState[ 64 ];
 			int Mode, Type;
+			// improved resolver state
+			int BruteforceIndex[ 64 ];
+			float LastLBY[ 64 ];
+			float LastMovingYaw[ 64 ];
+			float LastVelocityYaw[ 64 ];
+			int MissedShots[ 64 ];
+			float LastResolvedYaw[ 64 ];
+			bool IsMoving[ 64 ];
+			float LastPitch[ 64 ];
+			int JitterSide[ 64 ];
+			float LastYaw[ 64 ];
+			float SpinRate[ 64 ];
+			int ShotsFired[ 64 ];
+			int ShotsHit[ 64 ];
 		};
 		Resolver Resolver;
 
@@ -60,6 +155,8 @@ public:
 		{
 		public:
 			int LagPrediction;
+			bool Disable;
+			bool LethalBody;
 		};
 		Interpolation Interpolation;
 	};
@@ -85,6 +182,7 @@ public:
 		{
 		public:
 			bool Box, Name, Health, Weapon, Bone, AimSpot, Hit, Ground, EnemyOnly;
+			bool Dormant, OutOfFOV;
 		};
 
 		class Chams
@@ -115,8 +213,8 @@ public:
 		class AntiAim
 		{
 		public:
-			bool Active, Static, WallDetection, DuckInAir, TurnOff, AtTargets;
-			int Pitch, Yaw, Variation, DuckPitch, DuckYaw, DuckVariation, WallDetectionMode;
+			bool Active, Static, WallDetection, DuckInAir, TurnOff, AtTargets, RelativeYaw;
+			int Pitch, Yaw, Variation, WallDetectionMode;
 			float RealValue, FakeValue;
 		};
 
@@ -127,8 +225,9 @@ public:
 			int Mode, Value;
 		};
 
-		bool BunnyHop, AutoStrafe, CircleStrafe, EdgeJump, Speedhack, OriginCorrection, AutoKnife, RoundSay, CheatsBypass, AirStuck, AirStuckPress, ThirdPerson, Save, Load;
+		bool BunnyHop, AutoStrafe, CircleStrafe, EdgeJump, Speedhack, OriginCorrection, AutoKnife, RoundSay, CheatsBypass, AirStuck, AirStuckPress, ThirdPerson, Save, Load, AntiSMAC;
 		int SpeedhackValue;
+		int AntiSMACMode; // 0 = clamp only, 1 = clamp + hide AA, 2 = full (clamp + hide aimbot snap)
 
 		AntiAim AntiAim;
 		Fakelag Fakelag;
@@ -183,6 +282,9 @@ public:
 	Radar Radar;
 	ColorSelector ColorSelector;
 	Aimbot Aimbot;
+	AimbotSettings Legit, Rage;	// saved legit / rage profiles
+	int AimbotProfile;			// 0 = legit, 1 = rage (profile currently loaded into Aimbot)
+	int AimbotProfileKey;		// VK code to switch profiles in game, 0 = off
 	Accuracy Accuracy;
 	Triggerbot Triggerbot;
 	Visuals Visuals;
@@ -324,6 +426,9 @@ public:
 	KnifeBot Knifebot;
 
 	float GuwopNormalize( float );
+	void SaveAimbotSettings( AimbotSettings& );
+	void LoadAimbotSettings( const AimbotSettings& );
+	void SwitchAimbotProfile( int );
 	int Flags;
 	void PredictLaggedMovement( BasePlayer* );
 	void ForceCVars( );

@@ -409,7 +409,7 @@ void Hook( void )
 	CL_Move( );
 	FX_FireBullets( );
 	CL_RunPrediction( );
-	//ClientInterpolation( );
+	ClientInterpolation( ); // from sega - disable interpolation
 
 	ModelRenderVMT = new CVMTHook( pdwModelRenderVMT );
 	ModelRenderVMT->HookFunction( 19, Hooked_DrawModelEx );
