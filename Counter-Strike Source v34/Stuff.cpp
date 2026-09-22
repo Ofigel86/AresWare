@@ -11,6 +11,178 @@ void CVars::Init( )
 
 	Accuracy.NoSpreadMode = 1;
 
+	Aimbot.FOV = 180.f;
+	Aimbot.Smooth = 1.f;
+	Aimbot.RCS = false;
+	Aimbot.RCSAmountX = 1.f;
+	Aimbot.RCSAmountY = 1.f;
+	Aimbot.RCSScale = 1.f;
+	Aimbot.Humanize = false;
+	Aimbot.HumanizeRandom = 0.25f;
+	Aimbot.ReactionTime = 50.f;
+	Aimbot.VisOnly = false;
+	Aimbot.AutoDelay = false;
+	Aimbot.AutoDelayTime = 80.f;
+	Aimbot.OnKey = false;
+	Aimbot.RCSMode = 0;
+	Aimbot.BodyAWP = false; // fix: don't force body for AWP, head should shoot
+	Aimbot.Hitbox = 12; // head
+	Aimbot.MinDamage = 10; // lower min damage for head
+	Aimbot.PointScale = 0.7f; // more accurate head
+	Aimbot.MultiSpot = true;
+	Aimbot.AutoWall = true;
+	Aimbot.Active = true;
+	Aimbot.AutoShoot = true;
+	Aimbot.Interpolation.Disable = false; // from sega - default false to keep ESP - disable interpolation for better hitreg
+	Aimbot.Interpolation.LethalBody = true; // lethal body aim - if body shot is lethal, aim body
+	Aimbot.Interpolation.LagPrediction = 1; // pos adjustment on
+	for( int i=0;i<6;i++ ) Aimbot.HitboxGroup[i]=false;
+	Aimbot.HitboxGroup[0]=true; // head by default
+	Aimbot.HitboxGroupsMask = 1;
+	for( int i=0;i<6;i++ ) Aimbot.HitboxGroupOrder[i]=i;
+	Aimbot.HitboxPriorityGroup = -1;
+	Aimbot.Resolver.Active = false;
+	Aimbot.Resolver.Smart = true;
+	Aimbot.Resolver.Mode = 0;
+	Aimbot.Resolver.Type = 5;
+	for( int i=0;i<64;i++ )
+	{
+		Aimbot.Resolver.BruteforceIndex[i]=0;
+		Aimbot.Resolver.LastLBY[i]=0.f;
+		Aimbot.Resolver.LastMovingYaw[i]=0.f;
+		Aimbot.Resolver.LastVelocityYaw[i]=0.f;
+		Aimbot.Resolver.MissedShots[i]=0;
+		Aimbot.Resolver.LastResolvedYaw[i]=0.f;
+		Aimbot.Resolver.IsMoving[i]=false;
+		Aimbot.Resolver.LastPitch[i]=0.f;
+		Aimbot.Resolver.JitterSide[i]=0;
+		Aimbot.Resolver.LastYaw[i]=0.f;
+		Aimbot.Resolver.SpinRate[i]=0.f;
+		Aimbot.Resolver.ShotsFired[i]=0;
+		Aimbot.Resolver.ShotsHit[i]=0;
+	}
+
+	// profile selection: legit by default, no switch key
+	AimbotProfile = 0;
+	AimbotProfileKey = 0;
+
+	// legit profile defaults - humanized
+	Legit.Active = true;
+	Legit.AutoShoot = true;
+	Legit.FOV = 25.f;
+	Legit.Smooth = 12.f;
+	Legit.RCS = true;
+	Legit.RCSAmountX = 1.0f;
+	Legit.RCSAmountY = 1.0f;
+	Legit.RCSScale = 1.0f;
+	Legit.Humanize = true;
+	Legit.HumanizeRandom = 0.25f;
+	Legit.ReactionTime = 50.f;
+	Legit.VisOnly = true;
+	Legit.AutoDelay = true;
+	Legit.AutoDelayTime = 80.f;
+	Legit.OnKey = true;
+	Legit.RCSMode = 0;
+	Legit.FriendlyFire = false;
+	Legit.SnapLimiter = true;
+	Legit.AngleLimit = 15;
+	Legit.AngleLimitTens = 0.5f;
+	for( int i=0;i<6;i++ ) Legit.HitboxGroup[i]=false;
+	Legit.HitboxGroup[0]=true; // legit = head only
+	Legit.HitboxGroup[1]=false;
+	Legit.HitboxGroup[2]=true; // chest for legit fallback
+	Legit.HitboxGroupsMask = (1<<0)|(1<<2);
+	for( int i=0;i<6;i++ ) Legit.HitboxGroupOrder[i]=i;
+	Legit.HitboxPriorityGroup = -1;
+	Legit.Resolver.Active = false;
+	Legit.Resolver.Smart = true;
+	Legit.Resolver.Mode = 0;
+	Legit.Resolver.Type = 5;
+	Legit.Interpolation.Disable = false;
+	Legit.Interpolation.LethalBody = true;
+	Legit.Interpolation.LagPrediction = 1;
+	for( int i=0;i<64;i++ )
+	{
+		Legit.Resolver.BruteforceIndex[i]=0;
+		Legit.Resolver.LastLBY[i]=0.f;
+		Legit.Resolver.LastMovingYaw[i]=0.f;
+		Legit.Resolver.LastVelocityYaw[i]=0.f;
+		Legit.Resolver.MissedShots[i]=0;
+		Legit.Resolver.LastResolvedYaw[i]=0.f;
+		Legit.Resolver.IsMoving[i]=false;
+		Legit.Resolver.LastPitch[i]=0.f;
+		Legit.Resolver.JitterSide[i]=0;
+		Legit.Resolver.LastYaw[i]=0.f;
+		Legit.Resolver.SpinRate[i]=0.f;
+		Legit.Resolver.ShotsFired[i]=0;
+		Legit.Resolver.ShotsHit[i]=0;
+	}
+
+	// rage profile defaults
+	Rage.Active = true;
+	Rage.AutoShoot = true;
+	Rage.AutoWall = true;
+	Rage.MultiSpot = true;
+	Rage.HitScan = true;
+	Rage.FOV = 180.f;
+	Rage.Smooth = 1.f;
+	Rage.RCS = false;
+	Rage.Humanize = false;
+	Rage.VisOnly = false;
+	Rage.AutoDelay = false;
+	Rage.Interpolation.Disable = false;
+	Rage.Interpolation.LethalBody = true;
+	Rage.Interpolation.LagPrediction = 1;
+	for( int i=0;i<6;i++ ) Rage.HitboxGroup[i]=true; // rage = all groups by default
+	Rage.HitboxGroupsMask = (1<<0)|(1<<1)|(1<<2)|(1<<3)|(1<<4)|(1<<5);
+	for( int i=0;i<6;i++ ) Rage.HitboxGroupOrder[i]=i;
+	Rage.HitboxPriorityGroup = -1;
+	Rage.Resolver.Active = true;
+	Rage.Resolver.Smart = true;
+	Rage.Resolver.Mode = 0;
+	Rage.Resolver.Type = 5; // smart v2 default
+	for( int i=0;i<64;i++ )
+	{
+		Rage.Resolver.BruteforceIndex[i]=0;
+		Rage.Resolver.LastLBY[i]=0.f;
+		Rage.Resolver.LastMovingYaw[i]=0.f;
+		Rage.Resolver.LastVelocityYaw[i]=0.f;
+		Rage.Resolver.MissedShots[i]=0;
+		Rage.Resolver.LastResolvedYaw[i]=0.f;
+		Rage.Resolver.IsMoving[i]=false;
+		Rage.Resolver.LastPitch[i]=0.f;
+		Rage.Resolver.JitterSide[i]=0;
+		Rage.Resolver.LastYaw[i]=0.f;
+		Rage.Resolver.SpinRate[i]=0.f;
+		Rage.Resolver.ShotsFired[i]=0;
+		Rage.Resolver.ShotsHit[i]=0;
+	}
+
+	// misc anti-aim defaults - improved for head protection
+	Miscellaneous.AntiAim.Active = true;
+	Miscellaneous.AntiAim.Pitch = 1; // Down 89 - best head protection
+	Miscellaneous.AntiAim.Yaw = 3; // Jitter - strongest improved old mode
+	Miscellaneous.AntiAim.Variation = 0;
+	Miscellaneous.AntiAim.RealValue = 90.f;
+	Miscellaneous.AntiAim.FakeValue = -90.f;
+	Miscellaneous.AntiAim.RelativeYaw = false;
+	Miscellaneous.AntiAim.Static = false;
+	Miscellaneous.AntiAim.WallDetection = true;
+	Miscellaneous.AntiAim.WallDetectionMode = 0;
+	Miscellaneous.AntiAim.AtTargets = true;
+	Miscellaneous.AntiAim.DuckInAir = false;
+	Miscellaneous.AntiAim.TurnOff = true;
+
+	Miscellaneous.Fakelag.Active = false;
+	Miscellaneous.Fakelag.Mode = 0;
+	Miscellaneous.Fakelag.Value = 14;
+	Miscellaneous.Fakelag.InAttack = false;
+	Miscellaneous.Fakelag.AirOnly = false;
+
+	// misc anti smac defaults
+	Miscellaneous.AntiSMAC = false;
+	Miscellaneous.AntiSMACMode = 1;
+
 	Menu.x = screen_x / 2 - ( Menu.h / 2 );
 	Menu.y = screen_y / 2 - ( Menu.w / 2 );
 
@@ -20,6 +192,28 @@ void CVars::Init( )
 	Radar.h = 249;
 
 	Visuals.ASUS = 1.f;
+	Visuals.ESP.Box = true;
+	Visuals.ESP.Name = true;
+	Visuals.ESP.Health = true;
+	Visuals.ESP.Weapon = false;
+	Visuals.ESP.Bone = false;
+	Visuals.ESP.AimSpot = true;
+	Visuals.ESP.Hit = true;
+	Visuals.ESP.Ground = false;
+	Visuals.ESP.EnemyOnly = true;
+	Visuals.ESP.Dormant = true; // dormant ESP gray
+	Visuals.ESP.OutOfFOV = true; // out of fov arrows
+	Visuals.Chams.Active = true;
+	Visuals.Chams.Weapons = false;
+	Visuals.Chams.Shadows = false;
+	Visuals.Chams.Outline = true;
+	Visuals.Chams.HandsOutline = false;
+	Visuals.Chams.EnemyOnly = true;
+	Visuals.Radar = true;
+	Visuals.NoSmoke = false;
+	Visuals.NoFlash = false;
+	Visuals.NoSky = false;
+	Visuals.NoHands = false;
 
 	ColorSelector.ESP.TT = Color::Red( );
 	ColorSelector.ESP.CT = Color::LightBlue( );
@@ -260,6 +454,140 @@ float Stuff::GuwopNormalize( float flAngle )
 	return flNormalizedAngle;
 }
 
+void Stuff::SaveAimbotSettings( AimbotSettings& dst )
+{
+	dst.Active = g_CVars.Aimbot.Active;
+	dst.AutoShoot = g_CVars.Aimbot.AutoShoot;
+	dst.AutoWall = g_CVars.Aimbot.AutoWall;
+	dst.MultiSpot = g_CVars.Aimbot.MultiSpot;
+	dst.HitScan = g_CVars.Aimbot.HitScan;
+	dst.FriendlyFire = g_CVars.Aimbot.FriendlyFire;
+	dst.Silent = g_CVars.Aimbot.Silent;
+	dst.PerfectSilent = g_CVars.Aimbot.PerfectSilent;
+	dst.AntiSMAC = g_CVars.Aimbot.AntiSMAC;
+	dst.BodyAWP = g_CVars.Aimbot.BodyAWP;
+	dst.SnapLimiter = g_CVars.Aimbot.SnapLimiter;
+
+	dst.TargetSelection = g_CVars.Aimbot.TargetSelection;
+	dst.Hitbox = g_CVars.Aimbot.Hitbox;
+	dst.HitboxMode = g_CVars.Aimbot.HitboxMode;
+	dst.Height = g_CVars.Aimbot.Height;
+	dst.AngleLimit = g_CVars.Aimbot.AngleLimit;
+	dst.MinDamage = g_CVars.Aimbot.MinDamage;
+	dst.Key = g_CVars.Aimbot.Key;
+
+	dst.AngleLimitTens = g_CVars.Aimbot.AngleLimitTens;
+	dst.PointScale = g_CVars.Aimbot.PointScale;
+	dst.FOV = g_CVars.Aimbot.FOV;
+	dst.Smooth = g_CVars.Aimbot.Smooth;
+
+	dst.RCS = g_CVars.Aimbot.RCS;
+	dst.RCSAmountX = g_CVars.Aimbot.RCSAmountX;
+	dst.RCSAmountY = g_CVars.Aimbot.RCSAmountY;
+	dst.RCSScale = g_CVars.Aimbot.RCSScale;
+	dst.Humanize = g_CVars.Aimbot.Humanize;
+	dst.HumanizeRandom = g_CVars.Aimbot.HumanizeRandom;
+	dst.ReactionTime = g_CVars.Aimbot.ReactionTime;
+	dst.VisOnly = g_CVars.Aimbot.VisOnly;
+	dst.AutoDelay = g_CVars.Aimbot.AutoDelay;
+	dst.AutoDelayTime = g_CVars.Aimbot.AutoDelayTime;
+	dst.OnKey = g_CVars.Aimbot.OnKey;
+	dst.RCSMode = g_CVars.Aimbot.RCSMode;
+	for( int i=0;i<6;i++ ) dst.HitboxGroup[i]=g_CVars.Aimbot.HitboxGroup[i];
+	dst.HitboxGroupsMask = g_CVars.Aimbot.HitboxGroupsMask;
+	for( int i=0;i<6;i++ ) dst.HitboxGroupOrder[i]=g_CVars.Aimbot.HitboxGroupOrder[i];
+	dst.HitboxPriorityGroup = g_CVars.Aimbot.HitboxPriorityGroup;
+
+	dst.Resolver.Active = g_CVars.Aimbot.Resolver.Active;
+	dst.Resolver.Smart = g_CVars.Aimbot.Resolver.Smart;
+	dst.Resolver.Mode = g_CVars.Aimbot.Resolver.Mode;
+	dst.Resolver.Type = g_CVars.Aimbot.Resolver.Type;
+
+	dst.Interpolation.LagPrediction = g_CVars.Aimbot.Interpolation.LagPrediction;
+	dst.Interpolation.Disable = g_CVars.Aimbot.Interpolation.Disable;
+	dst.Interpolation.LethalBody = g_CVars.Aimbot.Interpolation.LethalBody;
+}
+
+void Stuff::LoadAimbotSettings( const AimbotSettings& src )
+{
+	g_CVars.Aimbot.Active = src.Active;
+	g_CVars.Aimbot.AutoShoot = src.AutoShoot;
+	g_CVars.Aimbot.AutoWall = src.AutoWall;
+	g_CVars.Aimbot.MultiSpot = src.MultiSpot;
+	g_CVars.Aimbot.HitScan = src.HitScan;
+	g_CVars.Aimbot.FriendlyFire = src.FriendlyFire;
+	g_CVars.Aimbot.Silent = src.Silent;
+	g_CVars.Aimbot.PerfectSilent = src.PerfectSilent;
+	g_CVars.Aimbot.AntiSMAC = src.AntiSMAC;
+	g_CVars.Aimbot.BodyAWP = src.BodyAWP;
+	g_CVars.Aimbot.SnapLimiter = src.SnapLimiter;
+
+	g_CVars.Aimbot.TargetSelection = src.TargetSelection;
+	g_CVars.Aimbot.Hitbox = src.Hitbox;
+	g_CVars.Aimbot.HitboxMode = src.HitboxMode;
+	g_CVars.Aimbot.Height = src.Height;
+	g_CVars.Aimbot.AngleLimit = src.AngleLimit;
+	g_CVars.Aimbot.MinDamage = src.MinDamage;
+	g_CVars.Aimbot.Key = src.Key;
+
+	g_CVars.Aimbot.AngleLimitTens = src.AngleLimitTens;
+	g_CVars.Aimbot.PointScale = src.PointScale;
+	g_CVars.Aimbot.FOV = src.FOV;
+	g_CVars.Aimbot.Smooth = src.Smooth;
+
+	g_CVars.Aimbot.RCS = src.RCS;
+	g_CVars.Aimbot.RCSAmountX = src.RCSAmountX;
+	g_CVars.Aimbot.RCSAmountY = src.RCSAmountY;
+	g_CVars.Aimbot.RCSScale = src.RCSScale;
+	g_CVars.Aimbot.Humanize = src.Humanize;
+	g_CVars.Aimbot.HumanizeRandom = src.HumanizeRandom;
+	g_CVars.Aimbot.ReactionTime = src.ReactionTime;
+	g_CVars.Aimbot.VisOnly = src.VisOnly;
+	g_CVars.Aimbot.AutoDelay = src.AutoDelay;
+	g_CVars.Aimbot.AutoDelayTime = src.AutoDelayTime;
+	g_CVars.Aimbot.OnKey = src.OnKey;
+	g_CVars.Aimbot.RCSMode = src.RCSMode;
+	for( int i=0;i<6;i++ ) g_CVars.Aimbot.HitboxGroup[i]=src.HitboxGroup[i];
+	g_CVars.Aimbot.HitboxGroupsMask = src.HitboxGroupsMask;
+	for( int i=0;i<6;i++ ) g_CVars.Aimbot.HitboxGroupOrder[i]=src.HitboxGroupOrder[i];
+	g_CVars.Aimbot.HitboxPriorityGroup = src.HitboxPriorityGroup;
+
+	g_CVars.Aimbot.Resolver.Active = src.Resolver.Active;
+	g_CVars.Aimbot.Resolver.Smart = src.Resolver.Smart;
+	g_CVars.Aimbot.Resolver.Mode = src.Resolver.Mode;
+	g_CVars.Aimbot.Resolver.Type = src.Resolver.Type;
+
+	g_CVars.Aimbot.Interpolation.LagPrediction = src.Interpolation.LagPrediction;
+	g_CVars.Aimbot.Interpolation.Disable = src.Interpolation.Disable;
+	g_CVars.Aimbot.Interpolation.LethalBody = src.Interpolation.LethalBody;
+}
+
+void Stuff::SwitchAimbotProfile( int nNewProfile )
+{
+	if( nNewProfile != 0 && nNewProfile != 1 ) return;
+	if( nNewProfile == g_CVars.AimbotProfile ) return;
+
+	// remember the current tuning in the profile we are leaving, then load the other one
+	SaveAimbotSettings( ( g_CVars.AimbotProfile == 0 ) ? g_CVars.Legit : g_CVars.Rage );
+
+	g_CVars.AimbotProfile = nNewProfile;
+	LoadAimbotSettings( ( nNewProfile == 0 ) ? g_CVars.Legit : g_CVars.Rage );
+
+	// mutual exclusivity: if switching to legit, disable rage active, and vice versa
+	if( nNewProfile == 0 )
+	{
+		g_CVars.Legit.Active = true;
+		g_CVars.Rage.Active = false;
+		g_CVars.Aimbot.Active = true;
+	}
+	else
+	{
+		g_CVars.Rage.Active = true;
+		g_CVars.Legit.Active = false;
+		g_CVars.Aimbot.Active = true;
+	}
+}
+
 //===============================================================================================
 
 void Stuff::MovementFix::FixMove( BasePlayer* LocalPlayer, CUserCmd* pCmd, bool angelfix )
@@ -299,7 +627,8 @@ void Stuff::AntiAim::AtTargets( BasePlayer* LocalPlayer, CUserCmd* pCmd )
 		if( i == g_pEngineClient->GetLocalPlayer( ) ) continue;			
 		BasePlayer* Ent = ( BasePlayer* )g_pClientEntityList->GetClientEntity( i );
 		if( !Ent ) continue;
-		if( !( *( int* )( ( DWORD ) Ent + 0x87 ) == 0 ) ) continue;
+		if( Ent->IsDormant( ) ) continue;
+		if( Ent->m_lifeState( ) != 0 ) continue;
 		if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
 
 		Vector dst = Ent->EyePosition( );
@@ -568,18 +897,32 @@ float Stuff::Clamp( float &angle )
 
 void Stuff::ForceSeed( CUserCmd* pCmd )
 {
+	// verified: NoSpread uses (random_seed & 255) + 1 as RandomSeed for all 3 modes
+	// so we force random_seed low byte to 141 -> future seed 142
+	// server computes same random_seed from command_number via MD5_PseudoRandom
+	// loop forward to find matching command_number, limited to 512 tries to avoid huge jumps
 	int seed = 141;
 
 	if( seed != -1 )
 	{
-		for( ;; ++pCmd->command_number )
+		int start = pCmd->command_number;
+		for( int i = 0; i < 512; ++i )
 		{
 			pCmd->random_seed = MD5_PseudoRandom( pCmd->command_number ) & 0x7FFFFFFF;
-			if( ( pCmd->random_seed & 0xFF ) == seed ) break;
+			if( ( pCmd->random_seed & 0xFF ) == seed )
+				break;
+			++pCmd->command_number;
+			// safety: if not found in 512, reset to start+1 and break to avoid infinite loop
+			if( i == 511 )
+			{
+				pCmd->command_number = start + 1;
+				pCmd->random_seed = MD5_PseudoRandom( pCmd->command_number ) & 0x7FFFFFFF;
+			}
 		}
 	}
 
-	// todo: find m3 seed
+	// future seed for nospread = (random_seed & 255) + 1 = 142
+	// all 3 nospread modes use RandomSeed(future) -> compatible
 }
 
 void vectorangleshehe( const Vector& forward, QAngle &angles )
@@ -738,7 +1081,7 @@ void Stuff::SeedTrigger( CUserCmd* pCmd, BasePlayer* LocalPlayer, CSWeapon* Weap
 		if( Ent == 0 ) continue;
 		if( Ent->IsDormant( ) ) continue;
 		if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
-		if( !( *( int* )( ( DWORD ) Ent + 0x87 ) == 0 ) ) continue;
+		if( Ent->m_lifeState( ) != 0 ) continue;
 		if( g_CVars.PlayerList.Friend[ i ] ) continue;
 
 		PVOID pCollisionProperty = Ent->CollisionProperty( );
@@ -1313,7 +1656,7 @@ void Stuff::KnifeBot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer, CSWeapon* W
 			if( Ent == 0 ) continue;
 			if( Ent->IsDormant( ) ) continue;
 			if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
-			if( !( *( int* )( ( DWORD ) Ent + 0x87 ) == 0 ) ) continue;
+			if( Ent->m_lifeState( ) != 0 ) continue;
 			if( g_CVars.PlayerList.Friend[ i ] ) continue;
 
 			bool bFirstSwing = ( Weapon->m_flNextPrimaryAttack( ) + 0.4 ) < g_pGlobals->curtime;
