@@ -103,35 +103,23 @@ static bool g_DormantValid[65] = {false};
 
 void DrawOutOfFOVArrow( BasePlayer* Ent, Color col )
 {
-	// out of fov arrow - shows enemies outside screen - safe, no crash on map enter
+	// out of fov arrow - safe, no __try (C2712 fix)
 	if( !Ent ) return;
+	if( !g_pClientEntityList || !g_pEngineClient ) return;
 	if( screen_x < 100 || screen_y < 100 ) return;
-	BasePlayer* LocalPlayer = nullptr;
-	__try
-	{
-		LocalPlayer = ( BasePlayer* )g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
-	}
-	__except(EXCEPTION_EXECUTE_HANDLER) { return; }
+
+	BasePlayer* LocalPlayer = ( BasePlayer* )g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
 	if( !LocalPlayer ) return;
 
-	Vector localPos, entPos;
-	__try
-	{
-		localPos = LocalPlayer->GetAbsOrigin( );
-		entPos = Ent->GetAbsOrigin( );
-		if( localPos == Vector(0,0,0) || entPos == Vector(0,0,0) ) return;
-	}
-	__except(EXCEPTION_EXECUTE_HANDLER) { return; }
+	Vector localPos = LocalPlayer->GetAbsOrigin( );
+	Vector entPos = Ent->GetAbsOrigin( );
+	if( localPos == Vector(0,0,0) || entPos == Vector(0,0,0) ) return;
+	if( entPos.DistTo( localPos ) < 10.f ) return;
 
 	QAngle viewAngles;
 	g_pEngineClient->GetViewAngles( viewAngles );
 
-	float yaw = 0.f;
-	__try
-	{
-		yaw = DEG2RAD( viewAngles.y - RAD2DEG( atan2f( entPos.y - localPos.y, entPos.x - localPos.x ) ) - 90.f );
-	}
-	__except(EXCEPTION_EXECUTE_HANDLER) { return; }
+	float yaw = DEG2RAD( viewAngles.y - RAD2DEG( atan2f( entPos.y - localPos.y, entPos.x - localPos.x ) ) - 90.f );
 
 	float radius = 200.f;
 	float arrowSize = 15.f;
@@ -149,19 +137,14 @@ void DrawOutOfFOVArrow( BasePlayer* Ent, Color col )
 
 	if( x < 0 || y < 0 || x > screen_x || y > screen_y ) return;
 
-	// draw triangle arrow pointing to enemy - safe
-	__try
-	{
-		Vector p1( x, y, 0 );
-		Vector p2( x - arrowSize * cosf( yaw - DEG2RAD(30) ), y - arrowSize * sinf( yaw - DEG2RAD(30) ), 0 );
-		Vector p3( x - arrowSize * cosf( yaw + DEG2RAD(30) ), y - arrowSize * sinf( yaw + DEG2RAD(30) ), 0 );
+	Vector p1( x, y, 0 );
+	Vector p2( x - arrowSize * cosf( yaw - DEG2RAD(30) ), y - arrowSize * sinf( yaw - DEG2RAD(30) ), 0 );
+	Vector p3( x - arrowSize * cosf( yaw + DEG2RAD(30) ), y - arrowSize * sinf( yaw + DEG2RAD(30) ), 0 );
 
-		g_Drawing.Line( p1.x, p1.y, p2.x, p2.y, col );
-		g_Drawing.Line( p2.x, p2.y, p3.x, p3.y, col );
-		g_Drawing.Line( p3.x, p3.y, p1.x, p1.y, col );
-		g_Drawing.FilledRect( x-2, y-2, 4, 4, col );
-	}
-	__except(EXCEPTION_EXECUTE_HANDLER) {}
+	g_Drawing.Line( p1.x, p1.y, p2.x, p2.y, col );
+	g_Drawing.Line( p2.x, p2.y, p3.x, p3.y, col );
+	g_Drawing.Line( p3.x, p3.y, p1.x, p1.y, col );
+	g_Drawing.FilledRect( x-2, y-2, 4, 4, col );
 }
 
 void BoundingBoxESP( )
@@ -182,23 +165,16 @@ void BoundingBoxESP( )
 
 	for( int Index = 1; Index <= g_pGlobals->maxClients; Index++ )
 	{
-		BasePlayer* Ent = nullptr;
-		__try { Ent = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( Index ); }
-		__except(EXCEPTION_EXECUTE_HANDLER) { continue; }
+		if( !g_pClientEntityList ) continue;
+		BasePlayer* Ent = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( Index );
 		if( !Ent || Ent == LocalPlayer ) continue;
-		__try
+		if( Ent->m_lifeState( ) != 0 ) continue;
+		if( g_CVars.Visuals.ESP.EnemyOnly )
 		{
-			if( !( Ent->m_lifeState( ) == 0 ) ) continue;
-			if( g_CVars.Visuals.ESP.EnemyOnly )
-			{
-				if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
-			}
+			if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
 		}
-		__except(EXCEPTION_EXECUTE_HANDLER) { continue; }
 
-		bool bDormant = false;
-		__try { bDormant = Ent->IsDormant( ); }
-		__except(EXCEPTION_EXECUTE_HANDLER) { continue; }
+		bool bDormant = Ent->IsDormant( );
 		if( bDormant && !g_CVars.Visuals.ESP.Dormant ) continue; // dormant ESP disabled
 		Vector vPlayerFoot;
 
