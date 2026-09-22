@@ -11,7 +11,6 @@ bool Aimbot::CheckVisible( Vector& vecAbsStart, Vector& vecAbsEnd, BasePlayer* T
 	Ray_t Ray;
 	TraceFilterSkipTwoEntities TraceFilter( Target, LocalPlayer );
 
-	// todo: proper vis check
 
 	Ray.Init( vecAbsStart, vecAbsEnd );
 	g_pEngineTrace->TraceRay( Ray, 0x46004003, ( ITraceFilter* )&TraceFilter, &Trace );
@@ -28,10 +27,12 @@ bool Aimbot::CheckVisibleAWallCheck( Vector& vecAbsStart, Vector& vecAbsEnd, Bas
 	Ray_t Ray;
 	TraceFilterSkipTwoEntities traceFilter( Target, LocalPlayer );
 
-	// todo: proper vis check
 
 	if( g_CVars.Aimbot.AutoWall )
 	{
+		Vector dir = vecAbsEnd - vecAbsStart;
+		VectorNormalizeFast( dir );
+		vecDirection = dir;
 		BaseEntity* pPlayerHit = nullptr;
 		if( GetTotalDamage( LocalPlayer, Weapon, &pPlayerHit ) >= g_CVars.Aimbot.MinDamage ) return true;
 		else
@@ -51,46 +52,79 @@ bool Aimbot::CheckVisibleAWallCheck( Vector& vecAbsStart, Vector& vecAbsEnd, Bas
 
 void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 {
+	int m_iAccumulatedBoneMask = 0;
+	int m_nReadableBones = 0;
+	int m_nWritableBones = 0;
+	int m_iPrevBoneMask = 0;
+	bool bLagRestore = false;
 	if( g_CVars.Aimbot.Interpolation.LagPrediction )
 	{
 		g_Stuff.StoreTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
 		g_Stuff.ApplyTickRecord( Entity, &pPlayerHistory[ Entity->entindex( ) ][ 0 ] );
-
-		int m_iAccumulatedBoneMask = *( int* )( ( DWORD ) Entity + 0x49C + 0x4 );
-		int m_nReadableBones = *( int* )( ( DWORD ) Entity + 0x4A8 + 0x4 );
-		int m_nWritableBones = *( int* )( ( DWORD ) Entity + 0x4AC + 0x4 );
-		int m_iPrevBoneMask = *( int* )( ( DWORD ) Entity + 0x498 + 0x4 );
-
-		*( int* )( ( DWORD ) Entity + 0x4A8 + 0x4 ) = 0;							// baseanimating + 0x4A8
-		*( int* )( ( DWORD ) Entity + 0x4AC + 0x4 ) = 0;							// baseanimating + 0x4AC
-		*( int* )( ( DWORD ) Entity + 0x498 + 0x4 ) = m_iAccumulatedBoneMask;		// baseanimating + 0x498
-		*( int* )( ( DWORD ) Entity + 0x49C + 0x4 ) = 0;							// baseanimating + 0x49C
+		m_iAccumulatedBoneMask = *( int* )( ( DWORD ) Entity + 0x49C + 0x4 );
+		m_nReadableBones = *( int* )( ( DWORD ) Entity + 0x4A8 + 0x4 );
+		m_nWritableBones = *( int* )( ( DWORD ) Entity + 0x4AC + 0x4 );
+		m_iPrevBoneMask = *( int* )( ( DWORD ) Entity + 0x498 + 0x4 );
+		*( int* )( ( DWORD ) Entity + 0x4A8 + 0x4 ) = 0;
+		*( int* )( ( DWORD ) Entity + 0x4AC + 0x4 ) = 0;
+		*( int* )( ( DWORD ) Entity + 0x498 + 0x4 ) = m_iAccumulatedBoneMask;
+		*( int* )( ( DWORD ) Entity + 0x49C + 0x4 ) = 0;
+		bLagRestore = true;
 	}
-
 	matrix3x4_t matrix[ 128 ];
-	if( !( Entity->SetupBones( matrix, 128, 0x100, Entity->m_flSimulationTime( ) ) ) ) return;
+	bool bSetup = Entity->SetupBones( matrix, 128, 0x100, Entity->m_flSimulationTime( ) );
+	if( bLagRestore )
+	{
+		*( int* )( ( DWORD ) Entity + 0x4A8 + 0x4 ) = m_nReadableBones;
+		*( int* )( ( DWORD ) Entity + 0x4AC + 0x4 ) = m_nWritableBones;
+		*( int* )( ( DWORD ) Entity + 0x498 + 0x4 ) = m_iPrevBoneMask;
+		*( int* )( ( DWORD ) Entity + 0x49C + 0x4 ) = m_iAccumulatedBoneMask;
+	}
+	if( !bSetup )
+	{
+		if( bLagRestore ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
+		return;
+	}
 	void* pModel = Entity->GetModel( );
-	if( !pModel ) return;
+	if( !pModel )
+	{
+		if( bLagRestore ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
+		return;
+	}
 	studiohdr_t* studiohdr = g_pModelInfo->GetStudiomodel( pModel );
-	mstudiohitboxset_t* studiohitboxset = studiohdr->pHitboxSet( Entity->m_nHitboxSet( ) );	
-	if( !studiohitboxset ) return;
+	if( !studiohdr )
+	{
+		if( bLagRestore ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
+		return;
+	}
+	mstudiohitboxset_t* studiohitboxset = studiohdr->pHitboxSet( Entity->m_nHitboxSet( ) );
+	if( !studiohitboxset )
+	{
+		if( bLagRestore ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
+		return;
+	}
 	mstudiobbox_t* studiobbox = studiohitboxset->pHitbox( iHitbox );
-	if( !studiobbox ) return;
-
-	float scalecenter = g_pGlobals->interval_per_tick * g_CVars.Aimbot.PointScale;
-
+	if( !studiobbox )
+	{
+		if( bLagRestore ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
+		return;
+	}
 	mins[ Entity->entindex( ) ] = studiobbox->bbmin;
 	maxs[ Entity->entindex( ) ] = studiobbox->bbmax;
-
-	Vector points[ ] = { ( ( studiobbox->bbmin + studiobbox->bbmax ) * .5f ),
-		Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ) };
+	float scale = g_CVars.Aimbot.PointScale;
+	if( scale < 0.f ) scale = 0.f;
+	if( scale > 1.f ) scale = 1.f;
+	Vector center = ( studiobbox->bbmin + studiobbox->bbmax ) * 0.5f;
+	Vector ext = ( studiobbox->bbmax - studiobbox->bbmin ) * 0.5f * scale;
+	Vector points[ ] = { center,
+		Vector( center.x - ext.x, center.y - ext.y, center.z - ext.z ),
+		Vector( center.x - ext.x, center.y + ext.y, center.z - ext.z ),
+		Vector( center.x + ext.x, center.y + ext.y, center.z - ext.z ),
+		Vector( center.x + ext.x, center.y - ext.y, center.z - ext.z ),
+		Vector( center.x + ext.x, center.y + ext.y, center.z + ext.z ),
+		Vector( center.x - ext.x, center.y + ext.y, center.z + ext.z ),
+		Vector( center.x - ext.x, center.y - ext.y, center.z + ext.z ),
+		Vector( center.x + ext.x, center.y - ext.y, center.z + ext.z ) };
 
 	float flPitch = Entity->m_angEyeAngles( ).x;
 
@@ -152,7 +186,6 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 			}
 		}
 	}
-	else points[ 0 ] += points[ 0 ] * .5f;
 
 	for( int index = 0; index <= 8; ++index ) VectorTransform( points[ index ], matrix[ studiobbox->bone ], vecCorners[ index ] );
 
@@ -212,7 +245,9 @@ int GetPlayerModifiedDamage( const float &constdamage, bool isHeadshot, bool isF
 
 float GetHitgroupModifiedDamage( float dmg, int hitgroup )
 {
-	static float hitgroupModifiers[ ] = { 1.f, 4.f, 1.f, 1.25f, 1.f, 1.f, .75f, .75f };
+	static float hitgroupModifiers[ ] = { 1.f, 4.f, 1.f, 1.25f, 1.f, 1.f, .75f, .75f, 1.f };
+	if( hitgroup < 0 ) hitgroup = 0;
+	if( hitgroup > 8 ) hitgroup = 0;
 	return( dmg * hitgroupModifiers[ hitgroup ] );
 }
 
@@ -344,11 +379,14 @@ int next_shot;
 int Rate( BasePlayer* LocalPlayer, BasePlayer* Ent )
 {
 	int rate = 0;
-
-	if( g_CVars.Aimbot.TargetSelection == 0 ) rate = LocalPlayer->GetAbsOrigin( ).DistTo( Ent->GetAbsOrigin( ) ); // distance
-	if( g_CVars.Aimbot.TargetSelection == 1 ) rate = Ent->m_iHealth( ); // health
-	if( g_CVars.Aimbot.TargetSelection == 2 || g_CVars.Aimbot.TargetSelection == 3 ) rate = Ent->entindex( ) > next_shot ? 0 : 1; // next shot, random
-
+	if( g_CVars.Aimbot.TargetSelection == 0 )
+	{
+		float d = LocalPlayer->GetAbsOrigin( ).DistTo( Ent->GetAbsOrigin( ) );
+		if( d > 10000.f ) d = 10000.f;
+		rate = (int)d;
+	}
+	if( g_CVars.Aimbot.TargetSelection == 1 ) rate = Ent->m_iHealth( );
+	if( g_CVars.Aimbot.TargetSelection == 2 || g_CVars.Aimbot.TargetSelection == 3 ) rate = Ent->entindex( ) > next_shot ? 0 : 1;
 	return rate;
 }
 
@@ -363,22 +401,20 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 
 	static int iSpot;
 	static int Choose[ ] = { 12, 11, 5, 0, 1, 9, 10, 13, 14, 16, 17, 18, 8, 7, 6, 4, 3, 2, 15 };
-
 	int m_iWeaponID = Weapon->GetWeaponID( );
-
 	if( Weapon->GetWeaponID( ) == 17 )
 	{
 		if( g_CVars.Aimbot.BodyAWP ) iSpot = 10;
 		else iSpot = g_CVars.Aimbot.Hitbox;
 	}
 	else iSpot = g_CVars.Aimbot.Hitbox;
-
-    Choose[ 0 ] = iSpot;
- 
-    for( int i = 18; i >= 1; i-- )
-    {
-		if( Choose[ i ] == iSpot ) Choose[ i ] = g_CVars.Aimbot.Hitbox;
-    }
+	int localChoose[19];
+	for( int k = 0; k < 19; k++ ) localChoose[k] = Choose[k];
+	localChoose[0] = iSpot;
+	for( int i = 18; i >= 1; i-- )
+	{
+		if( localChoose[i] == iSpot ) localChoose[i] = g_CVars.Aimbot.Hitbox;
+	}
 
 	if( g_CVars.Aimbot.Key > 0 )
 	{
@@ -398,19 +434,21 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 			if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
 		}
 
-		if( Ent->m_iHealth( ) > 500 ) continue;
+		if( Ent->m_iHealth( ) <= 0 || Ent->m_iHealth( ) > 500 ) continue;
 		if( Ent->IsSpawnProtectedPlayer( ) ) continue;
 		if( g_CVars.PlayerList.Friend[ i ] ) continue;
 		if( Ent->m_vecOrigin( ).DistTo( EyePosition ) > wpnInfo.MaxRange ) continue;
-		if( g_Whitelist.List( i ) ) iSpot = 12;
+		int curSpot = iSpot;
+		if( g_Whitelist.List( i ) ) curSpot = 12;
+		int savedChoose0 = localChoose[0];
+		if( curSpot == 12 ) localChoose[0] = 12;
 		int rate = Rate( LocalPlayer, Ent );
 		if( rate > Temp ) continue;
 
-		if( Weapon->GetWeaponID( ) == 17 ) // awp
+		if( Weapon->GetWeaponID( ) == 17 )
 		{
-			// todo: fix issue with awp not hitting shit while backtracking is on
 			
-			GetHitbox( iSpot, Ent );
+			GetHitbox( curSpot, Ent );
 			
 			if( CheckVisible( EyePosition, vecCorners[ 0 ], Ent, LocalPlayer ) )
 			{
@@ -435,7 +473,7 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 				{
 					for( int m_iHitbox = 18; m_iHitbox >= 0; m_iHitbox-- )
 					{
-						GetHitbox( Choose[ m_iHitbox ], Ent );						
+						GetHitbox( localChoose[ m_iHitbox ], Ent );						
 
 						for( int m_iCorners = 8; m_iCorners > 0; m_iCorners-- )
 						{
@@ -458,7 +496,7 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 
 					for( int m_iHitbox = 18; m_iHitbox >= 0; m_iHitbox-- )
 					{
-						GetHitbox( Choose[ m_iHitbox ], Ent );
+						GetHitbox( localChoose[ m_iHitbox ], Ent );
 						VectorSubtract( vecCorners[ 0 ], EyePosition, vecDirection );
 						VectorNormalizeFast( vecDirection );
 
@@ -477,7 +515,7 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 				}
 				else
 				{
-					GetHitbox( Choose[ 0 ], Ent );
+					GetHitbox( localChoose[ 0 ], Ent );
 
 					for( int m_iCorners = 8; m_iCorners > 0; m_iCorners-- )
 					{
@@ -519,7 +557,7 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 				{
 					for( int m_iHitbox = 18; m_iHitbox >= 0; m_iHitbox-- )
 					{
-						GetHitbox( Choose[ m_iHitbox ], Ent );
+						GetHitbox( localChoose[ m_iHitbox ], Ent );
 						VectorSubtract( vecCorners[ 0 ], EyePosition, vecDirection );
 						VectorNormalizeFast( vecDirection );
 
@@ -538,7 +576,7 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 				}
 				else
 				{
-					GetHitbox( Choose[ 0 ], Ent );
+					GetHitbox( localChoose[ 0 ], Ent );
 					VectorSubtract( vecCorners[ 0 ], EyePosition, vecDirection );
 					VectorNormalizeFast( vecDirection );
 
@@ -556,6 +594,7 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 				}
 			}
 		}
+		localChoose[0] = savedChoose0;
 	}
 
 	if( IsAimbotting && TargetIndex != -1 )
