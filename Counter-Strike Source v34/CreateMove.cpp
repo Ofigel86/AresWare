@@ -238,26 +238,67 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 		else if( g_CVars.Miscellaneous.Fakelag.Mode == 2 )
 		{
 			float Velocity2D = Velocity.Length2D( ) * g_pGlobals->interval_per_tick;
-
 			while( tmpLagticks - 2 <= 14 )
 			{
 				tmpLagticks -= 2;
 				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
-
 				tmpLagticks -= 1;
 				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
-
 				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
-
 				tmpLagticks += 1;
 				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
-
 				tmpLagticks += 2;
 				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
-
 				tmpLagticks += 5;
 			};
-
+			if( DeltaTicks > 0 ) ShouldChoke = true;
+		}
+		else if( g_CVars.Miscellaneous.Fakelag.Mode == 3 )
+		{
+			static int aiBest[8] = {14, 7, 6, 9, 14, 5, 8, 6};
+			static int lastHealth = 100;
+			static int lastState = 0;
+			static int ticksSinceHit = 0;
+			int curHealth = LocalPlayer->m_iHealth( );
+			bool moving = Velocity.Length2D( ) > 1.f;
+			bool fast = Velocity.Length2D( ) > 120.f;
+			bool ducking = ( pCmd->buttons & IN_DUCK ) != 0;
+			int state = 0;
+			if( inair ) state |= 1;
+			if( moving ) state |= 2;
+			if( ducking ) state |= 4;
+			if( curHealth < lastHealth )
+			{
+				aiBest[lastState] = aiBest[lastState] > 2 ? aiBest[lastState] - 2 : 1;
+				if( aiBest[lastState] < 1 ) aiBest[lastState] = 1;
+				ticksSinceHit = 0;
+			}
+			else
+			{
+				ticksSinceHit++;
+				if( ticksSinceHit > 90 )
+				{
+					if( aiBest[state] < 14 ) aiBest[state]++;
+					ticksSinceHit = 0;
+				}
+			}
+			lastHealth = curHealth;
+			lastState = state;
+			int desired = aiBest[state];
+			if( fast && desired > 6 ) desired = 6;
+			if( moving && !fast && desired > 9 ) desired = 9;
+			float velocity2D = Velocity.Length2D( ) * g_pGlobals->interval_per_tick;
+			while( desired > 1 && ( desired * velocity2D ) > 68.f ) desired--;
+			if( desired < 1 ) desired = 1;
+			if( desired > 14 ) desired = 14;
+			tmpLagticks = desired;
+			if( ( pCmd->command_number % 16 ) == 0 )
+			{
+				int r = pCmd->command_number % 3;
+				if( r == 0 && tmpLagticks < 14 ) tmpLagticks++;
+				else if( r == 1 && tmpLagticks > 1 ) tmpLagticks--;
+			}
+			DeltaTicks = _clamp( abs( queue - tmpLagticks ), 0, 15 );
 			if( DeltaTicks > 0 ) ShouldChoke = true;
 		}
 	}

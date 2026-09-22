@@ -421,7 +421,7 @@ void GUI::RenderMiscTab( void )
 		ImGui::Checkbox( "Fake Lag Air Only", &g_CVars.Miscellaneous.Fakelag.AirOnly );
 		ImGui::SliderInt( "Choke Ticks", &g_CVars.Miscellaneous.Fakelag.Value, 0, 14 );
 
-		const char* fakelagModes[] = { "Factor", "Switch", "Adaptive" };
+		const char* fakelagModes[] = { "Factor", "Switch", "Adaptive", "AI" };
 		ImGui::Combo( "Fake Lag Mode", &g_CVars.Miscellaneous.Fakelag.Mode, fakelagModes, IM_ARRAYSIZE( fakelagModes ) );
 
 		ImGui::Spacing( );
