@@ -898,7 +898,7 @@ float GetVelocityYawStep( Vector Velocity, float NewCircleYaw )
 		
 		retn -= g_pGlobals->interval_per_tick;
 		
-		if( retn == 0.f ) break;
+		if( retn <= 0.f ) break;
 		
 		start = end;
 		degVelocity += ( degVelocity + NewCircleYaw );
@@ -921,8 +921,15 @@ void BigPolishAutostrafer( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 	
 	static bool in_strafing = false;
 	
-	if( ( GetAsyncKeyState( 'V' ) & 0x8000 ) && g_CVars.Miscellaneous.CircleStrafe )
+	static bool CircleWasDown = false;
+	bool CircleDown = ( GetAsyncKeyState( 'V' ) & 0x8000 ) && g_CVars.Miscellaneous.CircleStrafe;
+
+	if( CircleDown )
 	{
+		// re-anchor on the press edge so a stale CircleYaw can't fling the first tick
+		if( !CircleWasDown ) CircleYaw = g_Stuff.GuwopNormalize( g_Stuff.viewangles_old.y );
+		CircleWasDown = true;
+
 		float tmp = GetDegreeFromVelocity( Velocity.Length2D( ) );
 		CircleYaw = g_Stuff.GuwopNormalize( CircleYaw + tmp );
 		
@@ -933,8 +940,16 @@ void BigPolishAutostrafer( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 		
 		g_Stuff.viewangles_old.y = g_Stuff.GuwopNormalize( CircleYaw );
 		pCmd->sidemove = -450.f;
+
+		// keep buttons consistent with sidemove (main path does the same)
+		pCmd->buttons &= ~( IN_MOVELEFT | IN_MOVERIGHT | IN_FORWARD | IN_BACK );
+		if( pCmd->sidemove <= 0.f ) pCmd->buttons |= IN_MOVELEFT;
+		else pCmd->buttons |= IN_MOVERIGHT;
+		if( pCmd->forwardmove <= 0.f ) pCmd->buttons |= IN_BACK;
+		else pCmd->buttons |= IN_FORWARD;
 		return;
 	}
+	CircleWasDown = false;
 	
 	if( LocalPlayer->m_fFlags( ) & FL_ONGROUND ) return;
 	
@@ -951,7 +966,7 @@ void BigPolishAutostrafer( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 	if( YawDelta > 0.f ) pCmd->sidemove = -450.f;
 	else if( YawDelta < 0.f ) pCmd->sidemove = 450.f;
 	
-	auto AbsYawDelta = abs( YawDelta );
+	auto AbsYawDelta = fabsf( YawDelta );
 	
 	if( AbsYawDelta <= StrafeAngle || AbsYawDelta >= 30.f )
 	{
@@ -970,13 +985,13 @@ void BigPolishAutostrafer( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 			}
 			else
 			{
-				g_Stuff.viewangles_old.y = VelocityAngles.y - VelocityDegree;
+				g_Stuff.viewangles_old.y = VelocityAngles.y + VelocityDegree;
 				pCmd->sidemove = 450.f;
 			}
 		}
 		else
 		{
-			g_Stuff.viewangles_old.y = VelocityAngles.y + VelocityDegree;
+			g_Stuff.viewangles_old.y = VelocityAngles.y - VelocityDegree;
 			pCmd->sidemove = -450.f;
 		}
 	}
@@ -994,7 +1009,7 @@ void Stuff::AutoStrafe( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 {
 	// removed my old astrafer
 	// good but the code was ugly asf
-	if( GetAsyncKeyState( VK_SPACE ) ) BigPolishAutostrafer( pCmd, LocalPlayer );
+	if( GetAsyncKeyState( VK_SPACE ) & 0x8000 ) BigPolishAutostrafer( pCmd, LocalPlayer );
 }
 
 void Stuff::BunnyHop( CUserCmd* pCmd, BasePlayer* LocalPlayer )
