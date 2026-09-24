@@ -18,6 +18,12 @@ bool Validate( const QAngle &stored, const QAngle &current )
 typedef void( __thiscall* RunCommand_t )( void*, BasePlayer*, CUserCmd*, IMoveHelper* );
 void __fastcall Hooked_RunCommand( void* ecx, void* edx, BasePlayer* LocalPlayer, CUserCmd* pCmd, IMoveHelper* MoveHelper )
 {
+	if( !LocalPlayer || !pCmd )
+	{
+		PredictionVMT->Function< RunCommand_t >( 19 )( ecx, LocalPlayer, pCmd, MoveHelper );
+		return;
+	}
+
 	g_Prediction.Move = MoveHelper;
 	static int tick_count = 0;
 	bool norun = ( tick_count == pCmd->tick_count );

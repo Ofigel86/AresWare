@@ -23,6 +23,8 @@ void cGameEvent::FireGameEvent( IGameEvent* event )
 
 	if( strcmp( eventName, /*round_start*/XorStr<0x2F,12,0x8913A370>("\x5D\x5F\x44\x5C\x57\x6B\x46\x42\x56\x4A\x4D"+0x8913A370).s ) == 0 )
 	{
+		Resolver_ResetAll( );	// fresh bruteforce/memory state every round
+
 		if( g_CVars.Miscellaneous.RoundSay ) g_pEngineClient->ClientCmd( "say twojstary 4.0 vip" );
 	}
 
@@ -34,6 +36,10 @@ void cGameEvent::FireGameEvent( IGameEvent* event )
 
 		if( iKiller == g_pEngineClient->GetLocalPlayer( ) && iVictim != g_pEngineClient->GetLocalPlayer( ) )
 		{
+			// the offset used for the victim's bones when this bullet was fired
+			// worked — memorize it (Segregation Memorized_Y)
+			Resolver_OnHit( iVictim );
+
 			BasePlayer* Ent = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( iVictim );
 
 			if( Ent )
@@ -52,6 +58,9 @@ void cGameEvent::FireGameEvent( IGameEvent* event )
 	{
 		int iKiller = g_pEngineClient->GetPlayerForUserID( event->GetInt( /*attacker*/XorStr<0x31,9,0xAC07C770>("\x50\x46\x47\x55\x56\x5D\x52\x4A"+0xAC07C770).s, false ) );
 		int iVictim = g_pEngineClient->GetPlayerForUserID( event->GetInt( /*userid*/XorStr<0xAA,7,0xAC29B4E9>("\xDF\xD8\xC9\xDF\xC7\xCB"+0xAC29B4E9).s, false ) );
+
+		// slot may change hands / respawn — drop stale resolver memory
+		Resolver_ResetPlayer( iVictim );
 
 		if( iKiller == g_pEngineClient->GetLocalPlayer( ) && iVictim != g_pEngineClient->GetLocalPlayer( ) )
 		{

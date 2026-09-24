@@ -32,44 +32,22 @@ void WritePrivateProfileInteger( LPCSTR lpAppName, LPCSTR lpKeyName, INT flValue
 
 void GetPrivateProfileColor( LPCSTR lpAppName, LPCSTR lpKeyName, Color &cvar, LPCSTR lpFileName )
 {
-	char szData[ 32 ];
-	char *red, *green, *blue;
-	GetPrivateProfileStringA( lpAppName, lpKeyName, "r0,g0,b0", szData, 32, lpFileName );
+	char szData[ 64 ];
+	GetPrivateProfileStringA( lpAppName, lpKeyName, "r0,g0,b0", szData, sizeof( szData ), lpFileName );
 
-	int len = strlen( szData );
-	for( int i = 0; i < len; i++ )
+	//Parse with sscanf: the old hand-rolled scanner left red/green/blue
+	//uninitialized when the format did not match and strlen()'d garbage.
+	int r = 0, g = 0, b = 0;
+	if( sscanf_s( szData, "r%d,g%d,b%d", &r, &g, &b ) != 3 )
 	{
-		if( szData[ i ] == 'r' && szData[ i + 2 ] == ',' ) red = &szData[ i + 1 ];
-		else if( szData[ i ] == 'r' && szData[ i + 3 ] == ',' ) red = &szData[ i + 1 ];
-		else if( szData[ i ] == 'r' && szData[ i + 4 ] == ',' ) red = &szData[ i + 1 ];
-
-		if( szData[ i ] == 'g' && szData[ i + 2 ] == ',' ) green = &szData[ i + 1 ];
-		else if( szData[ i ] == 'g' && szData[ i + 3 ] == ',' ) green = &szData[ i + 1 ];
-		else if( szData[ i ] == 'g' && szData[ i + 4 ] == ',' ) green = &szData[ i + 1 ];
-
-		if( szData[ i ] == 'b' ) blue = &szData[ i + 1 ];
+		if( sscanf_s( szData, "%d,%d,%d", &r, &g, &b ) != 3 )
+		{
+			r = g = b = 0;
+		}
 	}
 
-	len = strlen( red );
-	
-	for( int i = 0; i < len; i++ )
-	{
-		if( red[ i ] == ',' && red[ i + 1 ] == 'g' ) red[ i ] = 0;
-	}
-
-	len = strlen( green );
-
-	for( int i = 0; i < len; i++ )
-	{
-		if( green[ i ] == ',' && green[ i + 1 ] == 'b' ) green[ i ] = 0;
-	}
-
-	std::string r, g, b;
-	r = red;
-	g = green;
-	b = blue;
-
-	cvar = Color( atoi( r.c_str( ) ), atoi( g.c_str( ) ), atoi( b.c_str( ) ), 255 );
+	auto clamp255 = []( int v ) { return ( v < 0 ) ? 0 : ( v > 255 ? 255 : v ); };
+	cvar = Color( clamp255( r ), clamp255( g ), clamp255( b ), 255 );
 }
 
 void WritePrivateProfileColor( LPCSTR lpAppName, LPCSTR lpKeyName, Color flValue, LPCSTR lpFileName )

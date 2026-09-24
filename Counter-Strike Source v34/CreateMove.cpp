@@ -405,30 +405,39 @@ void CorrectTickCount( CUserCmd* pCmd )
 	if( interp > cl_interp ) cl_interp = interp;
 
 	BasePlayer* LocalPlayer = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
-
-	int tick;
+	( void )LocalPlayer;
 
 	if( g_Aimbot.TargetIndex != -1 )
 	{
-		tick = TIME_TO_TICKS( pPlayerHistory[ g_Aimbot.TargetIndex ][ 0 ].m_SimulationTime );
-		bool timeout = ( tick < ( pCmd->tick_count - 50 ) );
-		if( !timeout ) pCmd->tick_count = tick;
+		// latency-correct record: aim at + send the tick of the same history
+		// entry (curtime - RTT - interp, clamped by sv_maxunlag = 1s), so the
+		// server restores exactly the bones the aimbot computed points on
+		int record = Resolver_PickRecord( g_Aimbot.TargetIndex );
+		float sim = pPlayerHistory[ g_Aimbot.TargetIndex ][ record ].m_SimulationTime;
+
+		if( sim > 0.f )
+		{
+			int tick = TIME_TO_TICKS( sim );
+			bool timeout = ( tick < ( pCmd->tick_count - 50 ) );
+			if( !timeout ) pCmd->tick_count = tick;
+		}
 	}
 }
 
 typedef void( __thiscall* CreateMove_t )( void*, int, float, bool );
 void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float input_sample_frametime, bool active )
 {
-	CreateMoveVMT->Function< CreateMove_t >( 18 )( edx, sequence_number, input_sample_frametime, active );
+	CreateMoveVMT->Function< CreateMove_t >( 18 )( ecx, sequence_number, input_sample_frametime, active );
 
 	BasePlayer* LocalPlayer = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
-	CSWeapon* Weapon = ( CSWeapon* ) LocalPlayer->GetActiveBaseCombatWeapon( );
 	if( !LocalPlayer ) return;
-
 	if( !g_pInput ) return;
+
+	CSWeapon* Weapon = ( CSWeapon* ) LocalPlayer->GetActiveBaseCombatWeapon( );
 
 	bSendPacket = true;
 	CUserCmd* pCmd = g_pInput->GetUserCmd( sequence_number );
+	if( !pCmd ) return;
 
 	g_TickCount = pCmd->tick_count;
 
@@ -507,7 +516,11 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 		{
 			if( g_Stuff.IsReadyToShoot( LocalPlayer, Weapon ) )	
 			{
-				if( g_Aimbot.TargetIndex != -1 ) g_iBulletsFired[ g_Aimbot.TargetIndex ]++;
+				if( g_Aimbot.TargetIndex != -1 )
+				{
+					g_iBulletsFired[ g_Aimbot.TargetIndex ]++;
+					Resolver_OnShot( g_Aimbot.TargetIndex );	// advance bruteforce / capture hit offset
+				}
 				angelfix = false;
 				pass = true;
 				queue = 0;
@@ -574,17 +587,17 @@ void __declspec( naked ) __fastcall Hooked_CreateMove( void* ecx, void* edx, int
 	{
 		push ebp
 		mov ebp, esp
-		mov bSendPacket, bl			   
+		push ebx
 		movzx eax, active
 		push eax
 		mov eax, input_sample_frametime
 		push eax
 		mov eax, sequence_number
 		push eax
-		call CreateMove			   
-		mov bl, bSendPacket			   
+		call CreateMove		       
+		pop ebx
 		mov esp, ebp
-		pop ebp			   
+		pop ebp
 		retn 0xC
 	}
 }

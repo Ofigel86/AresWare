@@ -140,3 +140,17 @@ void CL_RunPrediction( void )
 	_CL_RunPrediction = ( CL_RunPrediction_t ) DetourFunction( ( PBYTE ) ( ( DWORD ) BASE_ENGINE + 0x464C0 ), ( PBYTE ) Hooked_CL_RunPrediction );
 	_CL_PreprocessEntities = ( CL_PreprocessEntities_t ) DetourFunction( ( PBYTE ) ( ( DWORD ) BASE_ENGINE + 0x3EC70 ), ( PBYTE ) Hooked_CL_PreprocessEntities );
 }
+
+void UnCL_RunPrediction( void )
+{
+	if( _CL_RunPrediction )
+	{
+		DetourRemove( ( PBYTE ) _CL_RunPrediction, ( PBYTE ) Hooked_CL_RunPrediction );
+		_CL_RunPrediction = NULL;
+	}
+	if( _CL_PreprocessEntities )
+	{
+		DetourRemove( ( PBYTE ) _CL_PreprocessEntities, ( PBYTE ) Hooked_CL_PreprocessEntities );
+		_CL_PreprocessEntities = NULL;
+	}
+}

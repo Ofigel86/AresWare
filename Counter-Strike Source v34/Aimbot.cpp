@@ -54,7 +54,9 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 	if( g_CVars.Aimbot.Interpolation.LagPrediction )
 	{
 		g_Stuff.StoreTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
-		g_Stuff.ApplyTickRecord( Entity, &pPlayerHistory[ Entity->entindex( ) ][ 0 ] );
+		// same latency-correct record CorrectTickCount will send in tick_count —
+		// bones we aim at == bones the server restores (sv_maxunlag window)
+		g_Stuff.ApplyTickRecord( Entity, &pPlayerHistory[ Entity->entindex( ) ][ Resolver_PickRecord( Entity->entindex( ) ) ] );
 
 		int m_iAccumulatedBoneMask = *( int* )( ( DWORD ) Entity + 0x49C + 0x4 );
 		int m_nReadableBones = *( int* )( ( DWORD ) Entity + 0x4A8 + 0x4 );

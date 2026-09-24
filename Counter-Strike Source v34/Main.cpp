@@ -20,7 +20,7 @@ bool bMouse = false;
 
 void UnHookLoop( )
 {
-	while( 1 == 1 && 0 == 0 ) 
+	while( 1 )
 	{
 		if( GetAsyncKeyState( VK_F12 ) & 1 )
 		{
@@ -28,6 +28,7 @@ void UnHookLoop( )
 			Sleep( 1000 );
 			FreeLibraryAndExitThread( g_hModule, 0 );
 		}
+		Sleep( 100 );
 	}
 }
 
@@ -45,17 +46,31 @@ bool APIENTRY pSetCursorPos( int x, int y )
 	return SetCursorPosPtr(x, y); 
 } 
 
-bool APIENTRY pGetCursorPos( LPPOINT lpPoint ) 
-{
-	bool ret = GetCursorPosPtr( lpPoint ); 
+bool APIENTRY pGetCursorPos( LPPOINT lpPoint )
+{ 
+	bool ret = GetCursorPosPtr( lpPoint );
 	if( bMouse && !g_pEngineClient->Con_IsVisible( ) )
 	{
 		ScreenToClient( GetForegroundWindow( ), lpPoint );
 		HandleMousePos( lpPoint->x, lpPoint->y );
 		lpPoint->x = OldMouseX; 
-		lpPoint->y = OldMouseY; 
-   } 
+		lpPoint->y = OldMouseY;
+   }
    return ret; 
+}
+
+void UnCursorHooks( void )
+{
+	if( SetCursorPosPtr )
+	{
+		DetourRemove( ( PBYTE ) SetCursorPosPtr, ( PBYTE ) pSetCursorPos );
+		SetCursorPosPtr = NULL;
+	}
+	if( GetCursorPosPtr )
+	{
+		DetourRemove( ( PBYTE ) GetCursorPosPtr, ( PBYTE ) pGetCursorPos );
+		GetCursorPosPtr = NULL;
+	}
 }
 
 __int64 pow( __int64 x, __int64 e, unsigned __int64 m )
@@ -77,15 +92,17 @@ void printconsole( const char* msg, ... )
 	char szBuffer[ 2048 ];
 
 	va_start( va_alist, msg );
-	auto len = vsprintf_s( szBuffer, msg, va_alist );
+	int len = vsprintf_s( szBuffer, msg, va_alist );
 	va_end( va_alist );
+
+	if( len < 0 ) return;
+	if( len > ( int )( sizeof( szBuffer ) - 3 ) ) len = ( int )sizeof( szBuffer ) - 3;
 
 	szBuffer[ len + 0 ] = '\r';
 	szBuffer[ len + 1 ] = '\n';
 	szBuffer[ len + 2 ] = '\0';
-	len = len + 2;
 
-	printf( szBuffer );
+	printf( "%s", szBuffer );
 }
 
 void runconsole( )
@@ -97,8 +114,6 @@ void runconsole( )
 		SetConsoleTextAttribute( GetStdHandle( STD_OUTPUT_HANDLE ), FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_RED );
 	}
 }
-#include "Security.h"
-
 char g_DllPath[ MAX_PATH ];
 int __stdcall DllMain( HMODULE hMod, DWORD dwReason, PVOID lpReserved )
 {
@@ -116,6 +131,7 @@ int __stdcall DllMain( HMODULE hMod, DWORD dwReason, PVOID lpReserved )
 		m_pszDllPath = g_DllPath;
 
 		CreateThread( 0, 0, ( LPTHREAD_START_ROUTINE ) Hook, hMod, 0, 0 );
+		CreateThread( 0, 0, ( LPTHREAD_START_ROUTINE ) UnHookLoop, hMod, 0, 0 );
 
 		g_Config.SetModule( hMod );
 	}

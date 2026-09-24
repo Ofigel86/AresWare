@@ -269,7 +269,7 @@ void GUI::RenderAimbotTab( void )
 		const char* resolverModeNames[] = { "Everyone", "Selected" };
 		ImGui::Combo( "Resolver Target", &g_CVars.Aimbot.Resolver.Mode, resolverModeNames, IM_ARRAYSIZE( resolverModeNames ) );
 
-		const char* resolverTypeNames[] = { "Spin", "Back Twitch", "Alternative", "2 bullets" };
+		const char* resolverTypeNames[] = { "Spin", "Back Twitch", "Alternative", "2 bullets", "Adaptive" };
 		ImGui::Combo( "Resolver Type", &g_CVars.Aimbot.Resolver.Type, resolverTypeNames, IM_ARRAYSIZE( resolverTypeNames ) );
 
 		ImGui::Checkbox( "Smart Resolver", &g_CVars.Aimbot.Resolver.Smart );

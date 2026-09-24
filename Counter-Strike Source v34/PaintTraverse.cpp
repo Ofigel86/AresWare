@@ -75,24 +75,16 @@ void DrawHitmarker( Color color )
 
 void HitESP( )
 {
-	std::vector< hit_s >::iterator iter = hit.begin( );
-
-	for( int iHit = 0; iHit < ( int )hit.size( ); iHit++ )
+	for( auto iter = hit.begin( ); iter != hit.end( ); )
 	{
-		BasePlayer* Ent = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( hit[ iHit ].idx );
-
-		if( hit[ iHit ].time < g_pGlobals->curtime )
+		if( iter->time < g_pGlobals->curtime )
 		{
-			hit.erase( iter );
+			iter = hit.erase( iter );
 			continue;
 		}
 
-		if( hit[ iHit ].time >= g_pGlobals->curtime )
-		{
-			if( g_CVars.Visuals.ESP.Hit ) DrawHitmarker( Color( 255, 255, 255, 192 * ( TIME_TO_TICKS( hit[ iHit ].time - g_pGlobals->curtime ) ) / 60 ) );
-		}
-
-		iter++;
+		if( g_CVars.Visuals.ESP.Hit ) DrawHitmarker( Color( 255, 255, 255, 192 * ( TIME_TO_TICKS( iter->time - g_pGlobals->curtime ) ) / 60 ) );
+		++iter;
 	}
 }
 
@@ -383,7 +375,16 @@ void __fastcall Hooked_PaintTraverse( void* ptr, int edx, unsigned int vguiPanel
 
 	const char* pszPanelName = g_pPanel->GetName( vguiPanel );
 
-	g_GameEventManager.RegisterSelf( );
+	//Register the game-event listener exactly once: the old code called
+	//RegisterSelf() every panel repaint and piled up duplicate listeners.
+	{
+		static bool bListenerRegistered = false;
+		if( !bListenerRegistered && g_pGameEventManager )
+		{
+			g_GameEventManager.RegisterSelf( );
+			bListenerRegistered = true;
+		}
+	}
 
 	bool bValid = false;
 	if( pszPanelName && pszPanelName[ 0 ] == 'M' && pszPanelName[ 3 ] == 'S' && pszPanelName[ 9 ] == 'T' ) bValid = true;

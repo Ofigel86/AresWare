@@ -258,9 +258,7 @@ enum ButtonCode_t
 	KEY_XSTICK2_LEFT,							// UAXIS NEGATIVE
 	KEY_XSTICK2_DOWN,							// VAXIS POSITIVE
 	KEY_XSTICK2_UP,								// VAXIS NEGATIVE
-};
-
-#include "Main.h"
+	};
 
 #include <time.h>
 #include "ade32.h"
@@ -278,6 +276,7 @@ enum ButtonCode_t
 #include "GUI.h"
 #include "Recorder.h"
 #include "Macro.h"
+#include "Resolver.h"
 
 extern char *m_pszDllPath;
 extern int mouse_x;
@@ -399,6 +398,11 @@ extern void FX_FireBullets( void );
 extern void CL_RunPrediction( void );
 extern void ClientInterpolation( void );
 extern void Hooked_SetViewAngles( void );
+
+extern void UnCL_Move( void );
+extern void UnCL_RunPrediction( void );
+extern void UnFX_FireBullets( void );
+extern void UnCursorHooks( void );
 
 extern float __stdcall Hooked_GetLastTimeStamp( );
 extern CUserCmd* __stdcall Hooked_GetUserCmd( int );

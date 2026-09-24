@@ -347,6 +347,16 @@ IMaterial* mat_unlit_in;
 IMaterial* mat_unlit_out;
 IMaterial* mat_outline;
 
+//Original recv proxies saved at hook-install time so UnHook can restore them.
+//Leaving our proxies installed after FreeLibrary crashes the game the next
+//time the corresponding property is networked.
+static Valve::RecvVarProxyFn s_pfnOldEyePitch = NULL;
+static Valve::RecvVarProxyFn s_pfnOldEyeYaw = NULL;
+static Valve::RecvVarProxyFn s_pfnOldViewOffsetZ = NULL;
+static Valve::RecvVarProxyFn s_pfnOldBaseVelocity = NULL;
+static Valve::RecvVarProxyFn s_pfnOldFallVelocity = NULL;
+static Valve::RecvVarProxyFn s_pfnOldFlashDuration = NULL;
+
 void Hook( void )
 {
 
@@ -425,14 +435,14 @@ void Hook( void )
 	g_CVars.Init( );
 
 	g_pNetvarManager = new HackInterfaces::NetvarManager( );
-	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0xF1,12,0xB60E482B>("\xB5\xA6\xAC\xB7\xA6\xA6\x9B\x99\x80\x9F\x89"+0xB60E482B).s, /*m_angEyeAngles[0]*/XorStr<0x8A,18,0x3656D77C>("\xE7\xD4\xED\xE3\xE9\xCA\xE9\xF4\xD3\xFD\xF3\xF9\xF3\xE4\xC3\xA9\xC7"+0x3656D77C).s, PlayerList_EyeAngles_Pitch );
-	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0xCE,12,0x913CD0AA>("\x8A\x9B\x8F\x92\x81\x83\xB8\xB4\xAF\xB2\xAA"+0x913CD0AA).s, /*m_angEyeAngles[1]*/XorStr<0xE8,18,0x2FF7726E>("\x85\xB6\x8B\x85\x8B\xA8\x97\x8A\xB1\x9F\x95\x9F\x91\x86\xAD\xC6\xA5"+0x2FF7726E).s, PlayerList_EyeAngles_Yaw );
-	g_pNetvarManager->HookRecvProp( /*DT_BasePlayer*/XorStr<0x69,14,0xD964BC30>("\x2D\x3E\x34\x2E\x0C\x1D\x0A\x20\x1D\x13\x0A\x11\x07"+0xD964BC30).s, /*m_vecViewOffset[2]*/XorStr<0xF0,19,0x3B8A201F>("\x9D\xAE\x84\x96\x97\xA3\x9F\x92\x8F\xB6\x9C\x9D\x8F\x98\x8A\xA4\x32\x5C"+0x3B8A201F).s, BasePlayer_ViewOffsetZ );
-	g_pNetvarManager->HookRecvProp( /*DT_BasePlayer*/XorStr<0x6B,14,0x70A952E3>("\x2F\x38\x32\x2C\x0E\x03\x14\x22\x1F\x15\x0C\x13\x05"+0x70A952E3).s, /*m_vecBaseVelocity*/XorStr<0xF0,18,0x2EA12133>("\x9D\xAE\x84\x96\x97\xB7\x97\x84\x9D\xAF\x9F\x97\x93\x9E\x97\x8B\x79"+0x2EA12133).s, BasePlayer_BaseVelocity );
+	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0xF1,12,0xB60E482B>("\xB5\xA6\xAC\xB7\xA6\xA6\x9B\x99\x80\x9F\x89"+0xB60E482B).s, /*m_angEyeAngles[0]*/XorStr<0x8A,18,0x3656D77C>("\xE7\xD4\xED\xE3\xE9\xCA\xE9\xF4\xD3\xFD\xF3\xF9\xF3\xE4\xC3\xA9\xC7"+0x3656D77C).s, PlayerList_EyeAngles_Pitch, &s_pfnOldEyePitch );
+	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0xCE,12,0x913CD0AA>("\x8A\x9B\x8F\x92\x81\x83\xB8\xB4\xAF\xB2\xAA"+0x913CD0AA).s, /*m_angEyeAngles[1]*/XorStr<0xE8,18,0x2FF7726E>("\x85\xB6\x8B\x85\x8B\xA8\x97\x8A\xB1\x9F\x95\x9F\x91\x86\xAD\xC6\xA5"+0x2FF7726E).s, PlayerList_EyeAngles_Yaw, &s_pfnOldEyeYaw );
+	g_pNetvarManager->HookRecvProp( /*DT_BasePlayer*/XorStr<0x69,14,0xD964BC30>("\x2D\x3E\x34\x2E\x0C\x1D\x0A\x20\x1D\x13\x0A\x11\x07"+0xD964BC30).s, /*m_vecViewOffset[2]*/XorStr<0xF0,19,0x3B8A201F>("\x9D\xAE\x84\x96\x97\xA3\x9F\x92\x8F\xB6\x9C\x9D\x8F\x98\x8A\xA4\x32\x5C"+0x3B8A201F).s, BasePlayer_ViewOffsetZ, &s_pfnOldViewOffsetZ );
+	g_pNetvarManager->HookRecvProp( /*DT_BasePlayer*/XorStr<0x6B,14,0x70A952E3>("\x2F\x38\x32\x2C\x0E\x03\x14\x22\x1F\x15\x0C\x13\x05"+0x70A952E3).s, /*m_vecBaseVelocity*/XorStr<0xF0,18,0x2EA12133>("\x9D\xAE\x84\x96\x97\xB7\x97\x84\x9D\xAF\x9F\x97\x93\x9E\x97\x8B\x79"+0x2EA12133).s, BasePlayer_BaseVelocity, &s_pfnOldBaseVelocity );
 	//g_pNetvarManager->HookRecvProp( /*DT_BaseEntity*/XorStr<0x7E,14,0x34E50703>("\x3A\x2B\xDF\xC3\xE3\xF0\xE1\xC0\xE8\xF3\xE1\xFD\xF3"+0x34E50703).s, /*m_flSimulationTime*/XorStr<0x1D,19,0xCD57C537>("\x70\x41\x79\x4C\x72\x4B\x4E\x51\x49\x47\x53\x41\x46\x44\x7F\x45\x40\x4B"+0xCD57C537).s, BaseEntity_SimulationTime );
-	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0x96,12,0x69D79DA0>("\xD2\xC3\xC7\xDA\xC9\xCB\xF0\xFC\xE7\xFA\xD2"+0x69D79DA0).s, /*m_flFallVelocity*/XorStr<0x72,17,0x97E4AF69>("\x1F\x2C\x12\x19\x30\x16\x14\x15\x2C\x1E\x10\x12\x1D\x16\xF4\xF8"+0x97E4AF69).s, BasePlayer_FallVelocity );
+	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0x96,12,0x69D79DA0>("\xD2\xC3\xC7\xDA\xC9\xCB\xF0\xFC\xE7\xFA\xD2"+0x69D79DA0).s, /*m_flFallVelocity*/XorStr<0x72,17,0x97E4AF69>("\x1F\x2C\x12\x19\x30\x16\x14\x15\x2C\x1E\x10\x12\x1D\x16\xF4\xF8"+0x97E4AF69).s, BasePlayer_FallVelocity, &s_pfnOldFallVelocity );
 	//g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0xBE,12,0xF8678CD8>("\xFA\xEB\x9F\x82\x91\x93\xA8\xA4\xBF\xA2\xBA"+0xF8678CD8).s, /*m_nTickBase*/XorStr<0x50,12,0x8EA8F7FC>("\x3D\x0E\x3C\x07\x3D\x36\x3D\x15\x39\x2A\x3F"+0x8EA8F7FC).s, BasePlayer_TickBase );
-	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0x17,12,0x4063FD44>("\x53\x4C\x46\x59\x48\x4C\x71\x7F\x66\x45\x53"+0x4063FD44).s, /*m_flFlashDuration*/XorStr<0x3C,18,0x4EA121B8>("\x51\x62\x58\x53\x06\x2D\x23\x30\x2C\x01\x33\x35\x29\x3D\x23\x24\x22"+0x4EA121B8).s, FlashProxy );
+	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0x17,12,0x4063FD44>("\x53\x4C\x46\x59\x48\x4C\x71\x7F\x66\x45\x53"+0x4063FD44).s, /*m_flFlashDuration*/XorStr<0x3C,18,0x4EA121B8>("\x51\x62\x58\x53\x06\x2D\x23\x30\x2C\x01\x33\x35\x29\x3D\x23\x24\x22"+0x4EA121B8).s, FlashProxy, &s_pfnOldFlashDuration );
 	printconsole( /* Hooks done...\n*/XorStr<0xEE,16,0x806644F3>("\xCE\xA7\x9F\x9E\x99\x80\xD4\x91\x99\x99\x9D\xD7\xD4\xD5\xF6"+0x806644F3).s );
 
 	mat_vertex_in = g_Stuff.CreateMaterial( true, true, false );
@@ -447,8 +457,34 @@ void Hook( void )
 void UnHook( void )
 {
 	ShutdownD3D9Hook( );
-	CreateMoveVMT->SetHookEnabled( false );
-	PaintTraverseVMT->SetHookEnabled( false );
-	GetUserCmdVMT->SetHookEnabled( false );
-	PredictionVMT->SetHookEnabled( false );
+
+	if( CreateMoveVMT ) CreateMoveVMT->SetHookEnabled( false );
+	if( PaintTraverseVMT ) PaintTraverseVMT->SetHookEnabled( false );
+	if( GetUserCmdVMT ) GetUserCmdVMT->SetHookEnabled( false );
+	if( PredictionVMT ) PredictionVMT->SetHookEnabled( false );
+	if( EngineClientVMT ) EngineClientVMT->SetHookEnabled( false );
+	if( ModelRenderVMT ) ModelRenderVMT->SetHookEnabled( false );
+	if( MaterialSystemVMT ) MaterialSystemVMT->SetHookEnabled( false );
+
+	//Detach engine detours (CL_Move speedhack, FX_FireBullets, prediction)
+	UnCL_Move( );
+	UnFX_FireBullets( );
+	UnCL_RunPrediction( );
+
+	//Restore original recv proxies so no callback points into this DLL
+	if( g_pNetvarManager )
+	{
+		if( s_pfnOldEyePitch ) g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0xF1,12,0xB60E482B>( "\xB5\xA6\xAC\xB7\xA6\xA6\x9B\x99\x80\x9F\x89" + 0xB60E482B ).s, /*m_angEyeAngles[0]*/XorStr<0x8A,18,0x3656D77C>( "\xE7\xD4\xED\xE3\xE9\xCA\xE9\xF4\xD3\xFD\xF3\xF9\xF3\xE4\xC3\xA9\xC7" + 0x3656D77C ).s, s_pfnOldEyePitch );
+		if( s_pfnOldEyeYaw ) g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0xCE,12,0x913CD0AA>( "\x8A\x9B\x8F\x92\x81\x83\xB8\xB4\xAF\xB2\xAA" + 0x913CD0AA ).s, /*m_angEyeAngles[1]*/XorStr<0xE8,18,0x2FF7726E>( "\x85\xB6\x8B\x85\x8B\xA8\x97\x8A\xB1\x9F\x95\x9F\x91\x86\xAD\xC6\xA5" + 0x2FF7726E ).s, s_pfnOldEyeYaw );
+		if( s_pfnOldViewOffsetZ ) g_pNetvarManager->HookRecvProp( /*DT_BasePlayer*/XorStr<0x69,14,0xD964BC30>( "\x2D\x3E\x34\x2E\x0C\x1D\x0A\x20\x1D\x13\x0A\x11\x07" + 0xD964BC30 ).s, /*m_vecViewOffset[2]*/XorStr<0xF0,19,0x3B8A201F>( "\x9D\xAE\x84\x96\x97\xA3\x9F\x92\x8F\xB6\x9C\x9D\x8F\x98\x8A\xA4\x32\x5C" + 0x3B8A201F ).s, s_pfnOldViewOffsetZ );
+		if( s_pfnOldBaseVelocity ) g_pNetvarManager->HookRecvProp( /*DT_BasePlayer*/XorStr<0x6B,14,0x70A952E3>( "\x2F\x38\x32\x2C\x0E\x03\x14\x22\x1F\x15\x0C\x13\x05" + 0x70A952E3 ).s, /*m_vecBaseVelocity*/XorStr<0xF0,18,0x2EA12133>( "\x9D\xAE\x84\x96\x97\xB7\x97\x84\x9D\xAF\x9F\x97\x93\x9E\x97\x8B\x79" + 0x2EA12133 ).s, s_pfnOldBaseVelocity );
+		if( s_pfnOldFallVelocity ) g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0x96,12,0x69D79DA0>( "\xD2\xC3\xC7\xDA\xC9\xCB\xF0\xFC\xE7\xFA\xD2" + 0x69D79DA0 ).s, /*m_flFallVelocity*/XorStr<0x72,17,0x97E4AF69>( "\x1F\x2C\x12\x19\x30\x16\x14\x15\x2C\x1E\x10\x12\x1D\x16\xF4\xF8" + 0x97E4AF69 ).s, s_pfnOldFallVelocity );
+		if( s_pfnOldFlashDuration ) g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0x17,12,0x4063FD44>( "\x53\x4C\x46\x59\x48\x4C\x71\x7F\x66\x45\x53" + 0x4063FD44 ).s, /*m_flFlashDuration*/XorStr<0x3C,18,0x4EA121B8>( "\x51\x62\x58\x53\x06\x2D\x23\x30\x2C\x01\x33\x35\x29\x3D\x23\x24\x22" + 0x4EA121B8 ).s, s_pfnOldFlashDuration );
+	}
+
+	//Remove the game-event listener before the DLL goes away
+	if( g_pGameEventManager ) g_pGameEventManager->RemoveListener( &g_GameEventManager );
+
+	//Remove user32 cursor detours
+	UnCursorHooks( );
 }

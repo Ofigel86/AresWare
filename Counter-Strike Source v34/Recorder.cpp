@@ -49,6 +49,7 @@ void NormalizeAngles( QAngle &output )
 void CMovementRecorder::SmootherAngles( BasePlayer* LocalPlayer )
 {
 	if( State != PLAYING ) return;
+	if( Ticks < 0 || Ticks + 1 >= MaxRecordTicks ) return;
 
 	if( g_CVars.MovementRecorder.setangleyinm && !( g_CVars.MovementRecorder.angle_y_in_m_equal ) )
 	{
@@ -97,7 +98,9 @@ void CMovementRecorder::RecordMovement( CUserCmd* pCmd, BasePlayer* LocalPlayer,
 	if( g_Macro.Load2 )
 	{
 		g_Macro.ReadMacro2( TempCmd, TickEnd, DrawPath[ 0 ], szDirFileDemosDll( g_Macro.CurrentName ).c_str( ) );
-		for( int i = 0; i < MaxRecordTicks; i++ )
+		if( TickEnd < 0 ) TickEnd = 0;
+		if( TickEnd >= MaxRecordTicks ) TickEnd = MaxRecordTicks - 1;
+		for( int i = 0; i <= TickEnd; i++ )
 		{
 			Movements[ i ].buttons = TempCmd[ i ].buttons;
 			Movements[ i ].upmove = TempCmd[ i ].up;
@@ -241,19 +244,26 @@ void CMovementRecorder::RecordMovement( CUserCmd* pCmd, BasePlayer* LocalPlayer,
 			init[ 0 ] = true;
 		}
 
-		DrawPath[ Ticks ] = LocalPlayer->GetAbsOrigin( );
+		if( Ticks >= MaxRecordTicks )
+		{
+			State = NOTHING;
+		}
+		else
+		{
+			DrawPath[ Ticks ] = LocalPlayer->GetAbsOrigin( );
 
-		Movements[ Ticks ].buttons = pCmd->buttons;
-		Movements[ Ticks ].upmove = pCmd->upmove;
-		Movements[ Ticks ].sidemove = pCmd->sidemove;
-		Movements[ Ticks ].forwardmove = pCmd->forwardmove;
-		Movements[ Ticks ].viewangles = viewangles;
-		Movements[ Ticks ].weaponsubtype = pCmd->weaponsubtype;
-		Movements[ Ticks ].weaponselect = pCmd->weaponselect;
+			Movements[ Ticks ].buttons = pCmd->buttons;
+			Movements[ Ticks ].upmove = pCmd->upmove;
+			Movements[ Ticks ].sidemove = pCmd->sidemove;
+			Movements[ Ticks ].forwardmove = pCmd->forwardmove;
+			Movements[ Ticks ].viewangles = viewangles;
+			Movements[ Ticks ].weaponsubtype = pCmd->weaponsubtype;
+			Movements[ Ticks ].weaponselect = pCmd->weaponselect;
 
-		TickEnd = Ticks;
+			TickEnd = Ticks;
 
-		++Ticks;
+			++Ticks;
+		}
 	}
 	else
 		init[ 0 ] = false;
@@ -267,6 +277,12 @@ void CMovementRecorder::RecordMovement( CUserCmd* pCmd, BasePlayer* LocalPlayer,
 			init[ 1 ] = true;
 		}
 
+		//Bounds guard: capture consumability BEFORE any state transition
+		//below (rerecord / TickEnd flips may change State mid-block, but
+		//the final in-range tick must still play, and Ticks must never
+		//index outside [0, MaxRecordTicks)).
+		const bool bPlayTick = ( Ticks >= 0 && Ticks < MaxRecordTicks );
+
 		if( g_CVars.MovementRecorder.rerecord > 0 )
 		{
 			if( Ticks >= g_CVars.MovementRecorder.rerecord ) State = RECORDING;
@@ -275,6 +291,8 @@ void CMovementRecorder::RecordMovement( CUserCmd* pCmd, BasePlayer* LocalPlayer,
 		if( ( Ticks >= TickEnd ) && AutoPlayer ) State = STARTPOS;
 		if( ( Ticks >= TickEnd ) && !AutoPlayer ) State = NOTHING;
 
+		if( bPlayTick )
+		{
 		//DrawPath[ Ticks ] = LocalPlayer->GetAbsOrigin( );
 
 		pCmd->buttons = Movements[ Ticks ].buttons;
@@ -307,6 +325,7 @@ void CMovementRecorder::RecordMovement( CUserCmd* pCmd, BasePlayer* LocalPlayer,
 		pCmd->sidemove = ( float )sinf( yaw ) * speed;
 
 		++Ticks;
+		} // end bounds guard
 	}
 	else
 		init[ 1 ] = false;

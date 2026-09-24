@@ -17,10 +17,10 @@ int __stdcall Hooked_DrawModelEx( ModelRenderInfo_t &pInfo )
 
 	std::string pszModelName = g_pModelInfo->GetModelName( ( model_t* )pInfo.pModel );
 
-	BasePlayer* LocalPlayer = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
+		BasePlayer* LocalPlayer = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
 	BasePlayer* pModelEntity = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( pInfo.entity_index );
 
-	if( pModelEntity )
+	if( pModelEntity && LocalPlayer )
 	{
 		if( pszModelName.find( /*models/player*/XorStr<0x62,14,0xE7AF524E>("\x0F\x0C\x00\x00\x0A\x14\x47\x19\x06\x0A\x15\x08\x1C"+0xE7AF524E).s ) != std::string::npos )
 		{

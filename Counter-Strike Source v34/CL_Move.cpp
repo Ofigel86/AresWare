@@ -8,10 +8,11 @@ void Hooked_CL_Move( float accumulated_extra_samples, bool bFinalTick )
 {
 	_CL_Move( accumulated_extra_samples, bFinalTick );
 
-	if( g_CVars.Miscellaneous.Speedhack && GetAsyncKeyState( 0x45 ) )
+		if( g_CVars.Miscellaneous.Speedhack && GetAsyncKeyState( 0x45 ) )
 	{
 		g_bCL_Move = true;
-		for( int i = 0; i <= g_CVars.Miscellaneous.SpeedhackValue; i++ ) _CL_Move( accumulated_extra_samples, bFinalTick );
+		//i < Value, not <= : Value extra calls double-counted one iteration
+		for( int i = 0; i < g_CVars.Miscellaneous.SpeedhackValue; i++ ) _CL_Move( accumulated_extra_samples, bFinalTick );
 	}
 
 	g_bCL_Move = false;
@@ -20,4 +21,13 @@ void Hooked_CL_Move( float accumulated_extra_samples, bool bFinalTick )
 void CL_Move( void )
 {
 	_CL_Move = ( CL_Move_t ) DetourFunction( ( PBYTE ) ( ( DWORD ) BASE_ENGINE + 0x42510 ), ( PBYTE ) Hooked_CL_Move );
+}
+
+void UnCL_Move( void )
+{
+	if( _CL_Move )
+	{
+		DetourRemove( ( PBYTE ) _CL_Move, ( PBYTE ) Hooked_CL_Move );
+		_CL_Move = NULL;
+	}
 }

@@ -75,6 +75,9 @@
     <ClInclude Include="Recorder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Resolver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="GameEventManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -189,6 +192,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Recorder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Resolver.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GameEventManager.cpp">

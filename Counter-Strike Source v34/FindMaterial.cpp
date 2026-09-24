@@ -1,4 +1,5 @@
 #include "Main.h"
+#include <algorithm>
 
 bool bInGame = false;
 
@@ -75,10 +76,18 @@ IMaterial* __stdcall Hooked_FindMaterial( const char* pMaterialName, const char*
 				bInGame = false;
 			}
 
-			if( strstr( pTextureGroupName, "SkyBox textures" ) ) vecSkyTextures.push_back( pTemp );
-			if( strstr( pTextureGroupName, "World" ) && !strstr( pMaterialName, "models\\player" ) ) vecMapTextures.push_back( pTemp );
-			if( strstr( pTextureGroupName, "Model texture" ) && strstr( pMaterialName, "models\\player" ) ) vecPlayerTextures.push_back( pTemp );
-			if( strstr( pTextureGroupName, "Model textures" ) && strstr( pMaterialName, "models\\weapons" ) ) vecWeaponTextures.push_back( pTemp );
+			//Dedupe: while sitting in the menu FindMaterial fires repeatedly
+			//for the same materials and unbounded push_backs leaked memory.
+			auto pushUnique = []( std::vector< IMaterial* > &vec, IMaterial* pMat )
+			{
+				if( pMat && std::find( vec.begin( ), vec.end( ), pMat ) == vec.end( ) )
+					vec.push_back( pMat );
+			};
+
+			if( strstr( pTextureGroupName, "SkyBox textures" ) ) pushUnique( vecSkyTextures, pTemp );
+			if( strstr( pTextureGroupName, "World" ) && !strstr( pMaterialName, "models\\player" ) ) pushUnique( vecMapTextures, pTemp );
+			if( strstr( pTextureGroupName, "Model texture" ) && strstr( pMaterialName, "models\\player" ) ) pushUnique( vecPlayerTextures, pTemp );
+			if( strstr( pTextureGroupName, "Model textures" ) && strstr( pMaterialName, "models\\weapons" ) ) pushUnique( vecWeaponTextures, pTemp );
 		}
 	}
 
