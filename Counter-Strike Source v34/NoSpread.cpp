@@ -600,7 +600,7 @@ void NoSpread::CoolNospreee( CUserCmd* pCmd, QAngle &In, BasePlayer* LocalPlayer
 
 	auto AngleSpread = AngleLast;
 	
-	AngleSpread.x += AngleLast.x + AngleAdjust.x;
+	AngleSpread.x += AngleAdjust.x;
 	AngleSpread.y += AngleAdjust.y;
 	AngleSpread.z = 0.0f;
 	
@@ -634,7 +634,6 @@ void NoSpread::Main( CUserCmd* pCmd, QAngle &In, BasePlayer* LocalPlayer, CSWeap
 		spread = -spread;
 	}
 
-	QAngle Temp = pCmd->viewangles;
 	AngleVectors( pCmd->viewangles, &forward, &right, &up );
 	dir = forward + spread.x * right + spread.y * up;
 	VectorNormalize( dir );
@@ -643,40 +642,46 @@ void NoSpread::Main( CUserCmd* pCmd, QAngle &In, BasePlayer* LocalPlayer, CSWeap
 	{
 		VectorAngles( dir, In );
 
-		Vector fix[ 3 ];
+		// roll fix is only defined for a non-zero deviation:
+		// 1/spread.y is +-inf when spread.y == 0 (e.g. flSpread == 0) -> NaN angles
+		if( spread.y != 0.0f )
+		{
+			Vector fix[ 3 ];
  
-		fix[ 2 ][ 0 ] = 1.0f;
-		fix[ 2 ][ 1 ] = -spread.x;
-		fix[ 2 ][ 2 ] = spread.y;
-	
-		VectorNormalize( fix[ 2 ] );
-	
-		fix[ 0 ][ 0 ] = 0.0f;
-		fix[ 0 ][ 1 ] = -spread.x;
-		fix[ 0 ][ 2 ] = ( 1.0f / spread.y ) + ( 1.0f / fix[ 2 ][ 2 ] ) + spread.y;
-	
-		if( spread.x > 0.0f && spread.y < 0.0f )
-		{
-			if( fix[ 0 ][ 1 ] < 0.0f ) fix[ 0 ][ 1 ] = -fix[ 0 ][ 1 ];
+			fix[ 2 ][ 0 ] = 1.0f;
+			fix[ 2 ][ 1 ] = -spread.x;
+			fix[ 2 ][ 2 ] = spread.y;
+		
+			VectorNormalize( fix[ 2 ] );
+		
+			fix[ 0 ][ 0 ] = 0.0f;
+			fix[ 0 ][ 1 ] = -spread.x;
+			fix[ 0 ][ 2 ] = ( 1.0f / spread.y ) + ( 1.0f / fix[ 2 ][ 2 ] ) + spread.y;
+		
+			if( spread.x > 0.0f && spread.y < 0.0f )
+			{
+				if( fix[ 0 ][ 1 ] < 0.0f ) fix[ 0 ][ 1 ] = -fix[ 0 ][ 1 ];
+			}
+			else if( spread.x < 0.0f && spread.y < 0.0f )
+			{
+				if( fix[ 0 ][ 1 ] > 0.0f ) fix[ 0 ][ 1 ] = -fix[ 0 ][ 1 ];
+			}
+		
+			if( fix[ 0 ][ 2 ] < 0.0f ) fix[ 0 ][ 2 ] = -fix[ 0 ][ 2 ];
+		
+			VectorNormalize( fix[ 0 ] );
+			CrossProduct( fix[ 0 ], fix[ 2 ], fix[ 1 ] );
+			VectorNormalize( fix[ 1 ] );
+		
+			float cross = ( fix[ 1 ][ 1 ] * fix[ 2 ][ 0 ] ) - ( fix[ 1 ][ 0 ] * fix[ 2 ][ 1 ] );
+			float roll = 0.0f;
+		
+			if( pCmd->viewangles.x > 84.0f || pCmd->viewangles.x < -84.0f ) roll = RAD2DEG( atan2f( fix[ 1 ][ 2 ], sqrtf( cross > 0.0f ? cross : 0.0f ) ) );
+			else roll = RAD2DEG( atan2f( fix[ 1 ][ 2 ], cross ) );
+			if( roll < 0.0f ) roll += 360.0f;
+			if( roll == roll ) pCmd->viewangles.z += roll; // apply roll fix (NaN guard)
 		}
-		else if( spread.x < 0.0f && spread.y < 0.0f )
-		{
-			if( fix[ 0 ][ 1 ] > 0.0f ) fix[ 0 ][ 1 ] = -fix[ 0 ][ 1 ];
-		}
-	
-		if( fix[ 0 ][ 2 ] < 0.0f ) fix[ 0 ][ 2 ] = -fix[ 0 ][ 2 ];
-	
-		VectorNormalize( fix[ 0 ] );
-		CrossProduct( fix[ 0 ], fix[ 2 ], fix[ 1 ] );
-		VectorNormalize( fix[ 1 ] );
-	
-		float cross = ( fix[ 1 ][ 1 ] * fix[ 2 ][ 0 ] ) - ( fix[ 1 ][ 0 ] * fix[ 2 ][ 1 ] );
-		float roll = 0.0f;
-	
-		if( pCmd->viewangles.x > 84.0f || pCmd->viewangles.x < -84.0f ) roll = RAD2DEG( atan2f( fix[ 1 ][ 2 ], sqrtf ( cross ) ) );
-		else roll = RAD2DEG( atan2f( fix[ 1 ][ 2 ], cross ) );
-		if( roll < 0.0f ) roll += 360.0f;
-		pCmd->viewangles.z += roll; // apply roll fix
+
 	}
 }
 
@@ -722,7 +727,7 @@ void NoSpread::Iterative( CUserCmd* pCmd, QAngle &In, BasePlayer* LocalPlayer, C
 		VectorAngles( serverspread, modifier );
 		modifier = In - modifier;
 
-		if( sqrt( ( modifier.x * modifier.x ) + ( modifier.y * modifier.y ) ) == 0 ) break;
+		if( sqrt( ( modifier.x * modifier.x ) + ( modifier.y * modifier.y ) ) < 0.0001f ) break;
 
 		out += modifier;
 	}

@@ -493,7 +493,6 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 
 	if( Weapon && Weapon->IsWeapon( ) )
 	{
-		if( g_CVars.Triggerbot.Active ) g_Stuff.SeedTrigger( pCmd, LocalPlayer, Weapon );
 		if( g_CVars.Aimbot.Active )
 		{
 			QAngle tmp = pCmd->viewangles;
@@ -511,6 +510,9 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 				if( !( ( delta_x < limit && delta_x > -limit ) && ( delta_y < limit && delta_y > -limit ) ) ) pCmd->viewangles = tmp;
 			}
 		}
+
+		// trigger AFTER aimbot: CanHit validates the final viewangles of this cmd
+		if( g_CVars.Triggerbot.Active ) g_Stuff.SeedTrigger( pCmd, LocalPlayer, Weapon );
 
 		if( pCmd->buttons & IN_ATTACK )
 		{

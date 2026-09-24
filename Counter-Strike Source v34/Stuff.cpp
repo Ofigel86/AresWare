@@ -616,7 +616,7 @@ bool Stuff::CanHit( Vector vSource, QAngle qCurAngle, Vector vForward, Vector vR
 	trace_t tr;
 	Ray_t ray;
 
-	if( g_CVars.Triggerbot.Spread )
+	if( g_CVars.Triggerbot.Spread || g_CVars.Triggerbot.Seed )
 	{
 		float flSpread = Weapon->GetSpread( );
 
@@ -690,27 +690,27 @@ bool checkkey( )
 		case 0: return true; break;
 		case 1:
 		{
-			if( GetAsyncKeyState( VK_LBUTTON ) ) return true;
+			if( GetAsyncKeyState( VK_LBUTTON ) & 0x8000 ) return true;
 			break;
 		}
 		case 2:
 		{
-			if( GetAsyncKeyState( VK_RBUTTON ) ) return true;
+			if( GetAsyncKeyState( VK_RBUTTON ) & 0x8000 ) return true;
 			break;
 		}
 		case 3:
 		{
-			if( GetAsyncKeyState( VK_MBUTTON ) ) return true;
+			if( GetAsyncKeyState( VK_MBUTTON ) & 0x8000 ) return true;
 			break;
 		}
 		case 4:
 		{
-			if( GetAsyncKeyState( VK_XBUTTON1 ) ) return true;
+			if( GetAsyncKeyState( VK_XBUTTON1 ) & 0x8000 ) return true;
 			break;
 		}
 		case 5:
 		{
-			if( GetAsyncKeyState( VK_XBUTTON2 ) ) return true;
+			if( GetAsyncKeyState( VK_XBUTTON2 ) & 0x8000 ) return true;
 			break;
 		}
 	}
@@ -749,7 +749,7 @@ void Stuff::SeedTrigger( CUserCmd* pCmd, BasePlayer* LocalPlayer, CSWeapon* Weap
 		Vector vMins, vMaxs;
 		Ent->GetRenderBounds( vMins, vMaxs );
 
-		if( *pfvecMaxsZ == vMaxs.z && *vecSpecifiedSurroundingMaxsZ == vMaxs.z ) return;
+		if( *pfvecMaxsZ == vMaxs.z && *vecSpecifiedSurroundingMaxsZ == vMaxs.z ) continue;
 
 		*pfvecMaxsZ = vMaxs.z;
 		*vecSpecifiedSurroundingMaxsZ = vMaxs.z;
@@ -801,6 +801,7 @@ void Stuff::SeedTrigger( CUserCmd* pCmd, BasePlayer* LocalPlayer, CSWeapon* Weap
 					if( iRandomSeed == iHitSeed )
 					{
 						pCmd->command_number = iCurrentCommand;
+						pCmd->random_seed = MD5_PseudoRandom( iCurrentCommand ) & 0x7FFFFFFF;
 						g_CVars.Triggerbot.IsShooting = true;
 						pCmd->buttons |= IN_ATTACK;
 						break;

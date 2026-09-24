@@ -14,7 +14,10 @@ bool Aimbot::CheckVisible( Vector& vecAbsStart, Vector& vecAbsEnd, BasePlayer* T
 	// todo: proper vis check
 
 	Ray.Init( vecAbsStart, vecAbsEnd );
-	g_pEngineTrace->TraceRay( Ray, 0x46004003, ( ITraceFilter* )&TraceFilter, &Trace );
+	// same mask the bullet uses: CS_MASK_SHOOT|CONTENTS_HITBOX (0x4600400B) —
+	// the old 0x46004003 lacked CONTENTS_GRATE, so railings/fences read as
+	// "visible" while the real shot stopped on them
+	g_pEngineTrace->TraceRay( Ray, 0x4600400B, ( ITraceFilter* )&TraceFilter, &Trace );
 	return ( Trace.fraction == 1.f );
 
 }
@@ -28,71 +31,102 @@ bool Aimbot::CheckVisibleAWallCheck( Vector& vecAbsStart, Vector& vecAbsEnd, Bas
 	Ray_t Ray;
 	TraceFilterSkipTwoEntities traceFilter( Target, 0 );
 
-	// todo: proper vis check
+	// Cheap path first: one line trace with the bullet's own mask. This is
+	// semantics-preserving — a visible point always returned true before too
+	// (GetTotalDamage >= MinDamage, else the line trace) — but it skips the
+	// full multi-bounce penetration simulation (~10+ traces) for every point
+	// on an open path. That simulation was the main FPS sink of MultiSpot/
+	// HitScan with Perfect Auto Wall on.
+	Ray.Init( vecAbsStart, vecAbsEnd );
+	g_pEngineTrace->TraceRay( Ray, 0x4600400B, ( ITraceFilter* )&traceFilter, &Trace );
+	if( Trace.fraction == 1.f ) return true;
 
 	if( g_CVars.Aimbot.AutoWall )
 	{
 		BaseEntity* pPlayerHit = nullptr;
 		if( GetTotalDamage( LocalPlayer, Weapon, &pPlayerHit ) >= g_CVars.Aimbot.MinDamage ) return true;
-		else
-		{
-			Ray.Init( vecAbsStart, vecAbsEnd );
-			g_pEngineTrace->TraceRay( Ray, 0x46004003, ( ITraceFilter* )&traceFilter, &Trace );
-			return ( Trace.fraction == 1.f );
-		}
 	}
-	else
-	{
-		Ray.Init( vecAbsStart, vecAbsEnd );
-		g_pEngineTrace->TraceRay( Ray, 0x46004003, ( ITraceFilter* )&traceFilter, &Trace );
-		return ( Trace.fraction == 1.f );
-	}
+
+	return false;
 }
 
 void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 {
+	// every early-out below must undo the backtrack record application,
+	// otherwise the entity is left stuck in an old pose
+	bool bAppliedRecord = false;
+
 	if( g_CVars.Aimbot.Interpolation.LagPrediction )
 	{
 		g_Stuff.StoreTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
 		// same latency-correct record CorrectTickCount will send in tick_count —
 		// bones we aim at == bones the server restores (sv_maxunlag window)
 		g_Stuff.ApplyTickRecord( Entity, &pPlayerHistory[ Entity->entindex( ) ][ Resolver_PickRecord( Entity->entindex( ) ) ] );
+		bAppliedRecord = true;
 
 		int m_iAccumulatedBoneMask = *( int* )( ( DWORD ) Entity + 0x49C + 0x4 );
 		int m_nReadableBones = *( int* )( ( DWORD ) Entity + 0x4A8 + 0x4 );
 		int m_nWritableBones = *( int* )( ( DWORD ) Entity + 0x4AC + 0x4 );
 		int m_iPrevBoneMask = *( int* )( ( DWORD ) Entity + 0x498 + 0x4 );
 
-		*( int* )( ( DWORD ) Entity + 0x4A8 + 0x4 ) = 0;							// baseanimating + 0x4A8
-		*( int* )( ( DWORD ) Entity + 0x4AC + 0x4 ) = 0;							// baseanimating + 0x4AC
-		*( int* )( ( DWORD ) Entity + 0x498 + 0x4 ) = m_iAccumulatedBoneMask;		// baseanimating + 0x498
-		*( int* )( ( DWORD ) Entity + 0x49C + 0x4 ) = 0;							// baseanimating + 0x49C
+		*( int* )( ( DWORD ) Entity + 0x4A8 + 0x4 ) = 0;						// baseanimating + 0x4A8
+		*( int* )( ( DWORD ) Entity + 0x4AC + 0x4 ) = 0;						// baseanimating + 0x4AC
+		*( int* )( ( DWORD ) Entity + 0x498 + 0x4 ) = m_iAccumulatedBoneMask;	// baseanimating + 0x498
+		*( int* )( ( DWORD ) Entity + 0x49C + 0x4 ) = 0;						// baseanimating + 0x49C
 	}
 
 	matrix3x4_t matrix[ 128 ];
-	if( !( Entity->SetupBones( matrix, 128, 0x100, Entity->m_flSimulationTime( ) ) ) ) return;
+	if( !( Entity->SetupBones( matrix, 128, 0x100, Entity->m_flSimulationTime( ) ) ) )
+	{
+		if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
+		return;
+	}
 	void* pModel = Entity->GetModel( );
-	if( !pModel ) return;
+	if( !pModel )
+	{
+		if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
+		return;
+	}
 	studiohdr_t* studiohdr = g_pModelInfo->GetStudiomodel( pModel );
-	mstudiohitboxset_t* studiohitboxset = studiohdr->pHitboxSet( Entity->m_nHitboxSet( ) );	
-	if( !studiohitboxset ) return;
+	mstudiohitboxset_t* studiohitboxset = studiohdr ? studiohdr->pHitboxSet( Entity->m_nHitboxSet( ) ) : NULL;
+	if( !studiohitboxset )
+	{
+		if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
+		return;
+	}
 	mstudiobbox_t* studiobbox = studiohitboxset->pHitbox( iHitbox );
-	if( !studiobbox ) return;
-
-	float scalecenter = g_pGlobals->interval_per_tick * g_CVars.Aimbot.PointScale;
+	if( !studiobbox )
+	{
+		if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
+		return;
+	}
 
 	mins[ Entity->entindex( ) ] = studiobbox->bbmin;
 	maxs[ Entity->entindex( ) ] = studiobbox->bbmax;
 
-	Vector points[ ] = { ( ( studiobbox->bbmin + studiobbox->bbmax ) * .5f ),
-		Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmin.z + ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmax.y - ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmin.x + ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ),
-	  Vector( studiobbox->bbmax.x - ( studiobbox->bbmax.x * ( 1 - g_CVars.Aimbot.PointScale ) * .5f ), studiobbox->bbmin.y + ( studiobbox->bbmax.y * ( 1 - g_CVars.Aimbot.PointScale ) ), studiobbox->bbmax.z - ( studiobbox->bbmax.z * ( 1 - g_CVars.Aimbot.PointScale ) ) ) };
+	// PointScale semantics (restored): 0.0 = all points on the hitbox center,
+	// 1.0 = exact AABB corners. The old formulas made PointScale 0 collapse
+	// points[1..8] onto a degenerate line on the x axis (broken default) and
+	// inset the x axis only half as far as y/z.
+	Vector vCenter = ( studiobbox->bbmin + studiobbox->bbmax ) * .5f;
+	Vector vCorners[ 8 ] = {
+		Vector( studiobbox->bbmin.x, studiobbox->bbmin.y, studiobbox->bbmin.z ),
+		Vector( studiobbox->bbmin.x, studiobbox->bbmin.y, studiobbox->bbmax.z ),
+		Vector( studiobbox->bbmin.x, studiobbox->bbmax.y, studiobbox->bbmin.z ),
+		Vector( studiobbox->bbmin.x, studiobbox->bbmax.y, studiobbox->bbmax.z ),
+		Vector( studiobbox->bbmax.x, studiobbox->bbmin.y, studiobbox->bbmin.z ),
+		Vector( studiobbox->bbmax.x, studiobbox->bbmin.y, studiobbox->bbmax.z ),
+		Vector( studiobbox->bbmax.x, studiobbox->bbmax.y, studiobbox->bbmin.z ),
+		Vector( studiobbox->bbmax.x, studiobbox->bbmax.y, studiobbox->bbmax.z ) };
+
+	float flPointScale = g_CVars.Aimbot.PointScale;
+	if( flPointScale < 0.f ) flPointScale = 0.f;
+	if( flPointScale > 1.f ) flPointScale = 1.f;
+
+	Vector points[ 9 ];
+	points[ 0 ] = vCenter;
+	for( int i = 0; i < 8; i++ )
+		points[ i + 1 ] = vCenter + ( vCorners[ i ] - vCenter ) * flPointScale;
 
 	float flPitch = Entity->m_angEyeAngles( ).x;
 
@@ -129,7 +163,7 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 		else
 		{
 			if( g_CVars.Aimbot.HitboxMode == 2 || g_CVars.Aimbot.HitboxMode == 3 )
-			{		
+			{			
 				if( ( flPitch > 50.f ) && ( flPitch < 91.f ) )
 				{
 					points[ 0 ].x = studiobbox->bbmin.x * .75f;
@@ -154,11 +188,12 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 			}
 		}
 	}
-	else points[ 0 ] += points[ 0 ] * .5f;
+	// other hitboxes keep the true local center: the old "points[0] += points[0]*.5"
+	// pushed the aim point 50% away from the bone origin, potentially outside the box
 
 	for( int index = 0; index <= 8; ++index ) VectorTransform( points[ index ], matrix[ studiobbox->bone ], vecCorners[ index ] );
 
-	if( g_CVars.Aimbot.Interpolation.LagPrediction ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] ); 
+	if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
 }
 
 bool BoneFilter( int bone )
@@ -228,24 +263,23 @@ int Aimbot::GetTotalDamage( BaseEntity* LocalPlayer, CSWeapon* Weapon, BaseEntit
 	WeaponInfo WeaponInfo = g_NoSpread.GetWeaponInfo( Weapon );
 
 	int currentPenetration = WeaponInfo.Penetration;
+	if( currentPenetration > 16 ) currentPenetration = 16;	// safety clamp on garbage weapon data
 	float currentPenetrationPower = WeaponInfo.PenetrationPower;
 	float currentDamage = ( float )WeaponInfo.Damage;
 	float currentMaxRange = WeaponInfo.MaxRange;
 
-	Vector start = EyePosition, wall;
+	Vector start = EyePosition;
 	Vector end;
 	float tracedDistance = 0.f;
-	float multiplier = 24.f;
 	BaseEntity *skipPlayer = 0;
 	BaseEntity *tmp = 0;
-	TraceFilterSkipTwoEntities TraceFilter( LocalPlayer, skipPlayer );
 	int totalDamage = 0;
 	float wallThickness;
 	bool isGrate;
 	int material;
 
 	float penetrationPowerModifier = 1.f;
-	float damageModifier = .99f;
+	float damageModifier = .5f;		// engine default (cs_player_shared.cpp), overwritten per surface
 
 	Vector clip;
 	static ConVar* mp_friendlyfire = g_pCvar->FindVar( /*mp_friendlyfire*/XorStr<0x7A,16,0x24CED9A4>("\x17\x0B\x23\x1B\x0C\x16\xE5\xEF\xE6\xEF\xFD\xE3\xEF\xF5\xED"+0x24CED9A4).s );
@@ -253,6 +287,13 @@ int Aimbot::GetTotalDamage( BaseEntity* LocalPlayer, CSWeapon* Weapon, BaseEntit
 
 	while( true )
 	{
+		// rebuilt every iteration with the last pierced player (engine passes
+		// lastPlayerHit to each trace). The old filter was constructed ONCE
+		// with a null second entity, so lined-up players were re-hit on the
+		// next bounce instead of being skipped and the exit search could
+		// stall inside their hull.
+		TraceFilterSkipTwoEntities TraceFilter( LocalPlayer, skipPlayer );
+
 		end = ( start + ( vecDirection * currentMaxRange ) );
 		ray.Init( start, end );
 		g_pEngineTrace->TraceRay( ray, 0x4600400B, ( ITraceFilter* )&TraceFilter, &traceData );
@@ -288,34 +329,52 @@ int Aimbot::GetTotalDamage( BaseEntity* LocalPlayer, CSWeapon* Weapon, BaseEntit
 		isGrate = ( traceData.contents & CONTENTS_GRATE );
 		material = ( int )g_pPhysicsSurfaceProps->GetSurfaceData( traceData.surface.surfaceProps )->game.material;
 
-		if( !isGrate ) Weapon->GetMaterialParameters( material, penetrationPowerModifier, damageModifier );
+		// engine (cs_player_shared.cpp:440) ALWAYS refreshes both modifiers from
+		// the ENTER material, then overrides them for grates (1.0 / 0.99). The old
+		// code skipped the lookup on grates and kept the previous surface's values,
+		// so a fence/railing after another material got a stale (too low) modifier
+		// and walls that the engine pens read as unpennable.
+		Weapon->GetMaterialParameters( material, penetrationPowerModifier, damageModifier );
+		if( isGrate )
+		{
+			penetrationPowerModifier = 1.0f;
+			damageModifier = 0.99f;
+		}
+
 		if( tmpDistance > WeaponInfo.PenetrationRange ) currentPenetration = ( currentPenetration <= 0 ) ? currentPenetration : 0;
 		if( ( currentPenetration < 0 ) || ( ( currentPenetration == 0 ) && !isGrate ) ) break;
 
-		while( true )
+		// engine TraceToExit (step 24, candidates 24..144), restarted from THIS
+		// surface every iteration. The old search reused a stale step counter
+		// across outer iterations (and started at 48), so the exit of the 2nd+
+		// surface or a thin wall followed by other geometry was found in the
+		// wrong place -> thickness overestimated -> "some materials don't pen".
+		Vector penetrationEnd;
+		bool exitFound = false;
+		float exitStep;
+		for( exitStep = 24.f; exitStep <= 144.f; exitStep += 24.f )
 		{
-			multiplier += 24.f;
-			wall = ( traceData.endpos + ( vecDirection * multiplier ) );
-			if( !( g_pEngineTrace->GetPointContents( ( traceData.endpos + ( vecDirection * multiplier ) ), 0 ) & 0x200400B ) ) break;
-			if( multiplier > 128.f )
+			penetrationEnd = traceData.endpos + ( vecDirection * exitStep );
+			if( !( g_pEngineTrace->GetPointContents( penetrationEnd, 0 ) & 0x200400B ) )
 			{
-				multiplier = -1.f;
+				exitFound = true;
 				break;
 			}
 		}
 
-		if( multiplier == -1.f ) break;
+		if( !exitFound ) break;
 
-		ray.Init( wall, traceData.endpos );
+		ray.Init( penetrationEnd, traceData.endpos );
 		g_pEngineTrace->TraceRay( ray, 0x4600400B, 0, &wallTraceData );
 
 		if( wallTraceData.m_pEnt && ( wallTraceData.m_pEnt != traceData.m_pEnt ) )
 		{
-			g_Stuff.UTIL_TraceLine( wall, traceData.endpos, 0x4600400B, wallTraceData.m_pEnt, 0, &wallTraceData );
+			g_Stuff.UTIL_TraceLine( penetrationEnd, traceData.endpos, 0x4600400B, wallTraceData.m_pEnt, 0, &wallTraceData );
 		}
 
 		wallThickness = ( wallTraceData.endpos - traceData.endpos ).Length( );
 
+		// hollow wood/metal crate/barrel bonus (enter==exit && wood|metal -> x2)
 		if( ( material == ( int )g_pPhysicsSurfaceProps->GetSurfaceData( wallTraceData.surface.surfaceProps )->game.material ) && ( ( material == 'W' ) || ( material == 'M' ) ) ) penetrationPowerModifier += penetrationPowerModifier;
 		if( wallThickness > ( currentPenetrationPower * penetrationPowerModifier ) ) break;
 
@@ -363,10 +422,10 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 
 	Reset( );
 
-	static int iSpot;
-	static int Choose[ ] = { 12, 11, 5, 0, 1, 9, 10, 13, 14, 16, 17, 18, 8, 7, 6, 4, 3, 2, 15 };
+	int iSpot;
 
 	int m_iWeaponID = Weapon->GetWeaponID( );
+	( void )m_iWeaponID;
 
 	if( Weapon->GetWeaponID( ) == 17 )
 	{
@@ -375,12 +434,10 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 	}
 	else iSpot = g_CVars.Aimbot.Hitbox;
 
-    Choose[ 0 ] = iSpot;
- 
-    for( int i = 18; i >= 1; i-- )
-    {
-		if( Choose[ i ] == iSpot ) Choose[ i ] = g_CVars.Aimbot.Hitbox;
-    }
+	// fixed hitbox priority: slot 0 is always the per-entity primary spot,
+	// slots 1..18 are the fallback scan order (duplicates of the primary are
+	// skipped during iteration — the old replace-with-itself dedup was a no-op)
+	static const int Choose[ ] = { 12, 11, 5, 0, 1, 9, 10, 13, 14, 16, 17, 18, 8, 7, 6, 4, 3, 2, 15 };
 
 	if( g_CVars.Aimbot.Key > 0 )
 	{
@@ -404,7 +461,12 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 		if( Ent->IsSpawnProtectedPlayer( ) ) continue;
 		if( g_CVars.PlayerList.Friend[ i ] ) continue;
 		if( Ent->m_vecOrigin( ).DistTo( EyePosition ) > wpnInfo.MaxRange ) continue;
-		if( g_Whitelist.List( i ) ) iSpot = 12;
+
+		// whitelist forces hitbox 12 for THIS entity only — the old code wrote
+		// the shared static iSpot, leaking the override onto later entities (AWP)
+		// and being ignored entirely by the non-AWP branches
+		int primarySpot = g_Whitelist.List( i ) ? 12 : iSpot;
+
 		int rate = Rate( LocalPlayer, Ent );
 		if( rate > Temp ) continue;
 
@@ -412,7 +474,7 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 		{
 			// todo: fix issue with awp not hitting shit while backtracking is on
 			
-			GetHitbox( iSpot, Ent );
+			GetHitbox( primarySpot, Ent );
 			
 			if( CheckVisible( EyePosition, vecCorners[ 0 ], Ent, LocalPlayer ) )
 			{
@@ -431,78 +493,42 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 		}
 		else
 		{
-			if( g_CVars.Aimbot.MultiSpot )
+			// Unified MultiSpot / HitScan scan:
+			//   strict hitbox priority (primary -> fallbacks), inside each hitbox
+			//   center first then the PointScale scale points, first visible point
+			//   wins and the scan STOPS for this entity.
+			// The old version ran two passes (all edges of all hitboxes, then all
+			// centers), so the center of a low-priority hitbox beat a visible edge
+			// of the preferred one, re-ran SetupBones for every hitbox, and never
+			// broke out — up to 19x SetupBones + 150+ traces per player per tick.
+			const bool bMulti = g_CVars.Aimbot.MultiSpot;
+			const bool bScan = g_CVars.Aimbot.HitScan;
+			const int maxSlot = bScan ? 18 : 0;
+			bool found = false;
+
+			for( int h = 0; h <= maxSlot && !found; h++ )
 			{
-				if( g_CVars.Aimbot.HitScan )
+				int hb = ( h == 0 ) ? primarySpot : Choose[ h ];
+
+				bool dup = false;
+				for( int k = 0; k < h; k++ )
 				{
-					for( int m_iHitbox = 18; m_iHitbox >= 0; m_iHitbox-- )
-					{
-						GetHitbox( Choose[ m_iHitbox ], Ent );						
-
-						for( int m_iCorners = 8; m_iCorners > 0; m_iCorners-- )
-						{
-							VectorSubtract( vecCorners[ m_iCorners ], EyePosition, vecDirection );
-							VectorNormalizeFast( vecDirection );
-
-							if( CheckVisibleAWallCheck( EyePosition, vecCorners[ m_iCorners ], Ent, LocalPlayer ) )
-							{
-								if( g_Stuff.IsReadyToShoot( LocalPlayer, Weapon ) )
-								{
-									VectorAngles( vecDirection, pCmd->viewangles );
-									IsAimbotting = true;
-								}
-
-								TargetIndex = i;
-								Temp = rate;
-							}
-						}
-					}
-
-					for( int m_iHitbox = 18; m_iHitbox >= 0; m_iHitbox-- )
-					{
-						GetHitbox( Choose[ m_iHitbox ], Ent );
-						VectorSubtract( vecCorners[ 0 ], EyePosition, vecDirection );
-						VectorNormalizeFast( vecDirection );
-
-						if( CheckVisibleAWallCheck( EyePosition, vecCorners[ 0 ], Ent, LocalPlayer ) )
-						{
-							if( g_Stuff.IsReadyToShoot( LocalPlayer, Weapon ) )
-							{
-								VectorAngles( vecDirection, pCmd->viewangles );
-								IsAimbotting = true;
-							}
-
-							TargetIndex = i;
-							Temp = rate;
-						}
-					}
+					int prev = ( k == 0 ) ? primarySpot : Choose[ k ];
+					if( prev == hb ) { dup = true; break; }
 				}
-				else
+				if( dup ) continue;
+
+				GetHitbox( hb, Ent );
+
+				// center (0) always, scale points (1..8) only with MultiSpot
+				const int lastPoint = bMulti ? 8 : 0;
+
+				for( int c = 0; c <= lastPoint && !found; c++ )
 				{
-					GetHitbox( Choose[ 0 ], Ent );
-
-					for( int m_iCorners = 8; m_iCorners > 0; m_iCorners-- )
-					{
-						VectorSubtract( vecCorners[ m_iCorners ], EyePosition, vecDirection );
-						VectorNormalizeFast( vecDirection );
-
-						if( CheckVisibleAWallCheck( EyePosition, vecCorners[ m_iCorners ], Ent, LocalPlayer ) )
-						{
-							if( g_Stuff.IsReadyToShoot( LocalPlayer, Weapon ) )
-							{
-								VectorAngles( vecDirection, pCmd->viewangles );
-								IsAimbotting = true;
-							}
-
-							TargetIndex = i;
-							Temp = rate;
-						}
-					}
-
-					VectorSubtract( vecCorners[ 0 ], EyePosition, vecDirection );
+					VectorSubtract( vecCorners[ c ], EyePosition, vecDirection );
 					VectorNormalizeFast( vecDirection );
 
-					if( CheckVisibleAWallCheck( EyePosition, vecCorners[ 0 ], Ent, LocalPlayer ) )
+					if( CheckVisibleAWallCheck( EyePosition, vecCorners[ c ], Ent, LocalPlayer ) )
 					{
 						if( g_Stuff.IsReadyToShoot( LocalPlayer, Weapon ) )
 						{
@@ -512,48 +538,7 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 
 						TargetIndex = i;
 						Temp = rate;
-					}
-				}
-			}
-			else
-			{
-				if( g_CVars.Aimbot.HitScan )
-				{
-					for( int m_iHitbox = 18; m_iHitbox >= 0; m_iHitbox-- )
-					{
-						GetHitbox( Choose[ m_iHitbox ], Ent );
-						VectorSubtract( vecCorners[ 0 ], EyePosition, vecDirection );
-						VectorNormalizeFast( vecDirection );
-
-						if( CheckVisibleAWallCheck( EyePosition, vecCorners[ 0 ], Ent, LocalPlayer ) )
-						{
-							if( g_Stuff.IsReadyToShoot( LocalPlayer, Weapon ) )
-							{
-								VectorAngles( vecDirection, pCmd->viewangles );
-								IsAimbotting = true;
-							}
-
-							TargetIndex = i;
-							Temp = rate;
-						}
-					}
-				}
-				else
-				{
-					GetHitbox( Choose[ 0 ], Ent );
-					VectorSubtract( vecCorners[ 0 ], EyePosition, vecDirection );
-					VectorNormalizeFast( vecDirection );
-
-					if( CheckVisibleAWallCheck( EyePosition, vecCorners[ 0 ], Ent, LocalPlayer ) )
-					{
-						if( g_Stuff.IsReadyToShoot( LocalPlayer, Weapon ) )
-						{
-							VectorAngles( vecDirection, pCmd->viewangles );
-							IsAimbotting = true;
-						}
-
-						TargetIndex = i;
-						Temp = rate;
+						found = true;
 					}
 				}
 			}
