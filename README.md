@@ -21,7 +21,7 @@ AresWare/
 │   └── Segregation-css_nosteam/         — чужой v34-чит для сверки формул spread/seed
 └── Counter-Strike Source v34/           — сам чит / the cheat
     ├── oldcsshook.vcxproj(.filters)     — MSBuild project
-    ├── README.md, Preview.jpg           — Insomnia V4 origin readme
+    ├── docs/                            — README исходного Insomnia V4 + скриншот
     ├── Core/                            — точка входа, хуки-инфра, конфиг
     │                                      (Main, Hook, Config, VMTHook, SdkIncludes, NOTES)
     ├── Hooks/                           — реализации хуков движка
