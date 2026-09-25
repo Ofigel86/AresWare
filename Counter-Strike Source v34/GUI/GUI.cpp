@@ -59,74 +59,83 @@ static int HitboxFromIndex( int idx )
 	return 12;
 }
 
+static void SectionHeader( const char* label )
+{
+	ImGui::Spacing( );
+	ImGui::PushStyleColor( ImGuiCol_Text, ImVec4( 0.45f, 0.62f, 1.00f, 1.00f ) );
+	ImGui::TextUnformatted( label );
+	ImGui::PopStyleColor( );
+	ImGui::Separator( );
+}
+
 void GUI::SetupStyle( void )
 {
 	ImGuiStyle& style = ImGui::GetStyle( );
 	ImVec4* colors = style.Colors;
 
-	// Dark Insomnia Theme with subtle green accents
-	colors[ ImGuiCol_Text ]                  = ImVec4( 0.92f, 0.92f, 0.92f, 1.00f );
-	colors[ ImGuiCol_TextDisabled ]          = ImVec4( 0.45f, 0.45f, 0.45f, 1.00f );
-	colors[ ImGuiCol_WindowBg ]              = ImVec4( 0.12f, 0.12f, 0.14f, 0.96f );
-	colors[ ImGuiCol_ChildBg ]               = ImVec4( 0.15f, 0.15f, 0.17f, 0.70f );
-	colors[ ImGuiCol_PopupBg ]               = ImVec4( 0.14f, 0.14f, 0.16f, 0.96f );
-	colors[ ImGuiCol_Border ]                = ImVec4( 0.25f, 0.25f, 0.28f, 0.65f );
+	// Dark blue theme with electric-blue accents
+	colors[ ImGuiCol_Text ]                  = ImVec4( 0.93f, 0.94f, 0.96f, 1.00f );
+	colors[ ImGuiCol_TextDisabled ]          = ImVec4( 0.47f, 0.49f, 0.54f, 1.00f );
+	colors[ ImGuiCol_WindowBg ]              = ImVec4( 0.071f, 0.078f, 0.094f, 0.97f );
+	colors[ ImGuiCol_ChildBg ]               = ImVec4( 0.094f, 0.104f, 0.125f, 0.92f );
+	colors[ ImGuiCol_PopupBg ]               = ImVec4( 0.086f, 0.094f, 0.113f, 0.97f );
+	colors[ ImGuiCol_Border ]                = ImVec4( 0.200f, 0.230f, 0.290f, 0.60f );
 	colors[ ImGuiCol_BorderShadow ]          = ImVec4( 0.00f, 0.00f, 0.00f, 0.00f );
-	colors[ ImGuiCol_FrameBg ]               = ImVec4( 0.18f, 0.18f, 0.21f, 0.80f );
-	colors[ ImGuiCol_FrameBgHovered ]        = ImVec4( 0.24f, 0.24f, 0.28f, 0.80f );
-	colors[ ImGuiCol_FrameBgActive ]         = ImVec4( 0.28f, 0.28f, 0.33f, 0.90f );
-	colors[ ImGuiCol_TitleBg ]               = ImVec4( 0.10f, 0.10f, 0.12f, 1.00f );
-	colors[ ImGuiCol_TitleBgActive ]         = ImVec4( 0.14f, 0.14f, 0.16f, 1.00f );
-	colors[ ImGuiCol_TitleBgCollapsed ]      = ImVec4( 0.10f, 0.10f, 0.12f, 0.75f );
-	colors[ ImGuiCol_MenuBarBg ]             = ImVec4( 0.14f, 0.14f, 0.16f, 1.00f );
-	colors[ ImGuiCol_ScrollbarBg ]           = ImVec4( 0.10f, 0.10f, 0.12f, 0.60f );
-	colors[ ImGuiCol_ScrollbarGrab ]         = ImVec4( 0.24f, 0.24f, 0.28f, 0.80f );
-	colors[ ImGuiCol_ScrollbarGrabHovered ]  = ImVec4( 0.30f, 0.30f, 0.35f, 0.80f );
-	colors[ ImGuiCol_ScrollbarGrabActive ]   = ImVec4( 0.35f, 0.35f, 0.40f, 0.90f );
-	colors[ ImGuiCol_CheckMark ]             = ImVec4( 0.55f, 0.85f, 0.15f, 1.00f );
-	colors[ ImGuiCol_SliderGrab ]            = ImVec4( 0.50f, 0.80f, 0.12f, 0.90f );
-	colors[ ImGuiCol_SliderGrabActive ]      = ImVec4( 0.60f, 0.92f, 0.18f, 1.00f );
-	colors[ ImGuiCol_Button ]                = ImVec4( 0.20f, 0.20f, 0.24f, 0.80f );
-	colors[ ImGuiCol_ButtonHovered ]         = ImVec4( 0.28f, 0.28f, 0.33f, 0.90f );
-	colors[ ImGuiCol_ButtonActive ]          = ImVec4( 0.35f, 0.60f, 0.15f, 1.00f );
-	colors[ ImGuiCol_Header ]                = ImVec4( 0.22f, 0.22f, 0.26f, 0.70f );
-	colors[ ImGuiCol_HeaderHovered ]         = ImVec4( 0.30f, 0.30f, 0.35f, 0.80f );
-	colors[ ImGuiCol_HeaderActive ]          = ImVec4( 0.35f, 0.35f, 0.40f, 0.90f );
-	colors[ ImGuiCol_Separator ]             = ImVec4( 0.25f, 0.25f, 0.28f, 0.60f );
-	colors[ ImGuiCol_SeparatorHovered ]      = ImVec4( 0.40f, 0.70f, 0.15f, 0.80f );
-	colors[ ImGuiCol_SeparatorActive ]       = ImVec4( 0.50f, 0.80f, 0.20f, 1.00f );
-	colors[ ImGuiCol_ResizeGrip ]            = ImVec4( 0.20f, 0.20f, 0.24f, 0.50f );
-	colors[ ImGuiCol_ResizeGripHovered ]     = ImVec4( 0.50f, 0.80f, 0.15f, 0.70f );
-	colors[ ImGuiCol_ResizeGripActive ]      = ImVec4( 0.60f, 0.90f, 0.20f, 0.90f );
-	colors[ ImGuiCol_Tab ]                   = ImVec4( 0.15f, 0.15f, 0.18f, 0.80f );
-	colors[ ImGuiCol_TabHovered ]            = ImVec4( 0.28f, 0.28f, 0.33f, 0.90f );
-	colors[ ImGuiCol_TabActive ]             = ImVec4( 0.22f, 0.22f, 0.26f, 1.00f );
-	colors[ ImGuiCol_TabUnfocused ]          = ImVec4( 0.12f, 0.12f, 0.14f, 0.80f );
-	colors[ ImGuiCol_TabUnfocusedActive ]    = ImVec4( 0.16f, 0.16f, 0.20f, 1.00f );
-	colors[ ImGuiCol_TableHeaderBg ]         = ImVec4( 0.16f, 0.16f, 0.19f, 1.00f );
-	colors[ ImGuiCol_TableBorderStrong ]     = ImVec4( 0.25f, 0.25f, 0.28f, 0.80f );
-	colors[ ImGuiCol_TableBorderLight ]      = ImVec4( 0.20f, 0.20f, 0.23f, 0.50f );
+	colors[ ImGuiCol_FrameBg ]               = ImVec4( 0.125f, 0.141f, 0.173f, 0.85f );
+	colors[ ImGuiCol_FrameBgHovered ]        = ImVec4( 0.165f, 0.196f, 0.251f, 0.85f );
+	colors[ ImGuiCol_FrameBgActive ]         = ImVec4( 0.204f, 0.247f, 0.337f, 0.92f );
+	colors[ ImGuiCol_TitleBg ]               = ImVec4( 0.063f, 0.071f, 0.086f, 1.00f );
+	colors[ ImGuiCol_TitleBgActive ]         = ImVec4( 0.094f, 0.106f, 0.133f, 1.00f );
+	colors[ ImGuiCol_TitleBgCollapsed ]      = ImVec4( 0.063f, 0.071f, 0.086f, 0.75f );
+	colors[ ImGuiCol_MenuBarBg ]             = ImVec4( 0.094f, 0.104f, 0.125f, 1.00f );
+	colors[ ImGuiCol_ScrollbarBg ]           = ImVec4( 0.063f, 0.071f, 0.086f, 0.60f );
+	colors[ ImGuiCol_ScrollbarGrab ]         = ImVec4( 0.180f, 0.204f, 0.251f, 0.80f );
+	colors[ ImGuiCol_ScrollbarGrabHovered ]  = ImVec4( 0.227f, 0.267f, 0.337f, 0.80f );
+	colors[ ImGuiCol_ScrollbarGrabActive ]   = ImVec4( 0.278f, 0.329f, 0.427f, 0.90f );
+	colors[ ImGuiCol_CheckMark ]             = ImVec4( 0.310f, 0.550f, 1.000f, 1.00f );
+	colors[ ImGuiCol_SliderGrab ]            = ImVec4( 0.278f, 0.500f, 0.980f, 0.90f );
+	colors[ ImGuiCol_SliderGrabActive ]      = ImVec4( 0.380f, 0.600f, 1.000f, 1.00f );
+	colors[ ImGuiCol_Button ]                = ImVec4( 0.157f, 0.176f, 0.220f, 0.85f );
+	colors[ ImGuiCol_ButtonHovered ]         = ImVec4( 0.204f, 0.251f, 0.345f, 0.92f );
+	colors[ ImGuiCol_ButtonActive ]          = ImVec4( 0.278f, 0.450f, 0.900f, 1.00f );
+	colors[ ImGuiCol_Header ]                = ImVec4( 0.176f, 0.212f, 0.290f, 0.75f );
+	colors[ ImGuiCol_HeaderHovered ]         = ImVec4( 0.220f, 0.278f, 0.400f, 0.85f );
+	colors[ ImGuiCol_HeaderActive ]          = ImVec4( 0.278f, 0.400f, 0.750f, 0.95f );
+	colors[ ImGuiCol_Separator ]             = ImVec4( 0.204f, 0.227f, 0.275f, 0.60f );
+	colors[ ImGuiCol_SeparatorHovered ]      = ImVec4( 0.300f, 0.480f, 0.900f, 0.80f );
+	colors[ ImGuiCol_SeparatorActive ]       = ImVec4( 0.380f, 0.580f, 1.000f, 1.00f );
+	colors[ ImGuiCol_ResizeGrip ]            = ImVec4( 0.157f, 0.176f, 0.220f, 0.50f );
+	colors[ ImGuiCol_ResizeGripHovered ]     = ImVec4( 0.300f, 0.480f, 0.900f, 0.70f );
+	colors[ ImGuiCol_ResizeGripActive ]      = ImVec4( 0.380f, 0.580f, 1.000f, 0.90f );
+	colors[ ImGuiCol_Tab ]                   = ImVec4( 0.110f, 0.125f, 0.153f, 0.85f );
+	colors[ ImGuiCol_TabHovered ]            = ImVec4( 0.204f, 0.251f, 0.345f, 0.92f );
+	colors[ ImGuiCol_TabActive ]             = ImVec4( 0.176f, 0.212f, 0.290f, 1.00f );
+	colors[ ImGuiCol_TabUnfocused ]          = ImVec4( 0.094f, 0.104f, 0.125f, 0.85f );
+	colors[ ImGuiCol_TabUnfocusedActive ]    = ImVec4( 0.125f, 0.141f, 0.173f, 1.00f );
+	colors[ ImGuiCol_TableHeaderBg ]         = ImVec4( 0.125f, 0.141f, 0.173f, 1.00f );
+	colors[ ImGuiCol_TableBorderStrong ]     = ImVec4( 0.204f, 0.227f, 0.275f, 1.00f );
+	colors[ ImGuiCol_TableBorderLight ]      = ImVec4( 0.157f, 0.176f, 0.220f, 0.60f );
 	colors[ ImGuiCol_TableRowBg ]            = ImVec4( 0.00f, 0.00f, 0.00f, 0.00f );
 	colors[ ImGuiCol_TableRowBgAlt ]         = ImVec4( 1.00f, 1.00f, 1.00f, 0.03f );
 
-	style.WindowPadding     = ImVec2( 10, 10 );
-	style.FramePadding      = ImVec2( 6, 4 );
+	style.WindowPadding     = ImVec2( 12, 12 );
+	style.FramePadding      = ImVec2( 7, 4 );
 	style.ItemSpacing       = ImVec2( 8, 6 );
 	style.ItemInnerSpacing  = ImVec2( 6, 4 );
-	style.ScrollbarSize     = 12.0f;
-	style.GrabMinSize       = 10.0f;
+	style.ScrollbarSize     = 13.0f;
+	style.GrabMinSize       = 11.0f;
 	style.WindowBorderSize  = 1.0f;
 	style.ChildBorderSize   = 1.0f;
 	style.PopupBorderSize   = 1.0f;
-	style.FrameBorderSize   = 1.0f;
-	style.TabBorderSize     = 1.0f;
-	style.WindowRounding    = 4.0f;
-	style.ChildRounding     = 4.0f;
-	style.FrameRounding     = 3.0f;
-	style.PopupRounding     = 3.0f;
-	style.ScrollbarRounding = 3.0f;
-	style.GrabRounding      = 2.0f;
-	style.TabRounding       = 3.0f;
+	style.FrameBorderSize   = 0.0f;
+	style.TabBorderSize     = 0.0f;
+	style.WindowRounding    = 7.0f;
+	style.ChildRounding     = 6.0f;
+	style.FrameRounding     = 4.0f;
+	style.PopupRounding     = 4.0f;
+	style.ScrollbarRounding = 7.0f;
+	style.GrabRounding      = 3.0f;
+	style.TabRounding       = 4.0f;
 }
 
 void GUI::DrawImGui( void )
@@ -134,43 +143,49 @@ void GUI::DrawImGui( void )
 	if( !bMouse )
 		return;
 
-	ImGui::SetNextWindowSize( ImVec2( 700, 560 ), ImGuiCond_FirstUseEver );
+	static int selectedPage = 0;
+
+	ImGui::SetNextWindowSize( ImVec2( 780, 580 ), ImGuiCond_FirstUseEver );
 	if( ImGui::Begin( "Insomnia Hook | Counter-Strike: Source v34", nullptr, ImGuiWindowFlags_NoCollapse ) )
 	{
-		if( ImGui::BeginTabBar( "MainTabBar", ImGuiTabBarFlags_None ) )
+		// Left navigation sidebar
+		ImGui::BeginChild( "NavSidebar", ImVec2( 150.0f, 0.0f ), false );
 		{
-			if( ImGui::BeginTabItem( "Aimbot" ) )
-			{
-				RenderAimbotTab( );
-				ImGui::EndTabItem( );
-			}
+			ImGui::Spacing( );
+			ImGui::PushStyleColor( ImGuiCol_Text, ImVec4( 0.45f, 0.62f, 1.00f, 1.00f ) );
+			ImGui::TextUnformatted( "INSOMNIA" );
+			ImGui::PopStyleColor( );
+			ImGui::TextDisabled( "css v34 hook" );
+			ImGui::Spacing( );
+			ImGui::Separator( );
+			ImGui::Spacing( );
 
-			if( ImGui::BeginTabItem( "Visuals" ) )
+			const char* pages[] = { "Aimbot", "Visuals", "Miscellaneous", "Player List", "Config" };
+			const int numPages = ( int )( sizeof( pages ) / sizeof( pages[ 0 ] ) );
+			for( int i = 0; i < numPages; i++ )
 			{
-				RenderVisualsTab( );
-				ImGui::EndTabItem( );
+				if( ImGui::Selectable( pages[ i ], selectedPage == i, ImGuiSelectableFlags_None, ImVec2( 0.0f, 26.0f ) ) )
+					selectedPage = i;
 			}
-
-			if( ImGui::BeginTabItem( "Miscellaneous" ) )
-			{
-				RenderMiscTab( );
-				ImGui::EndTabItem( );
-			}
-
-			if( ImGui::BeginTabItem( "Player List" ) )
-			{
-				RenderPlayerListTab( );
-				ImGui::EndTabItem( );
-			}
-
-			if( ImGui::BeginTabItem( "Config" ) )
-			{
-				RenderConfigsTab( );
-				ImGui::EndTabItem( );
-			}
-
-			ImGui::EndTabBar( );
 		}
+		ImGui::EndChild( );
+
+		ImGui::SameLine( );
+
+		// Page content
+		ImGui::BeginChild( "PageContent", ImVec2( 0.0f, 0.0f ), false );
+		{
+			switch( selectedPage )
+			{
+			case 0: RenderAimbotTab( );     break;
+			case 1: RenderVisualsTab( );    break;
+			case 2: RenderMiscTab( );       break;
+			case 3: RenderPlayerListTab( ); break;
+			case 4: RenderConfigsTab( );    break;
+			default: break;
+			}
+		}
+		ImGui::EndChild( );
 	}
 	ImGui::End( );
 }
@@ -182,8 +197,7 @@ void GUI::RenderAimbotTab( void )
 	// Left Column
 	ImGui::BeginChild( "Aimbot_Left", ImVec2( halfWidth, 0 ), true );
 	{
-		ImGui::TextDisabled( "AIMBOT MAIN" );
-		ImGui::Separator( );
+		SectionHeader( "AIMBOT MAIN" );
 		ImGui::Checkbox( "Active", &g_CVars.Aimbot.Active );
 		ImGui::Checkbox( "Auto Shoot", &g_CVars.Aimbot.AutoShoot );
 		ImGui::Checkbox( "Silent Aim", &g_CVars.Aimbot.Silent );
@@ -196,8 +210,7 @@ void GUI::RenderAimbotTab( void )
 		ImGui::Checkbox( "Friendly Fire", &g_CVars.Aimbot.FriendlyFire );
 
 		ImGui::Spacing( );
-		ImGui::TextDisabled( "TRIGGERBOT" );
-		ImGui::Separator( );
+		SectionHeader( "TRIGGERBOT" );
 		ImGui::Checkbox( "Triggerbot Active", &g_CVars.Triggerbot.Active );
 		ImGui::Checkbox( "Seed Check", &g_CVars.Triggerbot.Seed );
 		ImGui::Checkbox( "Spread Check", &g_CVars.Triggerbot.Spread );
@@ -219,8 +232,7 @@ void GUI::RenderAimbotTab( void )
 	// Right Column
 	ImGui::BeginChild( "Aimbot_Right", ImVec2( halfWidth, 0 ), true );
 	{
-		ImGui::TextDisabled( "TARGETING & ADJUSTMENTS" );
-		ImGui::Separator( );
+		SectionHeader( "TARGETING & ADJUSTMENTS" );
 
 		const char* aimKeyNames[] = { "Auto", "Mouse 1", "Mouse 2", "Mouse 3", "Mouse 4", "Mouse 5" };
 		ImGui::Combo( "Aim Key", &g_CVars.Aimbot.Key, aimKeyNames, IM_ARRAYSIZE( aimKeyNames ) );
@@ -246,8 +258,7 @@ void GUI::RenderAimbotTab( void )
 		ImGui::Combo( "Pos Adjustment", &g_CVars.Aimbot.Interpolation.LagPrediction, posAdjustmentNames, IM_ARRAYSIZE( posAdjustmentNames ) );
 
 		ImGui::Spacing( );
-		ImGui::TextDisabled( "ACCURACY" );
-		ImGui::Separator( );
+		SectionHeader( "ACCURACY" );
 		ImGui::Checkbox( "Remove Recoil / Spread", &g_CVars.Accuracy.PerfectAccuracy );
 		ImGui::Checkbox( "Force Seed", &g_CVars.Accuracy.ForceSeed );
 
@@ -255,15 +266,13 @@ void GUI::RenderAimbotTab( void )
 		ImGui::Combo( "NoSpread Mode", &g_CVars.Accuracy.NoSpreadMode, spreadModeNames, IM_ARRAYSIZE( spreadModeNames ) );
 
 		ImGui::Spacing( );
-		ImGui::TextDisabled( "SNAP LIMITER" );
-		ImGui::Separator( );
+		SectionHeader( "SNAP LIMITER" );
 		ImGui::Checkbox( "Snap Limiter Active", &g_CVars.Aimbot.SnapLimiter );
 		ImGui::SliderInt( "Angle Limit", &g_CVars.Aimbot.AngleLimit, 0, 180 );
 		ImGui::SliderFloat( "Angle Limit Tens", &g_CVars.Aimbot.AngleLimitTens, 0.0f, 1.0f, "%.2f" );
 
 		ImGui::Spacing( );
-		ImGui::TextDisabled( "RESOLVER" );
-		ImGui::Separator( );
+		SectionHeader( "RESOLVER" );
 		ImGui::Checkbox( "Resolver Active", &g_CVars.Aimbot.Resolver.Active );
 
 		const char* resolverModeNames[] = { "Everyone", "Selected" };
@@ -284,8 +293,7 @@ void GUI::RenderVisualsTab( void )
 	// Left Column
 	ImGui::BeginChild( "Visuals_Left", ImVec2( halfWidth, 0 ), true );
 	{
-		ImGui::TextDisabled( "ESP (SURFACE RENDER)" );
-		ImGui::Separator( );
+		SectionHeader( "ESP (SURFACE RENDER)" );
 		ImGui::Checkbox( "Bounding Box", &g_CVars.Visuals.ESP.Box );
 		ImGui::Checkbox( "Player Name", &g_CVars.Visuals.ESP.Name );
 		ImGui::Checkbox( "Health Bar / Text", &g_CVars.Visuals.ESP.Health );
@@ -297,8 +305,7 @@ void GUI::RenderVisualsTab( void )
 		ImGui::Checkbox( "Enemy Only", &g_CVars.Visuals.ESP.EnemyOnly );
 
 		ImGui::Spacing( );
-		ImGui::TextDisabled( "CHAMS & MODELS" );
-		ImGui::Separator( );
+		SectionHeader( "CHAMS & MODELS" );
 		ImGui::Checkbox( "Player Chams", &g_CVars.Visuals.Chams.Active );
 		ImGui::Checkbox( "Weapon Chams", &g_CVars.Visuals.Chams.Weapons );
 		ImGui::Checkbox( "Draw Shadows", &g_CVars.Visuals.Chams.Shadows );
@@ -313,8 +320,7 @@ void GUI::RenderVisualsTab( void )
 	// Right Column
 	ImGui::BeginChild( "Visuals_Right", ImVec2( halfWidth, 0 ), true );
 	{
-		ImGui::TextDisabled( "WORLD & SCREEN" );
-		ImGui::Separator( );
+		SectionHeader( "WORLD & SCREEN" );
 		ImGui::Checkbox( "Draw Radar", &g_CVars.Visuals.Radar );
 		ImGui::Checkbox( "No Sky", &g_CVars.Visuals.NoSky );
 		ImGui::Checkbox( "No Smoke", &g_CVars.Visuals.NoSmoke );
@@ -328,8 +334,7 @@ void GUI::RenderVisualsTab( void )
 		ImGui::Checkbox( "Dynamic Crosshair", &g_CVars.Visuals.Crosshair.Dynamic );
 
 		ImGui::Spacing( );
-		ImGui::TextDisabled( "CUSTOM COLORS" );
-		ImGui::Separator( );
+		SectionHeader( "CUSTOM COLORS" );
 
 		ImGui::Text( "ESP Colors:" );
 		ImGuiColorEdit( "CT ESP", g_CVars.ColorSelector.ESP.CT );
@@ -360,8 +365,7 @@ void GUI::RenderMiscTab( void )
 	// Left Column
 	ImGui::BeginChild( "Misc_Left", ImVec2( halfWidth, 0 ), true );
 	{
-		ImGui::TextDisabled( "ANTI-AIM (HVH)" );
-		ImGui::Separator( );
+		SectionHeader( "ANTI-AIM (HVH)" );
 		ImGui::Checkbox( "Anti-Aim Active", &g_CVars.Miscellaneous.AntiAim.Active );
 
 		const char* pitchNames[] = { "Off", "Normal", "Inverse Normal", "Safe", "Fake Down", "Down", "Up", "Lag Down", "Lag Up" };
@@ -413,8 +417,7 @@ void GUI::RenderMiscTab( void )
 	// Right Column
 	ImGui::BeginChild( "Misc_Right", ImVec2( halfWidth, 0 ), true );
 	{
-		ImGui::TextDisabled( "FAKE LAG" );
-		ImGui::Separator( );
+		SectionHeader( "FAKE LAG" );
 		ImGui::Checkbox( "Fake Lag Active", &g_CVars.Miscellaneous.Fakelag.Active );
 		ImGui::Checkbox( "Fake Lag In Attack", &g_CVars.Miscellaneous.Fakelag.InAttack );
 		ImGui::Checkbox( "Fake Lag Air Only", &g_CVars.Miscellaneous.Fakelag.AirOnly );
@@ -424,8 +427,7 @@ void GUI::RenderMiscTab( void )
 		ImGui::Combo( "Fake Lag Mode", &g_CVars.Miscellaneous.Fakelag.Mode, fakelagModes, IM_ARRAYSIZE( fakelagModes ) );
 
 		ImGui::Spacing( );
-		ImGui::TextDisabled( "MOVEMENT & EXPLOITS" );
-		ImGui::Separator( );
+		SectionHeader( "MOVEMENT & EXPLOITS" );
 		ImGui::Checkbox( "Bunny Hop", &g_CVars.Miscellaneous.BunnyHop );
 		ImGui::Checkbox( "Auto Strafe", &g_CVars.Miscellaneous.AutoStrafe );
 		ImGui::Checkbox( "Circle Strafe (hold V)", &g_CVars.Miscellaneous.CircleStrafe );
@@ -435,8 +437,7 @@ void GUI::RenderMiscTab( void )
 		ImGui::SliderInt( "Speedhack Factor", &g_CVars.Miscellaneous.SpeedhackValue, 0, 13 );
 
 		ImGui::Spacing( );
-		ImGui::TextDisabled( "OTHER" );
-		ImGui::Separator( );
+		SectionHeader( "OTHER" );
 		ImGui::Checkbox( "Round Say", &g_CVars.Miscellaneous.RoundSay );
 		ImGui::Checkbox( "sv_cheats Bypass", &g_CVars.Miscellaneous.CheatsBypass );
 		ImGui::Checkbox( "Third Person View", &g_CVars.Miscellaneous.ThirdPerson );
@@ -522,10 +523,9 @@ void GUI::RenderPlayerListTab( void )
 
 void GUI::RenderConfigsTab( void )
 {
-	ImGui::BeginChild( "ConfigsChild", ImVec2( 0, 0 ), true );
+	ImGui::BeginChild( "ConfigsChild", ImVec2( 0, 0 ), false );
 	{
-		ImGui::TextDisabled( "CONFIGURATION MANAGER" );
-		ImGui::Separator( );
+		SectionHeader( "CONFIGURATION MANAGER" );
 
 		ImGui::TextWrapped( "Config settings are saved to / loaded from your cheat configuration directory." );
 		ImGui::Spacing( );
