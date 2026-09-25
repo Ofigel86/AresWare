@@ -130,7 +130,7 @@ public:
 
 		bool BunnyHop, AutoStrafe, CircleStrafe, EdgeJump, Speedhack, OriginCorrection, AutoKnife, RoundSay, CheatsBypass, AirStuck, AirStuckPress, ThirdPerson, Save, Load;
 		int SpeedhackValue;
-		int AutoStop;	// 0 = Off, 1 = Soft (proportional), 2 = Hard (full counter-strafe)
+		int AutoStop;	// 0 = Off, 1 = Min Speed (proportional), 2 = Full Stop (full counter-strafe)
 
 		AntiAim AntiAim;
 		Fakelag Fakelag;

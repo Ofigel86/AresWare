@@ -584,7 +584,7 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 			float fm = ix * cosf( yaw ) + iy * sinf( yaw );
 			float sm = ix * sinf( yaw ) - iy * cosf( yaw );	// +sidemove = right
 			float force = 450.f;
-			if( g_CVars.Miscellaneous.AutoStop == 1 ) force = ( speed2d < 450.f ) ? speed2d : 450.f;	// Soft: proportional
+			if( g_CVars.Miscellaneous.AutoStop == 1 ) force = ( speed2d < 450.f ) ? speed2d : 450.f;	// Min Speed: proportional
 			pCmd->forwardmove = fm * force;
 			pCmd->sidemove = sm * force;
 		}

@@ -297,7 +297,7 @@ static void RageAccuracy( void )
 
 		ImGui::Spacing( );
 		ImGui::SliderInt( "Hit Chance", &g_CVars.Accuracy.HitChance, 0, 100 );
-		const char* autoStopNames[] = { "Off", "Soft", "Hard" };
+		const char* autoStopNames[] = { "Off", "Min Speed", "Full Stop" };
 		ImGui::Combo( "Auto Stop", &g_CVars.Miscellaneous.AutoStop, autoStopNames, IM_ARRAYSIZE( autoStopNames ) );
 	}
 	ImGui::EndChild( );
