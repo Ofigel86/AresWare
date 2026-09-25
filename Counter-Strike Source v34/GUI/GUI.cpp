@@ -398,6 +398,15 @@ static void VisESP( void )
 		ImGui::Checkbox( "Enemy Only", &g_CVars.Visuals.ESP.EnemyOnly );
 
 		ImGui::Spacing( );
+		ImGui::Spacing( );
+		SectionHeader( "ESP COLORS" );
+		ImGuiColorEdit( "CT ESP", g_CVars.ColorSelector.ESP.CT );
+		ImGuiColorEdit( "T ESP", g_CVars.ColorSelector.ESP.TT );
+		ImGuiColorEdit( "Weapon ESP", g_CVars.ColorSelector.ESP.Wpn );
+
+		ImGui::Spacing( );
+		ImGui::Text( "Chams Colors:" );
+
 	}
 	ImGui::EndChild( );
 }
@@ -413,6 +422,20 @@ static void VisChams( void )
 		ImGui::Checkbox( "Model Outline", &g_CVars.Visuals.Chams.Outline );
 		ImGui::Checkbox( "Hands Outline", &g_CVars.Visuals.Chams.HandsOutline );
 		ImGui::Checkbox( "Chams Enemy Only", &g_CVars.Visuals.Chams.EnemyOnly );
+		ImGui::Spacing( );
+		SectionHeader( "CHAMS COLORS" );
+		ImGuiColorEdit( "CT Visible", g_CVars.ColorSelector.Chams.CTVis );
+		ImGuiColorEdit( "CT Hidden", g_CVars.ColorSelector.Chams.CTInvis );
+		ImGuiColorEdit( "CT Outline", g_CVars.ColorSelector.Chams.CTOutline );
+
+		ImGuiColorEdit( "T Visible", g_CVars.ColorSelector.Chams.TTVis );
+		ImGuiColorEdit( "T Hidden", g_CVars.ColorSelector.Chams.TTInvis );
+		ImGuiColorEdit( "T Outline", g_CVars.ColorSelector.Chams.TTOutline );
+
+		ImGuiColorEdit( "Wpn Visible", g_CVars.ColorSelector.Chams.WpnVis );
+		ImGuiColorEdit( "Wpn Hidden", g_CVars.ColorSelector.Chams.WpnInvis );
+		ImGuiColorEdit( "Wpn Outline", g_CVars.ColorSelector.Chams.WpnOutline );
+
 	}
 	ImGui::EndChild( );
 }
@@ -439,34 +462,6 @@ static void VisWorld( void )
 	ImGui::EndChild( );
 }
 
-static void VisColors( void )
-{
-	ImGui::BeginChild( "Vis_Colors", ImVec2( 440, 0 ), true );
-	{
-		SectionHeader( "CUSTOM COLORS" );
-
-		ImGui::Text( "ESP Colors:" );
-		ImGuiColorEdit( "CT ESP", g_CVars.ColorSelector.ESP.CT );
-		ImGuiColorEdit( "T ESP", g_CVars.ColorSelector.ESP.TT );
-		ImGuiColorEdit( "Weapon ESP", g_CVars.ColorSelector.ESP.Wpn );
-
-		ImGui::Spacing( );
-		ImGui::Text( "Chams Colors:" );
-		ImGuiColorEdit( "CT Visible", g_CVars.ColorSelector.Chams.CTVis );
-		ImGuiColorEdit( "CT Hidden", g_CVars.ColorSelector.Chams.CTInvis );
-		ImGuiColorEdit( "CT Outline", g_CVars.ColorSelector.Chams.CTOutline );
-
-		ImGuiColorEdit( "T Visible", g_CVars.ColorSelector.Chams.TTVis );
-		ImGuiColorEdit( "T Hidden", g_CVars.ColorSelector.Chams.TTInvis );
-		ImGuiColorEdit( "T Outline", g_CVars.ColorSelector.Chams.TTOutline );
-
-		ImGuiColorEdit( "Wpn Visible", g_CVars.ColorSelector.Chams.WpnVis );
-		ImGuiColorEdit( "Wpn Hidden", g_CVars.ColorSelector.Chams.WpnInvis );
-		ImGuiColorEdit( "Wpn Outline", g_CVars.ColorSelector.Chams.WpnOutline );
-	}
-	ImGui::EndChild( );
-}
-
 void GUI::RenderVisualsTab( void )
 {
 	if( ImGui::BeginTabBar( "VisualsSubTabs", ImGuiTabBarFlags_None ) )
@@ -484,11 +479,6 @@ void GUI::RenderVisualsTab( void )
 		if( ImGui::BeginTabItem( "World" ) )
 		{
 			VisWorld( );
-			ImGui::EndTabItem( );
-		}
-		if( ImGui::BeginTabItem( "Colors" ) )
-		{
-			VisColors( );
 			ImGui::EndTabItem( );
 		}
 		ImGui::EndTabBar( );
