@@ -495,24 +495,6 @@ void GUI::RenderVisualsTab( void )
 	}
 }
 
-static void MiscFakelag( void )
-{
-	ImGui::BeginChild( "Misc_FakeLag", ImVec2( 440, 0 ), true );
-	{
-		SectionHeader( "FAKE LAG" );
-		ImGui::Checkbox( "Fake Lag Active", &g_CVars.Miscellaneous.Fakelag.Active );
-		ImGui::Checkbox( "Fake Lag In Attack", &g_CVars.Miscellaneous.Fakelag.InAttack );
-		ImGui::Checkbox( "Fake Lag Air Only", &g_CVars.Miscellaneous.Fakelag.AirOnly );
-		ImGui::SliderInt( "Choke Ticks", &g_CVars.Miscellaneous.Fakelag.Value, 0, 14 );
-
-		const char* fakelagModes[] = { "Factor", "Switch", "Adaptive" };
-		ImGui::Combo( "Fake Lag Mode", &g_CVars.Miscellaneous.Fakelag.Mode, fakelagModes, IM_ARRAYSIZE( fakelagModes ) );
-
-		ImGui::Spacing( );
-	}
-	ImGui::EndChild( );
-}
-
 static void MiscMovement( void )
 {
 	ImGui::BeginChild( "Misc_Movement", ImVec2( 440, 0 ), true );
@@ -540,6 +522,17 @@ static void MiscOther( void )
 		ImGui::Checkbox( "sv_cheats Bypass", &g_CVars.Miscellaneous.CheatsBypass );
 		ImGui::Checkbox( "Third Person View", &g_CVars.Miscellaneous.ThirdPerson );
 		ImGui::Checkbox( "Anti SMAC", &g_CVars.Aimbot.AntiSMAC );
+		ImGui::Spacing( );
+		SectionHeader( "FAKE LAG" );
+		ImGui::Checkbox( "Fake Lag Active", &g_CVars.Miscellaneous.Fakelag.Active );
+		ImGui::Checkbox( "Fake Lag In Attack", &g_CVars.Miscellaneous.Fakelag.InAttack );
+		ImGui::Checkbox( "Fake Lag Air Only", &g_CVars.Miscellaneous.Fakelag.AirOnly );
+		ImGui::SliderInt( "Choke Ticks", &g_CVars.Miscellaneous.Fakelag.Value, 0, 14 );
+
+		const char* fakelagModes[] = { "Factor", "Switch", "Adaptive" };
+		ImGui::Combo( "Fake Lag Mode", &g_CVars.Miscellaneous.Fakelag.Mode, fakelagModes, IM_ARRAYSIZE( fakelagModes ) );
+
+		ImGui::Spacing( );
 	}
 	ImGui::EndChild( );
 }
@@ -548,11 +541,6 @@ void GUI::RenderMiscTab( void )
 {
 	if( ImGui::BeginTabBar( "MiscSubTabs", ImGuiTabBarFlags_None ) )
 	{
-		if( ImGui::BeginTabItem( "Fake Lag" ) )
-		{
-			MiscFakelag( );
-			ImGui::EndTabItem( );
-		}
 		if( ImGui::BeginTabItem( "Movement" ) )
 		{
 			MiscMovement( );
