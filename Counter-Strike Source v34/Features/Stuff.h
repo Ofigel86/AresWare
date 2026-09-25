@@ -76,6 +76,7 @@ public:
 	public:
 		bool ForceSeed, PerfectAccuracy;
 		int NoSpreadMode;
+		int HitChance;	// 0 = off, otherwise min required hit chance in %
 	};
 
 	class Visuals
@@ -129,6 +130,7 @@ public:
 
 		bool BunnyHop, AutoStrafe, CircleStrafe, EdgeJump, Speedhack, OriginCorrection, AutoKnife, RoundSay, CheatsBypass, AirStuck, AirStuckPress, ThirdPerson, Save, Load;
 		int SpeedhackValue;
+		int AutoStop;	// 0 = Off, 1 = Soft (proportional), 2 = Hard (full counter-strafe)
 
 		AntiAim AntiAim;
 		Fakelag Fakelag;

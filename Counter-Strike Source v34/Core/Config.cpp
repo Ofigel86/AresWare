@@ -117,6 +117,7 @@ void CConfig::Load( void )
 	g_CVars.Accuracy.ForceSeed = GetPrivateProfileInteger( /*Accuracy*/XorStr<0xAF,9,0x175251A2>("\xEE\xD3\xD2\xC7\xC1\xD5\xD6\xCF"+0x175251A2).s, /*ForceSeed*/XorStr<0x17,10,0xB103C520>("\x51\x77\x6B\x79\x7E\x4F\x78\x7B\x7B"+0xB103C520).s, 0, path.c_str( ) );
 	g_CVars.Accuracy.PerfectAccuracy = GetPrivateProfileInteger( /*Accuracy*/XorStr<0xAF,9,0x175251A2>("\xEE\xD3\xD2\xC7\xC1\xD5\xD6\xCF"+0x175251A2).s, /*PerfectAccuracy*/XorStr<0x62,16,0xCAB6BBCD>("\x32\x06\x16\x03\x03\x04\x1C\x28\x09\x08\x19\x1F\x0F\x0C\x09"+0xCAB6BBCD).s, 0, path.c_str( ) );
 	g_CVars.Accuracy.NoSpreadMode = GetPrivateProfileInteger( /*Accuracy*/XorStr<0xAF,9,0x175251A2>("\xEE\xD3\xD2\xC7\xC1\xD5\xD6\xCF"+0x175251A2).s, /*NoSpreadMode*/XorStr<0x89,13,0xABE30353>("\xC7\xE5\xD8\xFC\xFF\xEB\xEE\xF4\xDC\xFD\xF7\xF1"+0xABE30353).s, 1, path.c_str( ) );
+	g_CVars.Accuracy.HitChance = GetPrivateProfileInteger( "Accuracy", "HitChance", 50, path.c_str( ) );
 
 	g_CVars.Visuals.ESP.Box = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Box", 0, path.c_str( ) );
 	g_CVars.Visuals.ESP.Name = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Name", 0, path.c_str( ) );
@@ -167,6 +168,7 @@ void CConfig::Load( void )
 
 	g_CVars.Miscellaneous.BunnyHop = GetPrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "BunnyHop", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.AutoStrafe = GetPrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "AutoStrafe", 0, path.c_str( ) );
+	g_CVars.Miscellaneous.AutoStop = GetPrivateProfileInteger( "Miscellaneous", "AutoStop", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.CircleStrafe = GetPrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "CircleStrafe", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.EdgeJump = GetPrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "EdgeJump", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.Speedhack = GetPrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "Speedhack", 0, path.c_str( ) );
@@ -254,6 +256,7 @@ void CConfig::Save( void )
 	WritePrivateProfileInteger( /*Accuracy*/XorStr<0xAF,9,0x175251A2>("\xEE\xD3\xD2\xC7\xC1\xD5\xD6\xCF"+0x175251A2).s, /*ForceSeed*/XorStr<0x17,10,0xB103C520>("\x51\x77\x6B\x79\x7E\x4F\x78\x7B\x7B"+0xB103C520).s, g_CVars.Accuracy.ForceSeed, path.c_str( ) );
 	WritePrivateProfileInteger( /*Accuracy*/XorStr<0xAF,9,0x175251A2>("\xEE\xD3\xD2\xC7\xC1\xD5\xD6\xCF"+0x175251A2).s, /*PerfectAccuracy*/XorStr<0x62,16,0xCAB6BBCD>("\x32\x06\x16\x03\x03\x04\x1C\x28\x09\x08\x19\x1F\x0F\x0C\x09"+0xCAB6BBCD).s, g_CVars.Accuracy.PerfectAccuracy, path.c_str( ) );
 	WritePrivateProfileInteger( /*Accuracy*/XorStr<0xAF,9,0x175251A2>("\xEE\xD3\xD2\xC7\xC1\xD5\xD6\xCF"+0x175251A2).s, /*NoSpreadMode*/XorStr<0x89,13,0xABE30353>("\xC7\xE5\xD8\xFC\xFF\xEB\xEE\xF4\xDC\xFD\xF7\xF1"+0xABE30353).s, g_CVars.Accuracy.NoSpreadMode, path.c_str( ) );
+	WritePrivateProfileInteger( "Accuracy", "HitChance", g_CVars.Accuracy.HitChance, path.c_str( ) );
 
 	WritePrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Box", g_CVars.Visuals.ESP.Box, path.c_str( ) );
 	WritePrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Name", g_CVars.Visuals.ESP.Name, path.c_str( ) );
@@ -304,6 +307,7 @@ void CConfig::Save( void )
 
 	WritePrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "BunnyHop", g_CVars.Miscellaneous.BunnyHop, path.c_str( ) );
 	WritePrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "AutoStrafe", g_CVars.Miscellaneous.AutoStrafe, path.c_str( ) );
+	WritePrivateProfileInteger( "Miscellaneous", "AutoStop", g_CVars.Miscellaneous.AutoStop, path.c_str( ) );
 	WritePrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "CircleStrafe", g_CVars.Miscellaneous.CircleStrafe, path.c_str( ) );
 	WritePrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "EdgeJump", g_CVars.Miscellaneous.EdgeJump, path.c_str( ) );
 	WritePrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "Speedhack", g_CVars.Miscellaneous.Speedhack, path.c_str( ) );

@@ -567,6 +567,29 @@ void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float inp
 	if( g_CVars.Miscellaneous.AutoStrafe ) g_Stuff.AutoStrafe( pCmd, LocalPlayer );
 	g_Stuff.MovementFix.FixMove( LocalPlayer, pCmd, angelfix );
 
+	// Auto Stop: counter-strafe while attacking for better first-shot
+	// accuracy. Runs AFTER FixMove, so the inputs are already expressed
+	// in the final view space of this cmd (yaw-only: ground movement
+	// in Source is flattened to the horizontal plane).
+	if( g_CVars.Miscellaneous.AutoStop > 0 && ( pCmd->buttons & IN_ATTACK ) &&
+		( LocalPlayer->m_fFlags( ) & FL_ONGROUND ) )
+	{
+		Vector vel = LocalPlayer->m_vecVelocity( );
+		float speed2d = sqrtf( vel.x * vel.x + vel.y * vel.y );
+		if( speed2d > 5.f )
+		{
+			float yaw = DEG2RAD( pCmd->viewangles.y );
+			float ix = -vel.x / speed2d;	// world-space counter direction
+			float iy = -vel.y / speed2d;
+			float fm = ix * cosf( yaw ) + iy * sinf( yaw );
+			float sm = ix * sinf( yaw ) - iy * cosf( yaw );	// +sidemove = right
+			float force = 450.f;
+			if( g_CVars.Miscellaneous.AutoStop == 1 ) force = ( speed2d < 450.f ) ? speed2d : 450.f;	// Soft: proportional
+			pCmd->forwardmove = fm * force;
+			pCmd->sidemove = sm * force;
+		}
+	}
+
 	g_Prediction.End( pCmd, LocalPlayer );
 
 	if( g_CVars.Miscellaneous.AirStuck )

@@ -294,6 +294,11 @@ static void RageAccuracy( void )
 		SectionHeader( "ACCURACY" );
 		ImGui::Checkbox( "Remove Recoil / Spread", &g_CVars.Accuracy.PerfectAccuracy );
 		ImGui::TextDisabled( "NoSpread: Classic mode (best, fixed)" );
+
+		ImGui::Spacing( );
+		ImGui::SliderInt( "Hit Chance", &g_CVars.Accuracy.HitChance, 0, 100 );
+		const char* autoStopNames[] = { "Off", "Soft", "Hard" };
+		ImGui::Combo( "Auto Stop", &g_CVars.Miscellaneous.AutoStop, autoStopNames, IM_ARRAYSIZE( autoStopNames ) );
 	}
 	ImGui::EndChild( );
 }
