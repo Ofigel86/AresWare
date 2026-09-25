@@ -388,6 +388,10 @@ static void VisESP( void )
 	{
 		SectionHeader( "ESP (SURFACE RENDER)" );
 		ImGui::Checkbox( "Bounding Box", &g_CVars.Visuals.ESP.Box );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "CT", g_CVars.ColorSelector.ESP.CT );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "T", g_CVars.ColorSelector.ESP.TT );
 		ImGui::Checkbox( "Player Name", &g_CVars.Visuals.ESP.Name );
 		ImGui::Checkbox( "Health Bar / Text", &g_CVars.Visuals.ESP.Health );
 		ImGui::Checkbox( "Weapon Name", &g_CVars.Visuals.ESP.Weapon );
@@ -395,18 +399,11 @@ static void VisESP( void )
 		ImGui::Checkbox( "Aim Spot", &g_CVars.Visuals.ESP.AimSpot );
 		ImGui::Checkbox( "Hitmarker", &g_CVars.Visuals.ESP.Hit );
 		ImGui::Checkbox( "Ground ESP", &g_CVars.Visuals.ESP.Ground );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "Wpn", g_CVars.ColorSelector.ESP.Wpn );
 		ImGui::Checkbox( "Enemy Only", &g_CVars.Visuals.ESP.EnemyOnly );
 
 		ImGui::Spacing( );
-		ImGui::Spacing( );
-		SectionHeader( "ESP COLORS" );
-		ImGuiColorEdit( "CT ESP", g_CVars.ColorSelector.ESP.CT );
-		ImGuiColorEdit( "T ESP", g_CVars.ColorSelector.ESP.TT );
-		ImGuiColorEdit( "Weapon ESP", g_CVars.ColorSelector.ESP.Wpn );
-
-		ImGui::Spacing( );
-		ImGui::Text( "Chams Colors:" );
-
 	}
 	ImGui::EndChild( );
 }
@@ -417,25 +414,29 @@ static void VisChams( void )
 	{
 		SectionHeader( "CHAMS & MODELS" );
 		ImGui::Checkbox( "Player Chams", &g_CVars.Visuals.Chams.Active );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "CT", g_CVars.ColorSelector.Chams.CTVis );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "T", g_CVars.ColorSelector.Chams.TTVis );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "CT h", g_CVars.ColorSelector.Chams.CTInvis );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "T h", g_CVars.ColorSelector.Chams.TTInvis );
 		ImGui::Checkbox( "Weapon Chams", &g_CVars.Visuals.Chams.Weapons );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "Wpn", g_CVars.ColorSelector.Chams.WpnVis );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "Wpn h", g_CVars.ColorSelector.Chams.WpnInvis );
 		ImGui::Checkbox( "Draw Shadows", &g_CVars.Visuals.Chams.Shadows );
 		ImGui::Checkbox( "Model Outline", &g_CVars.Visuals.Chams.Outline );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "CT o", g_CVars.ColorSelector.Chams.CTOutline );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "T o", g_CVars.ColorSelector.Chams.TTOutline );
+		ImGui::SameLine( );
+		ImGuiColorEdit( "Wpn o", g_CVars.ColorSelector.Chams.WpnOutline );
 		ImGui::Checkbox( "Hands Outline", &g_CVars.Visuals.Chams.HandsOutline );
 		ImGui::Checkbox( "Chams Enemy Only", &g_CVars.Visuals.Chams.EnemyOnly );
-		ImGui::Spacing( );
-		SectionHeader( "CHAMS COLORS" );
-		ImGuiColorEdit( "CT Visible", g_CVars.ColorSelector.Chams.CTVis );
-		ImGuiColorEdit( "CT Hidden", g_CVars.ColorSelector.Chams.CTInvis );
-		ImGuiColorEdit( "CT Outline", g_CVars.ColorSelector.Chams.CTOutline );
-
-		ImGuiColorEdit( "T Visible", g_CVars.ColorSelector.Chams.TTVis );
-		ImGuiColorEdit( "T Hidden", g_CVars.ColorSelector.Chams.TTInvis );
-		ImGuiColorEdit( "T Outline", g_CVars.ColorSelector.Chams.TTOutline );
-
-		ImGuiColorEdit( "Wpn Visible", g_CVars.ColorSelector.Chams.WpnVis );
-		ImGuiColorEdit( "Wpn Hidden", g_CVars.ColorSelector.Chams.WpnInvis );
-		ImGuiColorEdit( "Wpn Outline", g_CVars.ColorSelector.Chams.WpnOutline );
-
 	}
 	ImGui::EndChild( );
 }
