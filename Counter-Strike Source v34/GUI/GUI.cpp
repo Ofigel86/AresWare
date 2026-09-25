@@ -160,7 +160,7 @@ void GUI::DrawImGui( void )
 			ImGui::Separator( );
 			ImGui::Spacing( );
 
-			const char* pages[] = { "Aimbot", "Visuals", "Miscellaneous", "Player List", "Config" };
+			const char* pages[] = { "Ragebot", "Visuals", "Miscellaneous", "Player List", "Config" };
 			const int numPages = ( int )( sizeof( pages ) / sizeof( pages[ 0 ] ) );
 			for( int i = 0; i < numPages; i++ )
 			{
@@ -177,7 +177,7 @@ void GUI::DrawImGui( void )
 		{
 			switch( selectedPage )
 			{
-			case 0: RenderAimbotTab( );     break;
+			case 0: RenderRagebotTab( );  break;
 			case 1: RenderVisualsTab( );    break;
 			case 2: RenderMiscTab( );       break;
 			case 3: RenderPlayerListTab( ); break;
@@ -190,12 +190,11 @@ void GUI::DrawImGui( void )
 	ImGui::End( );
 }
 
-void GUI::RenderAimbotTab( void )
+static void RageGeneral( void )
 {
 	float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemSpacing.x ) * 0.5f;
 
-	// Left Column
-	ImGui::BeginChild( "Aimbot_Left", ImVec2( halfWidth, 0 ), true );
+	ImGui::BeginChild( "General_Left", ImVec2( halfWidth, 0 ), true );
 	{
 		SectionHeader( "AIMBOT MAIN" );
 		ImGui::Checkbox( "Active", &g_CVars.Aimbot.Active );
@@ -206,7 +205,6 @@ void GUI::RenderAimbotTab( void )
 		ImGui::Checkbox( "Body AWP", &g_CVars.Aimbot.BodyAWP );
 		ImGui::Checkbox( "Hit Scan", &g_CVars.Aimbot.HitScan );
 		ImGui::Checkbox( "Perfect Auto Wall", &g_CVars.Aimbot.AutoWall );
-		ImGui::Checkbox( "Anti SMAC", &g_CVars.Aimbot.AntiSMAC );
 		ImGui::Checkbox( "Friendly Fire", &g_CVars.Aimbot.FriendlyFire );
 
 		ImGui::Spacing( );
@@ -229,8 +227,22 @@ void GUI::RenderAimbotTab( void )
 
 	ImGui::SameLine( );
 
-	// Right Column
-	ImGui::BeginChild( "Aimbot_Right", ImVec2( halfWidth, 0 ), true );
+	ImGui::BeginChild( "General_R", ImVec2( halfWidth, 0 ), true );
+	{
+		SectionHeader( "RESOLVER" );
+		ImGui::Checkbox( "Resolver Active", &g_CVars.Aimbot.Resolver.Active );
+
+		ImGui::Checkbox( "Smart Resolver", &g_CVars.Aimbot.Resolver.Smart );
+		ImGui::TextDisabled( "Adaptive: resolves all enemies by their history" );
+	}
+	ImGui::EndChild( );
+}
+
+static void RageTargeting( void )
+{
+	float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemSpacing.x ) * 0.5f;
+
+	ImGui::BeginChild( "Targeting_Left", ImVec2( halfWidth, 0 ), true );
 	{
 		SectionHeader( "TARGETING & ADJUSTMENTS" );
 
@@ -258,112 +270,37 @@ void GUI::RenderAimbotTab( void )
 		ImGui::Combo( "Pos Adjustment", &g_CVars.Aimbot.Interpolation.LagPrediction, posAdjustmentNames, IM_ARRAYSIZE( posAdjustmentNames ) );
 
 		ImGui::Spacing( );
-		SectionHeader( "ACCURACY" );
-		ImGui::Checkbox( "Remove Recoil / Spread", &g_CVars.Accuracy.PerfectAccuracy );
-		ImGui::Checkbox( "Force Seed", &g_CVars.Accuracy.ForceSeed );
+	}
+	ImGui::EndChild( );
 
-		const char* spreadModeNames[] = { "NULL", "Classic", "Iterative", "Rotation" };
-		ImGui::Combo( "NoSpread Mode", &g_CVars.Accuracy.NoSpreadMode, spreadModeNames, IM_ARRAYSIZE( spreadModeNames ) );
+	ImGui::SameLine( );
 
-		ImGui::Spacing( );
+	ImGui::BeginChild( "Targeting_R", ImVec2( halfWidth, 0 ), true );
+	{
 		SectionHeader( "SNAP LIMITER" );
 		ImGui::Checkbox( "Snap Limiter Active", &g_CVars.Aimbot.SnapLimiter );
 		ImGui::SliderInt( "Angle Limit", &g_CVars.Aimbot.AngleLimit, 0, 180 );
 		ImGui::SliderFloat( "Angle Limit Tens", &g_CVars.Aimbot.AngleLimitTens, 0.0f, 1.0f, "%.2f" );
 
 		ImGui::Spacing( );
-		SectionHeader( "RESOLVER" );
-		ImGui::Checkbox( "Resolver Active", &g_CVars.Aimbot.Resolver.Active );
-
-		const char* resolverModeNames[] = { "Everyone", "Selected" };
-		ImGui::Combo( "Resolver Target", &g_CVars.Aimbot.Resolver.Mode, resolverModeNames, IM_ARRAYSIZE( resolverModeNames ) );
-
-		const char* resolverTypeNames[] = { "Spin", "Back Twitch", "Alternative", "2 bullets", "Adaptive" };
-		ImGui::Combo( "Resolver Type", &g_CVars.Aimbot.Resolver.Type, resolverTypeNames, IM_ARRAYSIZE( resolverTypeNames ) );
-
-		ImGui::Checkbox( "Smart Resolver", &g_CVars.Aimbot.Resolver.Smart );
 	}
 	ImGui::EndChild( );
 }
 
-void GUI::RenderVisualsTab( void )
+static void RageAccuracy( void )
 {
-	float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemSpacing.x ) * 0.5f;
-
-	// Left Column
-	ImGui::BeginChild( "Visuals_Left", ImVec2( halfWidth, 0 ), true );
+	ImGui::BeginChild( "Rage_Accuracy", ImVec2( 440, 0 ), true );
 	{
-		SectionHeader( "ESP (SURFACE RENDER)" );
-		ImGui::Checkbox( "Bounding Box", &g_CVars.Visuals.ESP.Box );
-		ImGui::Checkbox( "Player Name", &g_CVars.Visuals.ESP.Name );
-		ImGui::Checkbox( "Health Bar / Text", &g_CVars.Visuals.ESP.Health );
-		ImGui::Checkbox( "Weapon Name", &g_CVars.Visuals.ESP.Weapon );
-		ImGui::Checkbox( "Skeleton / Bone", &g_CVars.Visuals.ESP.Bone );
-		ImGui::Checkbox( "Aim Spot", &g_CVars.Visuals.ESP.AimSpot );
-		ImGui::Checkbox( "Hitmarker", &g_CVars.Visuals.ESP.Hit );
-		ImGui::Checkbox( "Ground ESP", &g_CVars.Visuals.ESP.Ground );
-		ImGui::Checkbox( "Enemy Only", &g_CVars.Visuals.ESP.EnemyOnly );
-
-		ImGui::Spacing( );
-		SectionHeader( "CHAMS & MODELS" );
-		ImGui::Checkbox( "Player Chams", &g_CVars.Visuals.Chams.Active );
-		ImGui::Checkbox( "Weapon Chams", &g_CVars.Visuals.Chams.Weapons );
-		ImGui::Checkbox( "Draw Shadows", &g_CVars.Visuals.Chams.Shadows );
-		ImGui::Checkbox( "Model Outline", &g_CVars.Visuals.Chams.Outline );
-		ImGui::Checkbox( "Hands Outline", &g_CVars.Visuals.Chams.HandsOutline );
-		ImGui::Checkbox( "Chams Enemy Only", &g_CVars.Visuals.Chams.EnemyOnly );
-	}
-	ImGui::EndChild( );
-
-	ImGui::SameLine( );
-
-	// Right Column
-	ImGui::BeginChild( "Visuals_Right", ImVec2( halfWidth, 0 ), true );
-	{
-		SectionHeader( "WORLD & SCREEN" );
-		ImGui::Checkbox( "Draw Radar", &g_CVars.Visuals.Radar );
-		ImGui::Checkbox( "No Sky", &g_CVars.Visuals.NoSky );
-		ImGui::Checkbox( "No Smoke", &g_CVars.Visuals.NoSmoke );
-		ImGui::Checkbox( "No Flash", &g_CVars.Visuals.NoFlash );
-		ImGui::Checkbox( "No Hands", &g_CVars.Visuals.NoHands );
-		ImGui::Checkbox( "No Visual Recoil", &g_CVars.Visuals.NoVisualRecoil );
-		ImGui::SliderFloat( "ASUS Walls", &g_CVars.Visuals.ASUS, 0.0f, 1.0f, "%.2f" );
-
-		const char* crosshairTypeNames[] = { "Off", "Cross", "Dot", "Round" };
-		ImGui::Combo( "Crosshair Type", &g_CVars.Visuals.Crosshair.Type, crosshairTypeNames, IM_ARRAYSIZE( crosshairTypeNames ) );
-		ImGui::Checkbox( "Dynamic Crosshair", &g_CVars.Visuals.Crosshair.Dynamic );
-
-		ImGui::Spacing( );
-		SectionHeader( "CUSTOM COLORS" );
-
-		ImGui::Text( "ESP Colors:" );
-		ImGuiColorEdit( "CT ESP", g_CVars.ColorSelector.ESP.CT );
-		ImGuiColorEdit( "T ESP", g_CVars.ColorSelector.ESP.TT );
-		ImGuiColorEdit( "Weapon ESP", g_CVars.ColorSelector.ESP.Wpn );
-
-		ImGui::Spacing( );
-		ImGui::Text( "Chams Colors:" );
-		ImGuiColorEdit( "CT Visible", g_CVars.ColorSelector.Chams.CTVis );
-		ImGuiColorEdit( "CT Hidden", g_CVars.ColorSelector.Chams.CTInvis );
-		ImGuiColorEdit( "CT Outline", g_CVars.ColorSelector.Chams.CTOutline );
-
-		ImGuiColorEdit( "T Visible", g_CVars.ColorSelector.Chams.TTVis );
-		ImGuiColorEdit( "T Hidden", g_CVars.ColorSelector.Chams.TTInvis );
-		ImGuiColorEdit( "T Outline", g_CVars.ColorSelector.Chams.TTOutline );
-
-		ImGuiColorEdit( "Wpn Visible", g_CVars.ColorSelector.Chams.WpnVis );
-		ImGuiColorEdit( "Wpn Hidden", g_CVars.ColorSelector.Chams.WpnInvis );
-		ImGuiColorEdit( "Wpn Outline", g_CVars.ColorSelector.Chams.WpnOutline );
+		SectionHeader( "ACCURACY" );
+		ImGui::Checkbox( "Remove Recoil / Spread", &g_CVars.Accuracy.PerfectAccuracy );
+		ImGui::TextDisabled( "NoSpread: Classic mode (best, fixed)" );
 	}
 	ImGui::EndChild( );
 }
 
-void GUI::RenderMiscTab( void )
+static void RageAntiAim( void )
 {
-	float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemSpacing.x ) * 0.5f;
-
-	// Left Column
-	ImGui::BeginChild( "Misc_Left", ImVec2( halfWidth, 0 ), true );
+	ImGui::BeginChild( "Rage_AntiAim", ImVec2( 440, 0 ), true );
 	{
 		SectionHeader( "ANTI-AIM (HVH)" );
 		ImGui::Checkbox( "Anti-Aim Active", &g_CVars.Miscellaneous.AntiAim.Active );
@@ -411,11 +348,152 @@ void GUI::RenderMiscTab( void )
 		ImGui::Checkbox( "Enemy Check", &g_CVars.Miscellaneous.AntiAim.TurnOff );
 	}
 	ImGui::EndChild( );
+}
 
-	ImGui::SameLine( );
+void GUI::RenderRagebotTab( void )
+{
+	if( ImGui::BeginTabBar( "RagebotSubTabs", ImGuiTabBarFlags_None ) )
+	{
+		if( ImGui::BeginTabItem( "General" ) )
+		{
+			RageGeneral( );
+			ImGui::EndTabItem( );
+		}
+		if( ImGui::BeginTabItem( "Targeting" ) )
+		{
+			RageTargeting( );
+			ImGui::EndTabItem( );
+		}
+		if( ImGui::BeginTabItem( "Accuracy" ) )
+		{
+			RageAccuracy( );
+			ImGui::EndTabItem( );
+		}
+		if( ImGui::BeginTabItem( "Anti-Aim" ) )
+		{
+			RageAntiAim( );
+			ImGui::EndTabItem( );
+		}
+		ImGui::EndTabBar( );
+	}
+}
 
-	// Right Column
-	ImGui::BeginChild( "Misc_Right", ImVec2( halfWidth, 0 ), true );
+static void VisESP( void )
+{
+	ImGui::BeginChild( "Vis_ESP", ImVec2( 440, 0 ), true );
+	{
+		SectionHeader( "ESP (SURFACE RENDER)" );
+		ImGui::Checkbox( "Bounding Box", &g_CVars.Visuals.ESP.Box );
+		ImGui::Checkbox( "Player Name", &g_CVars.Visuals.ESP.Name );
+		ImGui::Checkbox( "Health Bar / Text", &g_CVars.Visuals.ESP.Health );
+		ImGui::Checkbox( "Weapon Name", &g_CVars.Visuals.ESP.Weapon );
+		ImGui::Checkbox( "Skeleton / Bone", &g_CVars.Visuals.ESP.Bone );
+		ImGui::Checkbox( "Aim Spot", &g_CVars.Visuals.ESP.AimSpot );
+		ImGui::Checkbox( "Hitmarker", &g_CVars.Visuals.ESP.Hit );
+		ImGui::Checkbox( "Ground ESP", &g_CVars.Visuals.ESP.Ground );
+		ImGui::Checkbox( "Enemy Only", &g_CVars.Visuals.ESP.EnemyOnly );
+
+		ImGui::Spacing( );
+	}
+	ImGui::EndChild( );
+}
+
+static void VisChams( void )
+{
+	ImGui::BeginChild( "Vis_Chams", ImVec2( 440, 0 ), true );
+	{
+		SectionHeader( "CHAMS & MODELS" );
+		ImGui::Checkbox( "Player Chams", &g_CVars.Visuals.Chams.Active );
+		ImGui::Checkbox( "Weapon Chams", &g_CVars.Visuals.Chams.Weapons );
+		ImGui::Checkbox( "Draw Shadows", &g_CVars.Visuals.Chams.Shadows );
+		ImGui::Checkbox( "Model Outline", &g_CVars.Visuals.Chams.Outline );
+		ImGui::Checkbox( "Hands Outline", &g_CVars.Visuals.Chams.HandsOutline );
+		ImGui::Checkbox( "Chams Enemy Only", &g_CVars.Visuals.Chams.EnemyOnly );
+	}
+	ImGui::EndChild( );
+}
+
+static void VisWorld( void )
+{
+	ImGui::BeginChild( "Vis_World", ImVec2( 440, 0 ), true );
+	{
+		SectionHeader( "WORLD & SCREEN" );
+		ImGui::Checkbox( "Draw Radar", &g_CVars.Visuals.Radar );
+		ImGui::Checkbox( "No Sky", &g_CVars.Visuals.NoSky );
+		ImGui::Checkbox( "No Smoke", &g_CVars.Visuals.NoSmoke );
+		ImGui::Checkbox( "No Flash", &g_CVars.Visuals.NoFlash );
+		ImGui::Checkbox( "No Hands", &g_CVars.Visuals.NoHands );
+		ImGui::Checkbox( "No Visual Recoil", &g_CVars.Visuals.NoVisualRecoil );
+		ImGui::SliderFloat( "ASUS Walls", &g_CVars.Visuals.ASUS, 0.0f, 1.0f, "%.2f" );
+
+		const char* crosshairTypeNames[] = { "Off", "Cross", "Dot", "Round" };
+		ImGui::Combo( "Crosshair Type", &g_CVars.Visuals.Crosshair.Type, crosshairTypeNames, IM_ARRAYSIZE( crosshairTypeNames ) );
+		ImGui::Checkbox( "Dynamic Crosshair", &g_CVars.Visuals.Crosshair.Dynamic );
+
+		ImGui::Spacing( );
+	}
+	ImGui::EndChild( );
+}
+
+static void VisColors( void )
+{
+	ImGui::BeginChild( "Vis_Colors", ImVec2( 440, 0 ), true );
+	{
+		SectionHeader( "CUSTOM COLORS" );
+
+		ImGui::Text( "ESP Colors:" );
+		ImGuiColorEdit( "CT ESP", g_CVars.ColorSelector.ESP.CT );
+		ImGuiColorEdit( "T ESP", g_CVars.ColorSelector.ESP.TT );
+		ImGuiColorEdit( "Weapon ESP", g_CVars.ColorSelector.ESP.Wpn );
+
+		ImGui::Spacing( );
+		ImGui::Text( "Chams Colors:" );
+		ImGuiColorEdit( "CT Visible", g_CVars.ColorSelector.Chams.CTVis );
+		ImGuiColorEdit( "CT Hidden", g_CVars.ColorSelector.Chams.CTInvis );
+		ImGuiColorEdit( "CT Outline", g_CVars.ColorSelector.Chams.CTOutline );
+
+		ImGuiColorEdit( "T Visible", g_CVars.ColorSelector.Chams.TTVis );
+		ImGuiColorEdit( "T Hidden", g_CVars.ColorSelector.Chams.TTInvis );
+		ImGuiColorEdit( "T Outline", g_CVars.ColorSelector.Chams.TTOutline );
+
+		ImGuiColorEdit( "Wpn Visible", g_CVars.ColorSelector.Chams.WpnVis );
+		ImGuiColorEdit( "Wpn Hidden", g_CVars.ColorSelector.Chams.WpnInvis );
+		ImGuiColorEdit( "Wpn Outline", g_CVars.ColorSelector.Chams.WpnOutline );
+	}
+	ImGui::EndChild( );
+}
+
+void GUI::RenderVisualsTab( void )
+{
+	if( ImGui::BeginTabBar( "VisualsSubTabs", ImGuiTabBarFlags_None ) )
+	{
+		if( ImGui::BeginTabItem( "ESP" ) )
+		{
+			VisESP( );
+			ImGui::EndTabItem( );
+		}
+		if( ImGui::BeginTabItem( "Chams" ) )
+		{
+			VisChams( );
+			ImGui::EndTabItem( );
+		}
+		if( ImGui::BeginTabItem( "World" ) )
+		{
+			VisWorld( );
+			ImGui::EndTabItem( );
+		}
+		if( ImGui::BeginTabItem( "Colors" ) )
+		{
+			VisColors( );
+			ImGui::EndTabItem( );
+		}
+		ImGui::EndTabBar( );
+	}
+}
+
+static void MiscFakelag( void )
+{
+	ImGui::BeginChild( "Misc_FakeLag", ImVec2( 440, 0 ), true );
 	{
 		SectionHeader( "FAKE LAG" );
 		ImGui::Checkbox( "Fake Lag Active", &g_CVars.Miscellaneous.Fakelag.Active );
@@ -427,6 +505,14 @@ void GUI::RenderMiscTab( void )
 		ImGui::Combo( "Fake Lag Mode", &g_CVars.Miscellaneous.Fakelag.Mode, fakelagModes, IM_ARRAYSIZE( fakelagModes ) );
 
 		ImGui::Spacing( );
+	}
+	ImGui::EndChild( );
+}
+
+static void MiscMovement( void )
+{
+	ImGui::BeginChild( "Misc_Movement", ImVec2( 440, 0 ), true );
+	{
 		SectionHeader( "MOVEMENT & EXPLOITS" );
 		ImGui::Checkbox( "Bunny Hop", &g_CVars.Miscellaneous.BunnyHop );
 		ImGui::Checkbox( "Auto Strafe", &g_CVars.Miscellaneous.AutoStrafe );
@@ -437,12 +523,44 @@ void GUI::RenderMiscTab( void )
 		ImGui::SliderInt( "Speedhack Factor", &g_CVars.Miscellaneous.SpeedhackValue, 0, 13 );
 
 		ImGui::Spacing( );
+	}
+	ImGui::EndChild( );
+}
+
+static void MiscOther( void )
+{
+	ImGui::BeginChild( "Misc_Other", ImVec2( 440, 0 ), true );
+	{
 		SectionHeader( "OTHER" );
 		ImGui::Checkbox( "Round Say", &g_CVars.Miscellaneous.RoundSay );
 		ImGui::Checkbox( "sv_cheats Bypass", &g_CVars.Miscellaneous.CheatsBypass );
 		ImGui::Checkbox( "Third Person View", &g_CVars.Miscellaneous.ThirdPerson );
+		ImGui::Checkbox( "Anti SMAC", &g_CVars.Aimbot.AntiSMAC );
 	}
 	ImGui::EndChild( );
+}
+
+void GUI::RenderMiscTab( void )
+{
+	if( ImGui::BeginTabBar( "MiscSubTabs", ImGuiTabBarFlags_None ) )
+	{
+		if( ImGui::BeginTabItem( "Fake Lag" ) )
+		{
+			MiscFakelag( );
+			ImGui::EndTabItem( );
+		}
+		if( ImGui::BeginTabItem( "Movement" ) )
+		{
+			MiscMovement( );
+			ImGui::EndTabItem( );
+		}
+		if( ImGui::BeginTabItem( "Other" ) )
+		{
+			MiscOther( );
+			ImGui::EndTabItem( );
+		}
+		ImGui::EndTabBar( );
+	}
 }
 
 void GUI::RenderPlayerListTab( void )

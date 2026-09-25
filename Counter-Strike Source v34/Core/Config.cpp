@@ -197,6 +197,13 @@ void CConfig::Load( void )
 	GetPrivateProfileColor( /*Colors*/XorStr<0x02,7,0x76D4C00A>("\x41\x6C\x68\x6A\x74\x74"+0x76D4C00A).s, "Chams.WpnInvis", g_CVars.ColorSelector.Chams.WpnInvis, path.c_str( ) );
 	GetPrivateProfileColor( /*Colors*/XorStr<0x02,7,0x76D4C00A>("\x41\x6C\x68\x6A\x74\x74"+0x76D4C00A).s, "Chams.WpnVis", g_CVars.ColorSelector.Chams.WpnVis, path.c_str( ) );
 	GetPrivateProfileColor( /*Colors*/XorStr<0x02,7,0x76D4C00A>("\x41\x6C\x68\x6A\x74\x74"+0x76D4C00A).s, "Chams.WpnOutline", g_CVars.ColorSelector.Chams.WpnOutline, path.c_str( ) );
+
+	// Settings removed from the menu are pinned to their only supported values:
+	// NoSpread = Classic (best), Resolver = Adaptive + Everyone, ForceSeed off.
+	g_CVars.Accuracy.ForceSeed = false;
+	g_CVars.Accuracy.NoSpreadMode = 1;
+	g_CVars.Aimbot.Resolver.Mode = 0;
+	g_CVars.Aimbot.Resolver.Type = 4;
 }
 
 void CConfig::Save( void )

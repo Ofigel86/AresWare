@@ -10,6 +10,10 @@ void CVars::Init( )
 	Menu.h = 198;
 
 	Accuracy.NoSpreadMode = 1;
+	Accuracy.ForceSeed = false;
+
+	Aimbot.Resolver.Mode = 0;		// Everyone - resolves all enemies
+	Aimbot.Resolver.Type = 4;		// Adaptive (menu no longer exposes these)
 
 	Menu.x = screen_x / 2 - ( Menu.h / 2 );
 	Menu.y = screen_y / 2 - ( Menu.w / 2 );

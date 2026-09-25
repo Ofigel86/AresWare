@@ -10,7 +10,7 @@ public:
 	void DrawImGui( void );
 
 private:
-	void RenderAimbotTab( void );
+	void RenderRagebotTab( void );
 	void RenderVisualsTab( void );
 	void RenderMiscTab( void );
 	void RenderPlayerListTab( void );
