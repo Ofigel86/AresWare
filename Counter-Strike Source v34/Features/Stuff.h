@@ -76,7 +76,6 @@ public:
 	public:
 		bool ForceSeed, PerfectAccuracy;
 		int NoSpreadMode;
-		int HitChance;	// 0 = off, otherwise min required hit chance in %
 	};
 
 	class Visuals

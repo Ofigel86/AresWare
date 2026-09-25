@@ -413,32 +413,6 @@ int Rate( BasePlayer* LocalPlayer, BasePlayer* Ent )
 	return rate;
 }
 
-// Approximate hit probability of the current shot: the weapon spread cone
-// projected at the target distance vs. the aimed hitbox size. Source spread
-// is roughly uniform inside the disc, so P ~ (r / (dist * spread))^2.
-// Returns 0..100 (100 when spread is zero / data is missing).
-static float HitChancePercent( const Vector& eye, BasePlayer* Target, CSWeapon* Weapon, const Vector& hbMins, const Vector& hbMaxs )
-{
-	if( !Target || !Weapon ) return 100.f;
-
-	float spread = Weapon->GetSpread( );
-	if( spread <= 0.000001f ) return 100.f;
-
-	float dist = eye.DistTo( Target->m_vecOrigin( ) );
-	if( dist < 1.f ) return 100.f;
-
-	Vector half = ( hbMaxs - hbMins ) * 0.5f;
-	float radius = ( fabsf( half.x ) + fabsf( half.y ) + fabsf( half.z ) ) / 3.f;
-	if( radius <= 0.01f ) return 100.f;	// no hitbox data - don't block
-
-	float coneRadius = dist * spread;	// lateral spread radius at target distance
-	if( coneRadius <= 0.0001f ) return 100.f;
-
-	float p = radius / coneRadius;
-	if( p > 1.f ) p = 1.f;
-	return p * p * 100.f;
-}
-
 void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 {
 	CSWeapon* Weapon = ( CSWeapon* ) LocalPlayer->GetActiveBaseCombatWeapon( );
@@ -573,18 +547,7 @@ void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 
 	if( IsAimbotting && TargetIndex != -1 )
 	{
-		bool bChanceOk = true;
-		if( g_CVars.Accuracy.HitChance > 0 )
-		{
-			BasePlayer* Target = ( BasePlayer* )g_pClientEntityList->GetClientEntity( TargetIndex );
-			if( Target )
-			{
-				float chance = HitChancePercent( EyePosition, Target, Weapon, mins[ TargetIndex ], maxs[ TargetIndex ] );
-				bChanceOk = ( chance >= ( float )g_CVars.Accuracy.HitChance );
-			}
-		}
-
-		if( g_CVars.Aimbot.AutoShoot && bChanceOk ) pCmd->buttons |= IN_ATTACK;
+		if( g_CVars.Aimbot.AutoShoot ) pCmd->buttons |= IN_ATTACK;
 	}
 
 	if( g_CVars.Aimbot.TargetSelection == 3 ) next_shot = TargetIndex;

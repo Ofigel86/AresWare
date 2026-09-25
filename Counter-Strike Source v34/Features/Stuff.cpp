@@ -10,7 +10,6 @@ void CVars::Init( )
 	Menu.h = 198;
 
 	Accuracy.NoSpreadMode = 1;
-	Accuracy.HitChance = 50;
 	Miscellaneous.AutoStop = 0;
 	Accuracy.ForceSeed = false;
 
