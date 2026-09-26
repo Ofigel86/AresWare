@@ -136,61 +136,79 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 	if( g_CVars.Miscellaneous.AntiAim.Active )
 	{
 		// ================================================================
-		// SEGREGATION anti-aim (verbatim transplant of their Copy_Command):
-		//   reached ONLY on non-firing commands (their In_Attack == 0 gate).
-		//   pitch = Interface_Angle_X                (default 180)
-		//   choked cmds: yaw = atan2(target-local) + First/Second_Choked_Y
-		//                (alternating by command_number parity)
-		//   sent cmds:   yaw = atan2(target-local) + Interface_Angle_Y
-		//   then every angle is compressed to the network grid.
-		//   No enemy nearby -> camera angles pass through (only compressed).
+		// own anti-aim engine: pitch spoof + real(sent) / fake(choked) yaw.
+		// bSendPacket==true  -> the SENT cmd is what the enemy resolver eats;
+		// bSendPacket==false -> choked cmds only flash in their backtrack window.
 		// ================================================================
 		pCmd->buttons &= ~IN_ATTACK;
 
+		// direction to the nearest enemy = the semantic base of AtTarget /
+		// Backwards / Sideways; without an enemy the camera yaw is the base
 		BasePlayer* pTarget = NULL;
 		float flBestDistSqr = 100000000.f;
 		Vector vLocalOrigin = LocalPlayer->m_vecOrigin( );
-
 		for( int i = 1; i <= g_pGlobals->maxClients; i++ )
 		{
 			if( i == g_pEngineClient->GetLocalPlayer( ) ) continue;
 			BasePlayer* Ent = ( BasePlayer* )g_pClientEntityList->GetClientEntity( i );
 			if( !Ent ) continue;
-			if( !( *( int* )( ( DWORD ) Ent + 0x87 ) == 0 ) ) continue;   // их life_state check
+			if( !( *( int* )( ( DWORD ) Ent + 0x87 ) == 0 ) ) continue;
 			if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
 
-			float flDistSqr = ( Ent->m_vecOrigin( ) - vLocalOrigin ).LengthSqr( );
-			if( flDistSqr < flBestDistSqr )
-			{
-				flBestDistSqr = flDistSqr;
-				pTarget = Ent;
-			}
+			float d2 = ( Ent->m_vecOrigin( ) - vLocalOrigin ).LengthSqr( );
+			if( d2 < flBestDistSqr ) { flBestDistSqr = d2; pTarget = Ent; }
 		}
 
+		float yawBase = pCmd->viewangles.y;
 		if( pTarget )
 		{
-			pCmd->viewangles.x = g_CVars.Miscellaneous.AntiAim.AngleX;
-
-			Vector vTargetOrigin = pTarget->m_vecOrigin( );
-			float yawBase = RAD2DEG( atan2f( vTargetOrigin.y - vLocalOrigin.y,
-				vTargetOrigin.x - vLocalOrigin.x ) );
-
-			if( !bSendPacket )
-			{
-				// чокнутые команды: First/Second_Choked_Angle_Y по чётности command_number
-				if( ( pCmd->command_number & 1 ) == 0 )
-					pCmd->viewangles.y = yawBase + g_CVars.Miscellaneous.AntiAim.FirstChokedYaw;
-				else
-					pCmd->viewangles.y = yawBase + g_CVars.Miscellaneous.AntiAim.SecondChokedYaw;
-			}
-			else
-			{
-				// реальная (отправляемая) команда: Interface_Angle_Y
-				pCmd->viewangles.y = yawBase + g_CVars.Miscellaneous.AntiAim.AngleY;
-			}
+			Vector vTo = pTarget->m_vecOrigin( ) - vLocalOrigin;
+			yawBase = RAD2DEG( atan2f( vTo.y, vTo.x ) );
 		}
 
-		// их Compress_Angle: ((int)(x/360*shift) & (shift-1)) * (360/shift)
+		static float flRandYaw = 0.f;
+		if( bSendPacket )
+		{
+			// re-roll once per real packet -> the fake run between two sent
+			// packets shares one random offset (stable silhouette per window)
+			unsigned int n = ( unsigned int )( pCmd->command_number * 1103515245u + 12345u );
+			n ^= ( n >> 11 ); n *= 2654435761u; n ^= ( n >> 15 );
+			flRandYaw = ( ( ( n >> 16 ) & 0xFF ) * ( 1.f / 255.f ) ) * 360.f - 180.f;
+		}
+
+		auto ResolveYaw = [&]( int mode, float flCustom ) -> float
+		{
+			switch( mode )
+			{
+				case 0: return pCmd->viewangles.y;			// camera
+				case 1: return yawBase;						// at target
+				case 2: return yawBase + 180.f;				// backwards
+				case 3: return yawBase + ( ( pCmd->command_number & 1 ) ? 90.f : -90.f );	// sideways flip
+				case 4: return yawBase + 180.f + flRandYaw;	// random jitter around the back
+				case 5: return yawBase + flCustom;			// custom offset
+			}
+			return yawBase + 180.f;
+		};
+
+		if( bSendPacket )
+			pCmd->viewangles.y = ResolveYaw( g_CVars.Miscellaneous.AntiAim.AARealYawMode,
+				g_CVars.Miscellaneous.AntiAim.AARealCustom );
+		else
+			pCmd->viewangles.y = ResolveYaw( g_CVars.Miscellaneous.AntiAim.AAFakeYawMode,
+				g_CVars.Miscellaneous.AntiAim.AAFakeCustom );
+
+		switch( g_CVars.Miscellaneous.AntiAim.AAPitchMode )
+		{
+			case 0: break;								// camera pitch
+			case 1: pCmd->viewangles.x = 89.f; break;				// down
+			case 2: pCmd->viewangles.x = -89.f; break;				// up
+			case 3: pCmd->viewangles.x = bSendPacket ? 89.f : -179.990005f; break;	// fake down
+			case 4: pCmd->viewangles.x = bSendPacket ? 89.f : 179.990005f; break;	// fake up
+			case 5: pCmd->viewangles.x = ( pCmd->command_number & 1 ) ? 89.f : -89.f; break;	// jitter
+			case 6: pCmd->viewangles.x = g_CVars.Miscellaneous.AntiAim.AAPitchCustom; break;
+		}
+
+		// network-grid quantization (Segregation Compress_Angle)
 		auto CompressAngle = []( float x, int shift ) -> float
 		{
 			return (float)( ( (int)( x / 360.f * (float)shift ) ) & ( shift - 1 ) ) * ( 360.f / (float)shift );

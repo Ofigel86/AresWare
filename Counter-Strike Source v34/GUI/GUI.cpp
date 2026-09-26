@@ -305,13 +305,22 @@ static void RageAntiAim( void )
 {
 	ImGui::BeginChild( "Rage_AntiAim", ImVec2( 440, 0 ), true );
 	{
-		SectionHeader( "ANTI-AIM (SEGREGATION)" );
+		SectionHeader( "ANTI-AIM" );
 		ImGui::Checkbox( "Anti-Aim Active", &g_CVars.Miscellaneous.AntiAim.Active );
 
-		ImGui::SliderFloat( "Fake Pitch X", &g_CVars.Miscellaneous.AntiAim.AngleX, -89.f, 180.f, "%.1f" );
-		ImGui::SliderFloat( "Choked Yaw A", &g_CVars.Miscellaneous.AntiAim.FirstChokedYaw, -180.f, 180.f, "%.1f" );
-		ImGui::SliderFloat( "Choked Yaw B", &g_CVars.Miscellaneous.AntiAim.SecondChokedYaw, -180.f, 180.f, "%.1f" );
-		ImGui::SliderFloat( "Yaw On Send", &g_CVars.Miscellaneous.AntiAim.AngleY, -180.f, 180.f, "%.1f" );
+		const char* aaPitchModes[] = { "Off", "Down", "Up", "Fake Down", "Fake Up", "Jitter", "Custom" };
+		ImGui::Combo( "Pitch", &g_CVars.Miscellaneous.AntiAim.AAPitchMode, aaPitchModes, IM_ARRAYSIZE( aaPitchModes ) );
+		if( g_CVars.Miscellaneous.AntiAim.AAPitchMode == 6 )
+			ImGui::SliderFloat( "Custom Pitch", &g_CVars.Miscellaneous.AntiAim.AAPitchCustom, -89.f, 89.f, "%.1f" );
+
+		const char* aaYawModes[] = { "Off", "At Target", "Backwards", "Sideways", "Random", "Custom" };
+		ImGui::Combo( "Real Yaw", &g_CVars.Miscellaneous.AntiAim.AARealYawMode, aaYawModes, IM_ARRAYSIZE( aaYawModes ) );
+		if( g_CVars.Miscellaneous.AntiAim.AARealYawMode == 5 )
+			ImGui::SliderFloat( "Real Yaw Offset", &g_CVars.Miscellaneous.AntiAim.AARealCustom, -180.f, 180.f, "%.1f" );
+
+		ImGui::Combo( "Fake Yaw", &g_CVars.Miscellaneous.AntiAim.AAFakeYawMode, aaYawModes, IM_ARRAYSIZE( aaYawModes ) );
+		if( g_CVars.Miscellaneous.AntiAim.AAFakeYawMode == 5 )
+			ImGui::SliderFloat( "Fake Yaw Offset", &g_CVars.Miscellaneous.AntiAim.AAFakeCustom, -180.f, 180.f, "%.1f" );
 	}
 	ImGui::EndChild( );
 }

@@ -119,11 +119,13 @@ public:
 			bool Active, Static, WallDetection, DuckInAir, TurnOff, AtTargets;
 			int Pitch, Yaw, Variation, DuckPitch, DuckYaw, DuckVariation, WallDetectionMode;
 			float RealValue, FakeValue;
-			// Segregation transplant cvars (their defaults: all 180)
-			float AngleX = 180.f;           // Interface_Angle_X (fake pitch)
-			float AngleY = 180.f;           // Interface_Angle_Y (real/sent yaw offset)
-			float FirstChokedYaw = 180.f;   // Interface_First_Choked_Angle_Y
-			float SecondChokedYaw = 180.f;  // Interface_Second_Choked_Angle_Y
+			// own anti-aim engine cvars
+			int   AAPitchMode = 3;          // 0 Off, 1 Down 89, 2 Up -89, 3 FakeDown, 4 FakeUp, 5 Jitter, 6 Custom
+			float AAPitchCustom = 89.f;
+			int   AARealYawMode = 2;        // 0 Off, 1 AtTarget, 2 Backwards, 3 Sideways, 4 Random, 5 Custom
+			int   AAFakeYawMode = 4;        // same list, applied on choked commands
+			float AARealCustom = 180.f;
+			float AAFakeCustom = 180.f;
 		};
 
 		class Fakelag
