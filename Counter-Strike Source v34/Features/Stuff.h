@@ -119,27 +119,20 @@ public:
 			bool Active, Static, WallDetection, DuckInAir, TurnOff, AtTargets;
 			int Pitch, Yaw, Variation, DuckPitch, DuckYaw, DuckVariation, WallDetectionMode;
 			float RealValue, FakeValue;
-			// own anti-aim engine: fully independent Real (sent) and Fake
-			// (choked) sides; one profile per movement condition
+			// own anti-aim engine, v3: single profile, full control
 			struct AASide
 			{
-				int   PitchMode      = 1;	// 0 Off 1 Down 2 Up 3 FakeDown 4 FakeUp 5 Jitter 6 Random 7 Custom
-				float PitchCustom    = 89.f;
-				int   YawMode        = 2;	// 0 Off 1 AtTarget 2 Backwards 3 Sideways 4 Spin 5 Custom
-				float YawCustom      = 180.f;
-				int   JitterMode     = 0;	// 0 Off 1 Flip 2 Random
-				float JitterAmount   = 45.f;	// own degrees per side!
+				int   YawMode        = 0;		// 0 Static, 1 Jitter, 2 Spin
+				float YawAngle       = 180.f;		// -180..180, offset from enemy direction (180 = back)
+				int   JitterStyle    = 1;		// 0 Offset, 1 Center, 2 Reverse
+				float JitterAmount   = 45.f;
 				int   JitterInterval = 2;
 				float SpinSpeed      = 20.f;
 			};
-			struct AAProfileCfg
-			{
-				AASide Real;
-				AASide Fake;	// constructive defaults come from the config loader
-			};
-			bool CondEnabled = false;
-			AAProfileCfg Conditions[ 5 ];	// 0 Stand, 1 Air, 2 Crouch, 3 SlowWalk, 4 Move
-			int  ChokeEvery = 3;			// every Nth command becomes the fake one
+			int    PitchMode  = 3;			// 0 Off 1 Down 2 Up 3 FakeDown 4 FakeUp 5 Jitter 6 Random (both sides)
+			AASide Real;
+			AASide Fake;
+			int    ChokeEvery = 3;			// every Nth command becomes the fake one
 		};
 
 		class Fakelag
