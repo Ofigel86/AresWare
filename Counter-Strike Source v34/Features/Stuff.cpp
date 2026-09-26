@@ -302,7 +302,7 @@ void Stuff::AntiAim::AtTargets( BasePlayer* LocalPlayer, CUserCmd* pCmd, bool bS
 	//   the REAL packet adds RealValue, every CHOKED packet jitters between +/- FakeValue
 	//   (their First_Choked_Angle_Y / Second_Choked_Angle_Y pair).
 	float TmpDistance = 999999.f;
-	Vector tmp;
+	QAngle tmp;
 	bool bFound = false;
 
 	for( int i = g_pGlobals->maxClients; i >= 1; i-- )
