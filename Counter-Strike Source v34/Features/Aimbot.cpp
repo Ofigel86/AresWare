@@ -114,8 +114,6 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 		*( int* )( ( DWORD ) Entity + 0x49C + 0x4 ) = 0;						// baseanimating + 0x49C
 	}
 
-	if( g_CVars.Aimbot.Resolver.Active ) Resolver_SetTorsoRotation( Entity, Entity->entindex( ) );
-
 	if( !( Entity->SetupBones( g_AimBoneCache, 128, 0x100, Entity->m_flSimulationTime( ) ) ) )
 	{
 		if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );

@@ -35,7 +35,6 @@ void Resolver_OnHit( int idx, int hitgroup, int damage );	// local player damage
 // the target's networked eye yaw with the resolved body facing (doResolve=false
 // only updates signal tracking, e.g. for whitelisted/unselected players).
 void Resolver_Apply( int idx, BasePlayer* ent, bool doResolve );
-void Resolver_SetTorsoRotation( BasePlayer* ent, int idx );		// Segregation animstate fix
 
 // Latency-correct pPlayerHistory[] index to aim at / send in usercmd->tick_count.
 int Resolver_PickRecord( int idx );
