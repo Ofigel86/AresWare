@@ -359,8 +359,13 @@ static Valve::RecvVarProxyFn s_pfnOldFlashDuration = NULL;
 
 void Hook( void )
 {
+	Logger::Init( );
+	Logger::Write( "=== AresWare session start (log: %s) ===", Logger::Path( ) );
+	Logger::Write( "Waiting for engine.dll / client.dll..." );
 
 	while( GetModuleHandleA( /*engine*/XorStr<0xFF,7,0x5467D774>("\x9A\x6E\x66\x6B\x6D\x61"+0x5467D774).s ) == NULL || GetModuleHandleA( /*client*/XorStr<0x9A,7,0x861DD552>("\xF9\xF7\xF5\xF8\xF0\xEB"+0x861DD552).s ) == NULL ) Sleep( 100 );
+
+	Logger::Write( "Game modules found, initializing interface factories..." );
 
 	for( int i = 0; i <= 7; i++ ) InitInterfaces( InterfacesArray[ i ].idx, InterfacesArray[ i ].name.c_str( ) );
 	printconsole( /* Interfaces initialized...*/XorStr<0x0C,27,0x060618EC>("\x2C\x44\x60\x7B\x75\x63\x74\x72\x77\x70\x65\x37\x71\x77\x73\x6F\x75\x7C\x72\x76\x5A\x44\x46\x0D\x0A\x0B"+0x060618EC).s );
@@ -382,8 +387,56 @@ void Hook( void )
 	g_pMaterialSystem = GrabInterface( IMaterialSystem*, INTERFACE_MATERIAL, "VMaterialSystem" );	
 	g_pGameEventManager = GrabInterface( IGameEventManager2*, INTERFACE_ENGINE, "GAMEEVENTSMANAGER" );
 
+	// per-interface diagnostic dump so a failed GrabInterface is visible in the log
+	{
+		struct iface_entry_t { const char* name; void* ptr; };
+		iface_entry_t iface_entries[ ] =
+		{
+			{ "IBaseClientDLL",        ( void* )g_pBaseClientDll },
+			{ "IClientEntityList",     ( void* )g_pClientEntityList },
+			{ "IPrediction",           ( void* )g_pPrediction },
+			{ "IGameMovement",         ( void* )g_pGameMovement },
+			{ "IVEngineClient",        ( void* )g_pEngineClient },
+			{ "ICvar",                 ( void* )g_pCvar },
+			{ "IVModelInfo",           ( void* )g_pModelInfo },
+			{ "IEngineTrace",          ( void* )g_pEngineTrace },
+			{ "IPhysicsSurfaceProps",  ( void* )g_pPhysicsSurfaceProps },
+			{ "vgui::IPanel",          ( void* )g_pPanel },
+			{ "vgui::ISurface",        ( void* )g_pSurface },
+			{ "IVRenderView",          ( void* )g_pRender },
+			{ "IVModelRender",         ( void* )g_pModelRender },
+			{ "IVDebugOverlay",        ( void* )g_pDebugOverlay },
+			{ "IMaterialSystem",       ( void* )g_pMaterialSystem },
+			{ "IGameEventManager2",    ( void* )g_pGameEventManager }
+		};
+
+		int failed = 0;
+		for( int e = 0; e < ( int )( sizeof( iface_entries ) / sizeof( iface_entries[ 0 ] ) ); e++ )
+		{
+			if( iface_entries[ e ].ptr )
+				Logger::Write( "  [  OK  ] %-22s 0x%08X", iface_entries[ e ].name, ( DWORD )iface_entries[ e ].ptr );
+			else
+			{
+				Logger::Write( "  [FAILED] %-22s interface not found!", iface_entries[ e ].name );
+				failed++;
+			}
+		}
+
+		if( failed ) Logger::Write( "WARNING: %d interface(s) failed to grab!", failed );
+		else         Logger::Write( "All interfaces grabbed successfully." );
+	}
+
+	if( !g_pBaseClientDll )
+	{
+		Logger::Write( "FATAL: no IBaseClientDLL - cannot continue, aborting hook thread." );
+		return;
+	}
+
 	g_pInput = **( IInput*** )( ( *( uintptr_t** ) g_pBaseClientDll )[ 11 ] + 0x2 );
 	g_pGlobals = **( CGlobalVarsBase*** )( ( *( uintptr_t** ) g_pBaseClientDll )[ 0 ] + 0x2F );
+
+	Logger::Write( "  [INFO ] %-22s 0x%08X", "IInput", ( DWORD )g_pInput );
+	Logger::Write( "  [INFO ] %-22s 0x%08X", "CGlobalVarsBase", ( DWORD )g_pGlobals );
 
 	HMODULE vstdlib = GetModuleHandleA( /*vstdlib.dll*/XorStr<0x8B,12,0x922FC0BB>("\xFD\xFF\xF9\xEA\xE3\xF9\xF3\xBC\xF7\xF8\xF9"+0x922FC0BB).s );
     RandomSeed = ( RandomSeedFn )GetProcAddress( vstdlib, /*RandomSeed*/XorStr<0xA8,11,0x514D0126>("\xFA\xC8\xC4\xCF\xC3\xC0\xFD\xCA\xD5\xD5"+0x514D0126).s );
@@ -452,10 +505,12 @@ void Hook( void )
 	mat_outline = g_Stuff.CreateMaterial( false, true, false );
 
 	InitializeD3D9Hook( );
+	Logger::Write( "AresWare fully loaded - F12 to unload." );
 }
 
 void UnHook( void )
 {
+	Logger::Write( "UnHooking AresWare..." );
 	ShutdownD3D9Hook( );
 
 	if( CreateMoveVMT ) CreateMoveVMT->SetHookEnabled( false );
@@ -487,4 +542,7 @@ void UnHook( void )
 
 	//Remove user32 cursor detours
 	UnCursorHooks( );
+
+	Logger::Write( "=== AresWare unloaded, session end ===" );
+	Logger::Shutdown( );
 }

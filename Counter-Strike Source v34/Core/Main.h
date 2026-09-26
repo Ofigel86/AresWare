@@ -263,6 +263,7 @@ enum ButtonCode_t
 #include <time.h>
 #include "ade32.h"
 #include "detours2.h"
+#include "Logger.h"
 #include "VMTHook.h"
 #include "Hook.h"
 #include "Config.h"
