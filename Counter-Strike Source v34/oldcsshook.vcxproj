@@ -124,6 +124,7 @@
     <ClInclude Include="Features\Aimbot.h" />
     <ClInclude Include="Core\Config.h" />
     <ClInclude Include="Core\Logger.h" />
+    <ClInclude Include="Core\ModuleBases.h" />
     <ClInclude Include="Hooks\D3D9Hook.h" />
     <ClInclude Include="Vendor\detours2.h" />
     <ClInclude Include="GUI\Drawing.h" />
@@ -157,6 +158,7 @@
     <ClCompile Include="Vendor\ade32.cpp" />
     <ClCompile Include="Features\Aimbot.cpp" />
     <ClCompile Include="Core\Logger.cpp" />
+    <ClCompile Include="Core\ModuleBases.cpp" />
     <ClCompile Include="Hooks\CL_Move.cpp" />
     <ClCompile Include="Core\Config.cpp" />
     <ClCompile Include="Hooks\CreateMove.cpp" />

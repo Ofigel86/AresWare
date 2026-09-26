@@ -2,7 +2,7 @@
 #include <limits>
 
 DWORD dwReturnAddress = NULL;
-DWORD dwCreateMove = 0x24087270;
+DWORD dwCreateMove = NULL; // runtime: ( DWORD ) BASE_CLIENT + 0x87270 (module base is not known at static init)
 static bool bSendPacket;
 int sequence_number = 0;
 

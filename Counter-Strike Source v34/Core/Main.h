@@ -5,12 +5,10 @@
 #include <memory>
 #include <array>
 #include "XOR.h"
+#include "ModuleBases.h"
 #include "SdkIncludes.h"
 using namespace Valve;
 
-#define BASE_ENGINE 0x20000000
-#define BASE_SERVER 0x22000000
-#define BASE_CLIENT 0x24000000
 #define HISTORY_MAX 128
 #define MULTIPLAYER_BACKUP 90
 #define LAGCOMP_MAX 64

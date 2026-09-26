@@ -20,7 +20,16 @@ void Hooked_CL_Move( float accumulated_extra_samples, bool bFinalTick )
 
 void CL_Move( void )
 {
-	_CL_Move = ( CL_Move_t ) DetourFunction( ( PBYTE ) ( ( DWORD ) BASE_ENGINE + 0x42510 ), ( PBYTE ) Hooked_CL_Move );
+	DWORD dwTarget = ( DWORD ) BASE_ENGINE + 0x42510;
+
+	if( !AddressInModule( dwTarget, ( DWORD ) BASE_ENGINE ) )
+	{
+		Logger::Write( "CL_Move detour SKIPPED: target 0x%08X not in engine.dll code", dwTarget );
+		return;
+	}
+
+	_CL_Move = ( CL_Move_t ) DetourFunction( ( PBYTE ) dwTarget, ( PBYTE ) Hooked_CL_Move );
+	Logger::Write( "CL_Move detoured @ 0x%08X -> trampoline 0x%08X", dwTarget, ( DWORD ) _CL_Move );
 }
 
 void UnCL_Move( void )
