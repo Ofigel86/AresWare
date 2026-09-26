@@ -22,6 +22,22 @@ bool Aimbot::CheckVisible( Vector& vecAbsStart, Vector& vecAbsEnd, BasePlayer* T
 
 }
 
+// per-entity per-tick caches: SetupBones (and the hitscan re-running it up to
+// 19 times) was the main FPS sink of Hit Scan / Multi Spot
+extern int g_iGameTicks;
+static matrix3x4_t g_AimBoneCache[ 128 ];
+static int  g_AimBoneCacheEnt = -1;
+static int  g_AimBoneCacheTick = -1;
+static bool g_AimBoneCacheOK  = false;
+static void* g_AimBoneCacheHitboxSet = NULL;
+
+// autowall penetration simulation per entity per tick (the sim traces the
+// full weapon range with bounces - caching loses a little direction
+// accuracy between hitboxes but kills up to 150 sims per enemy per tick)
+static int  g_AWCacheEnt = -1;
+static int  g_AWCacheTick = -1;
+static float g_AWCacheValue = -1.f;
+
 bool Aimbot::CheckVisibleAWallCheck( Vector& vecAbsStart, Vector& vecAbsEnd, BasePlayer* Target, BasePlayer* LocalPlayer )
 {
 	CSWeapon* Weapon = ( CSWeapon* ) LocalPlayer->GetActiveBaseCombatWeapon( );
@@ -43,8 +59,18 @@ bool Aimbot::CheckVisibleAWallCheck( Vector& vecAbsStart, Vector& vecAbsEnd, Bas
 
 	if( g_CVars.Aimbot.AutoWall )
 	{
-		BaseEntity* pPlayerHit = nullptr;
-		if( GetTotalDamage( LocalPlayer, Weapon, &pPlayerHit ) >= g_CVars.Aimbot.MinDamage ) return true;
+		if( g_AWCacheEnt == Target->entindex( ) && g_AWCacheTick == g_iGameTicks )
+		{
+			if( g_AWCacheValue >= g_CVars.Aimbot.MinDamage ) return true;
+		}
+		else
+		{
+			BaseEntity* pPlayerHit = nullptr;
+			g_AWCacheValue = GetTotalDamage( LocalPlayer, Weapon, &pPlayerHit );
+			g_AWCacheEnt = Target->entindex( );
+			g_AWCacheTick = g_iGameTicks;
+			if( g_AWCacheValue >= g_CVars.Aimbot.MinDamage ) return true;
+		}
 	}
 
 	return false;
@@ -55,6 +81,19 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 	// every early-out below must undo the backtrack record application,
 	// otherwise the entity is left stuck in an old pose
 	bool bAppliedRecord = false;
+	mstudiohitboxset_t* studiohitboxset = NULL;
+	matrix3x4_t* matrix = g_AimBoneCache;
+
+	int iEnt = Entity->entindex( );
+	if( g_AimBoneCacheEnt == iEnt && g_AimBoneCacheTick == g_iGameTicks && g_AimBoneCacheOK )
+	{
+		studiohitboxset = ( mstudiohitboxset_t* )g_AimBoneCacheHitboxSet;
+		goto have_bones;	// bones (& hitbox set) already computed for this entity this tick
+	}
+	else
+	{
+		g_AimBoneCacheOK = false;	// only cache once the *whole* slow path succeeded
+	}
 
 	if( g_CVars.Aimbot.Interpolation.LagPrediction )
 	{
@@ -75,8 +114,7 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 		*( int* )( ( DWORD ) Entity + 0x49C + 0x4 ) = 0;						// baseanimating + 0x49C
 	}
 
-	matrix3x4_t matrix[ 128 ];
-	if( !( Entity->SetupBones( matrix, 128, 0x100, Entity->m_flSimulationTime( ) ) ) )
+	if( !( Entity->SetupBones( g_AimBoneCache, 128, 0x100, Entity->m_flSimulationTime( ) ) ) )
 	{
 		if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
 		return;
@@ -88,12 +126,19 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 		return;
 	}
 	studiohdr_t* studiohdr = g_pModelInfo->GetStudiomodel( pModel );
-	mstudiohitboxset_t* studiohitboxset = studiohdr ? studiohdr->pHitboxSet( Entity->m_nHitboxSet( ) ) : NULL;
+	studiohitboxset = studiohdr ? studiohdr->pHitboxSet( Entity->m_nHitboxSet( ) ) : NULL;
 	if( !studiohitboxset )
 	{
 		if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
 		return;
 	}
+
+	g_AimBoneCacheEnt = iEnt;
+	g_AimBoneCacheTick = g_iGameTicks;
+	g_AimBoneCacheOK = true;
+	g_AimBoneCacheHitboxSet = studiohitboxset;
+
+have_bones:
 	mstudiobbox_t* studiobbox = studiohitboxset->pHitbox( iHitbox );
 	if( !studiobbox )
 	{
