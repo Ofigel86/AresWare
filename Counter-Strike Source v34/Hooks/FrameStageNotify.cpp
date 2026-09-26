@@ -58,6 +58,7 @@ void __fastcall Hooked_FrameStageNotify( void* ecx, void* edx, ClientFrameStage_
 			// Signals are tracked even when doResolve is false so switching the
 			// resolver on mid-round starts with fresh state.
 			Resolver_Apply( Index, Entity, doResolve );
+			if( doResolve ) Resolver_SetTorsoRotation( Entity, Index );
 
 			// store AFTER Apply: history keeps the resolved body facing, so
 			// backtrack bone setup aims with the same yaw we validated against
