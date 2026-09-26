@@ -16,6 +16,7 @@ Present_t oPresent = nullptr;
 WNDPROC oWndProc = nullptr;
 HWND g_hGameWindow = nullptr;
 bool g_bImGuiInitialized = false;
+bool g_bD3D9Hooked = false; // true when EndScene/Present detour lives - vgui ESP must yield Box/Name/Health to the ImGui fallback
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam );
 
@@ -245,12 +246,14 @@ bool InitializeD3D9Hook( void )
 	UnregisterClassA( "DX9_Hook_Window", wc.hInstance );
 
 	const bool ok = ( oEndScene != nullptr || oPresent != nullptr );
+	g_bD3D9Hooked = ok;
 	Logger::Write( "D3D9 hook: %s (endscene=%p present=%p reset=%p)", ok ? "INSTALLED" : "FAILED", oEndScene, oPresent, oReset );
 	return ok;
 }
 
 void ShutdownD3D9Hook( void )
 {
+	g_bD3D9Hooked = false;
 	if( g_hGameWindow && oWndProc )
 	{
 		SetWindowLongPtrA( g_hGameWindow, GWLP_WNDPROC, ( LONG_PTR )oWndProc );
