@@ -162,7 +162,11 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 		}
 		else
 		{
-			if( g_CVars.Aimbot.HitboxMode == 2 || g_CVars.Aimbot.HitboxMode == 3 )
+			if( g_CVars.Aimbot.HitboxMode == 1 ) // Origin: aim at the exact bone origin
+			{
+				points[ 0 ] = Vector( 0.f, 0.f, 0.f );
+			}
+			else if( g_CVars.Aimbot.HitboxMode == 2 || g_CVars.Aimbot.HitboxMode == 3 )
 			{			
 				if( ( flPitch > 50.f ) && ( flPitch < 91.f ) )
 				{
@@ -174,17 +178,15 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 				}
 				else if( ( flPitch >= -91.f ) && ( flPitch <= -50.f ) ) points[ 0 ].z -= 1.f;
 			}
-			else if( g_CVars.Aimbot.HitboxMode == 4 )
+			else if( g_CVars.Aimbot.HitboxMode == 4 ) // Highest: Segregation aim-height fraction
 			{
-				Vector a = ( ( points[ 3 ] + points[ 5 ] ) * .5f );
-
-				if( ( flPitch > 50.f ) && ( flPitch < 91.f ) )
-				{
-					Vector b = ( ( ( a - points[ 0 ] ) / 3 ) * 4 );
-					Vector c = ( points[ 0 ] + ( b * .7f ) );
-					points[ 0 ] = c;
-				}
-				else if( ( flPitch >= -91.f ) && ( flPitch <= -50.f ) ) points[ 0 ].z -= 1.f;
+				// Segregation Interface_Aim_Height (default 0.9): Z = bbmin.z + (bbmax.z - bbmin.z) * h
+				float h = g_CVars.Aimbot.AimHeight;
+				if( h > 1.f ) h *= 0.01f; // tolerate % value in the ini
+				if( h < 0.f ) h = 0.f;
+				if( h > 1.f ) h = 1.f;
+				points[ 0 ] = Vector( vCenter.x, vCenter.y,
+					studiobbox->bbmin.z + ( studiobbox->bbmax.z - studiobbox->bbmin.z ) * h );
 			}
 		}
 	}

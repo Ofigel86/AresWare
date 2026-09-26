@@ -276,6 +276,31 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 
 			if( DeltaTicks > 0 ) ShouldChoke = true;
 		}
+		else if( g_CVars.Miscellaneous.Fakelag.Mode == 3 ) // Segregation: Min/Max window, break on 64 units
+		{
+			int iMin = min( 14, g_CVars.Miscellaneous.Fakelag.Min );
+			if( iMin < 0 ) iMin = 0;
+			int iMax = min( 15, g_CVars.Miscellaneous.Fakelag.Max );
+			if( iMax < 1 ) iMax = 1;
+			if( iMax <= iMin ) iMax = iMin + 1;
+
+			if( queue >= ( unsigned int )iMax )
+			{
+				// reached the maximum: force a real packet
+			}
+			else if( ( unsigned int )queue >= ( unsigned int )iMin )
+			{
+				// between Min and Max only break the choke after 64 units of movement
+				float flDistSqr = ( LocalPlayer->m_vecOrigin( ) - g_CVars.Miscellaneous.Fakelag.LastSendOrigin ).LengthSqr( );
+				if( flDistSqr > 4096.f )
+				{
+					g_CVars.Miscellaneous.Fakelag.LastSendOrigin = LocalPlayer->m_vecOrigin( );
+					// let it send
+				}
+				else ShouldChoke = true;
+			}
+			else ShouldChoke = true; // below Min: keep choking
+		}
 	}
 	else
 	{
@@ -325,7 +350,7 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 			if( !bSendPacket ) pCmd->buttons &= ~IN_DUCK;
 		}
 
-		if( g_CVars.Miscellaneous.AntiAim.AtTargets ) g_Stuff.AntiAim.AtTargets( LocalPlayer, pCmd );
+		if( g_CVars.Miscellaneous.AntiAim.AtTargets ) g_Stuff.AntiAim.AtTargets( LocalPlayer, pCmd, bSendPacket );
 
 		if( g_CVars.Miscellaneous.AntiAim.WallDetection && Velocity.Length( ) < 300.f )
 		{

@@ -47,6 +47,7 @@ public:
 		bool Active, AutoShoot, AutoWall, MultiSpot, HitScan, FriendlyFire, Silent, PerfectSilent, AntiSMAC, BodyAWP, SnapLimiter;
 		int TargetSelection, Hitbox, HitboxMode, Height, AngleLimit, MinDamage, Key, AutoHeightMode[ 64 ];
 		float AngleLimitTens, PointScale;
+		float AimHeight = 0.9f;		// Segregation: vertical fraction inside the hitbox (0..1), default 0.9
 
 		class Resolver
 		{
@@ -125,6 +126,8 @@ public:
 		public:
 			bool Active, InAttack, AirOnly;
 			int Mode, Value;
+			int Min = 1, Max = 14;		// Segregation-mode choke window (Mode 3)
+			Vector LastSendOrigin;		// position snapshot of the last sent packet (64-unit break)
 		};
 
 		bool BunnyHop, AutoStrafe, CircleStrafe, EdgeJump, Speedhack, OriginCorrection, AutoKnife, RoundSay, CheatsBypass, AirStuck, AirStuckPress, ThirdPerson, Save, Load;
@@ -309,7 +312,7 @@ public:
 	{
 	public:
 		QAngle tmp;
-		void AtTargets( BasePlayer*, CUserCmd* );
+		void AtTargets( BasePlayer*, CUserCmd*, bool bSendPacket );
 		bool WallDetection( BasePlayer*, CUserCmd*, float );
 		void WallDetection2( BasePlayer*, CUserCmd*, bool, float, float );
 	};

@@ -260,6 +260,11 @@ static void RageTargeting( void )
 
 		const char* heightModeNames[] = { "Auto", "Origin", "Center", "Center Fixed", "Highest" };
 		ImGui::Combo( "Height Mode", &g_CVars.Aimbot.HitboxMode, heightModeNames, IM_ARRAYSIZE( heightModeNames ) );
+		int iAimHeightPct = ( int )( g_CVars.Aimbot.AimHeight * 100.f + 0.5f );
+		if( iAimHeightPct > 100 ) iAimHeightPct = 100;
+		if( iAimHeightPct < 0 ) iAimHeightPct = 0;
+		if( ImGui::SliderInt( "Aim Height %", &iAimHeightPct, 50, 100 ) )
+			g_CVars.Aimbot.AimHeight = ( float )iAimHeightPct * 0.01f;
 
 		const char* targetSelectionNames[] = { "Distance", "Health", "Next Shot", "Random" };
 		ImGui::Combo( "Target Selection", &g_CVars.Aimbot.TargetSelection, targetSelectionNames, IM_ARRAYSIZE( targetSelectionNames ) );
@@ -520,8 +525,10 @@ static void MiscOther( void )
 		ImGui::Checkbox( "Fake Lag Air Only", &g_CVars.Miscellaneous.Fakelag.AirOnly );
 		ImGui::SliderInt( "Choke Ticks", &g_CVars.Miscellaneous.Fakelag.Value, 0, 14 );
 
-		const char* fakelagModes[] = { "Factor", "Switch", "Adaptive" };
+		const char* fakelagModes[] = { "Factor", "Switch", "Adaptive", "Segregation" };
 		ImGui::Combo( "Fake Lag Mode", &g_CVars.Miscellaneous.Fakelag.Mode, fakelagModes, IM_ARRAYSIZE( fakelagModes ) );
+		ImGui::SliderInt( "Min Choked", &g_CVars.Miscellaneous.Fakelag.Min, 0, 14 );
+		ImGui::SliderInt( "Max Choked", &g_CVars.Miscellaneous.Fakelag.Max, 1, 15 );
 
 		ImGui::Spacing( );
 	}
