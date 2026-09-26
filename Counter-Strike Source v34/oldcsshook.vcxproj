@@ -70,6 +70,9 @@
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <SDLCheck>false</SDLCheck>
+      <!-- /EHa: allows __try/__except SEH in functions with C++ objects (C2712);
+           project has no try/catch, so runtime behavior is otherwise unchanged -->
+      <ExceptionHandling>Async</ExceptionHandling>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -94,6 +97,9 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;OLDCSSHOOK_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>false</SDLCheck>
+      <!-- /EHa: allows __try/__except SEH in functions with C++ objects (C2712);
+           project has no try/catch, so runtime behavior is otherwise unchanged -->
+      <ExceptionHandling>Async</ExceptionHandling>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Core;$(ProjectDir)Hooks;$(ProjectDir)Features;$(ProjectDir)GUI;$(ProjectDir)Vendor;$(ProjectDir)SDK;$(ProjectDir)ImGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
