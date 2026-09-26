@@ -375,6 +375,27 @@ void __fastcall Hooked_PaintTraverse( void* ptr, int edx, unsigned int vguiPanel
 
 	const char* pszPanelName = g_pPanel->GetName( vguiPanel );
 
+	// log every unique panel name once per session: if the ESP gate below
+	// matches nothing on this exact v34 build, the log tells us the real name
+	{
+		static char szSeen[ 64 ][ 64 ] = { { 0 } };
+		static int  iSeen = 0;
+
+		if( pszPanelName && pszPanelName[ 0 ] )
+		{
+			bool bKnown = false;
+			for( int s = 0; s < iSeen; s++ )
+				if( !strcmp( szSeen[ s ], pszPanelName ) ) { bKnown = true; break; }
+
+			if( !bKnown && iSeen < 64 )
+			{
+				strncpy( szSeen[ iSeen ], pszPanelName, 63 );
+				Logger::Write( "[panels] seen vgui panel: \"%s\"", szSeen[ iSeen ] );
+				iSeen++;
+			}
+		}
+	}
+
 	//Register the game-event listener exactly once: the old code called
 	//RegisterSelf() every panel repaint and piled up duplicate listeners.
 	{
@@ -386,8 +407,20 @@ void __fastcall Hooked_PaintTraverse( void* ptr, int edx, unsigned int vguiPanel
 		}
 	}
 
+	// old heuristic ([0]=='M' && [3]=='S' && [9]=='T') only matched
+	// "MatSystemTopPanel" - some v34 builds repaint the game scene on a
+	// different top panel, which silently killed all vgui ESP
 	bool bValid = false;
-	if( pszPanelName && pszPanelName[ 0 ] == 'M' && pszPanelName[ 3 ] == 'S' && pszPanelName[ 9 ] == 'T' ) bValid = true;
+	if( pszPanelName && ( strstr( pszPanelName, "MatSystemTopPanel" ) || strstr( pszPanelName, "FocusOverlayPanel" ) ) )
+	{
+		static bool bLoggedGate = false;
+		if( !bLoggedGate )
+		{
+			Logger::Write( "[panels] ESP draw gate passed on panel: \"%s\"", pszPanelName );
+			bLoggedGate = true;
+		}
+		bValid = true;
+	}
 
 	if( bValid )
 	{
