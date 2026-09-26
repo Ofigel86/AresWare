@@ -442,9 +442,8 @@ void Hook( void )
 	Logger::Write( "  [INFO ] %-22s 0x%08X", "IInput", ( DWORD )g_pInput );
 	Logger::Write( "  [INFO ] %-22s 0x%08X", "CGlobalVarsBase", ( DWORD )g_pGlobals );
 
-	const char* g_InitStage = "vstdlib random functions";
-	__try
-	{
+	Logger::SetStage( "vstdlib random functions" );
+
 	HMODULE vstdlib = GetModuleHandleA( /*vstdlib.dll*/XorStr<0x8B,12,0x922FC0BB>("\xFD\xFF\xF9\xEA\xE3\xF9\xF3\xBC\xF7\xF8\xF9"+0x922FC0BB).s );
     RandomSeed = ( RandomSeedFn )GetProcAddress( vstdlib, /*RandomSeed*/XorStr<0xA8,11,0x514D0126>("\xFA\xC8\xC4\xCF\xC3\xC0\xFD\xCA\xD5\xD5"+0x514D0126).s );
     RandomFloat = ( RandomFloatFn )GetProcAddress( vstdlib, /*RandomFloat*/XorStr<0xD5,12,0x17E3FE6D>("\x87\xB7\xB9\xBC\xB6\xB7\x9D\xB0\xB2\xBF\xAB"+0x17E3FE6D).s );
@@ -452,7 +451,7 @@ void Hook( void )
 
 	Logger::Write( "vstdlib random fns: seed=0x%08X float=0x%08X int=0x%08X", ( DWORD )RandomSeed, ( DWORD )RandomFloat, ( DWORD )RandomInt );
 	if( !RandomSeed || !RandomFloat || !RandomInt ) Logger::Write( "WARNING: some vstdlib random fns missing!" );
-	g_InitStage = "VMT hooks: EngineClient/Client/Input/Prediction";
+	Logger::SetStage( "VMT hooks: EngineClient/Client/Input/Prediction" );
 
 	PDWORD* pdwPanelVMT = ( PDWORD* )g_pPanel; 
 	PDWORD* pdwInputVMT = ( PDWORD* )g_pInput; 
@@ -481,7 +480,7 @@ void Hook( void )
 	PredictionVMT->HookFunction( 23, Hooked_Update );
 
 	Logger::Write( "VMT hooks done: EngineClient, Client(CreateMove 18 / FrameStage 32), Input(GetUserCmd 8), Prediction(SetViewAngles 16 / RunCommand 19 / Update 23)" );
-	g_InitStage = "engine detours";
+	Logger::SetStage( "engine detours" );
 	Logger::Write( "Installing engine detours (CL_Move / FX_FireBullets / CL_RunPrediction)..." );
 
 	CL_Move( );
@@ -490,7 +489,7 @@ void Hook( void )
 	//ClientInterpolation( );
 
 	Logger::Write( "Engine detours installed." );
-	g_InitStage = "VMT hooks: ModelRender/MaterialSystem/PaintTraverse";
+	Logger::SetStage( "VMT hooks: ModelRender/MaterialSystem/PaintTraverse" );
 
 	ModelRenderVMT = new CVMTHook( pdwModelRenderVMT );
 	ModelRenderVMT->HookFunction( 19, Hooked_DrawModelEx );
@@ -504,12 +503,12 @@ void Hook( void )
 	PaintTraverseVMT->HookFunction( 40, Hooked_PaintTraverse );
 
 	Logger::Write( "VMT hooks done: ModelRender(DrawModelEx 19), MaterialSystem(FindMaterial 27), Panel(PaintTraverse 40)" );
-	g_InitStage = "g_CVars.Init";
+	Logger::SetStage( "g_CVars.Init" );
 
 	g_CVars.Init( );
 
 	Logger::Write( "g_CVars initialized." );
-	g_InitStage = "NetvarManager / recv proxies";
+	Logger::SetStage( "NetvarManager / recv proxies" );
 
 	g_pNetvarManager = new HackInterfaces::NetvarManager( );
 	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0xF1,12,0xB60E482B>("\xB5\xA6\xAC\xB7\xA6\xA6\x9B\x99\x80\x9F\x89"+0xB60E482B).s, /*m_angEyeAngles[0]*/XorStr<0x8A,18,0x3656D77C>("\xE7\xD4\xED\xE3\xE9\xCA\xE9\xF4\xD3\xFD\xF3\xF9\xF3\xE4\xC3\xA9\xC7"+0x3656D77C).s, PlayerList_EyeAngles_Pitch, &s_pfnOldEyePitch );
@@ -531,16 +530,10 @@ void Hook( void )
 	mat_outline = g_Stuff.CreateMaterial( false, true, false );
 
 	Logger::Write( "Chams materials created (vertex/unlit/outline)." );
-	g_InitStage = "D3D9 hook";
+	Logger::SetStage( "D3D9 hook" );
 
 	InitializeD3D9Hook( );
 	Logger::Write( "AresWare fully loaded - F12 to unload." );
-	}
-	__except( EXCEPTION_EXECUTE_HANDLER )
-	{
-		Logger::Write( "FATAL: exception 0x%08X during Hook() init, stage: %s", GetExceptionCode( ), g_InitStage );
-		Logger::Write( "FATAL: report the stage above - init aborted, unload the DLL." );
-	}
 }
 
 void UnHook( void )

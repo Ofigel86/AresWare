@@ -7,6 +7,8 @@ namespace
 	CRITICAL_SECTION	g_LogCs;
 	bool			g_bCsInit = false;
 	char			g_LogPath[ MAX_PATH ] = { 0 };
+	const char*		g_Stage = "";
+	PVOID			g_VehHandle = NULL;
 
 	void BuildPath( void )
 	{
@@ -50,12 +52,52 @@ namespace
 	}
 }
 
+void Logger::SetStage( const char* stage )
+{
+	g_Stage = stage ? stage : "";
+}
+
+static LONG WINAPI AresWareVeh( EXCEPTION_POINTERS* pEp )
+{
+	if( pEp && pEp->ExceptionRecord )
+	{
+		EXCEPTION_RECORD* pRec = pEp->ExceptionRecord;
+
+		// NTSTATUS-style severity bits set: real faults (AV, int3, DLL unload...)
+		if( pRec->ExceptionCode & 0x80000000 )
+		{
+			// CRITICAL_SECTION is per-thread recursive, so logging here is fine
+			// even if the fault happened inside another Write() on this thread.
+			Logger::Write( "FATAL: exception 0x%08X at address 0x%08X (stage: %s)",
+				pRec->ExceptionCode, ( DWORD )pRec->ExceptionAddress, g_Stage );
+			Logger::Shutdown( ); // flush via handle close; process is about to die
+		}
+	}
+	return EXCEPTION_CONTINUE_SEARCH; // let the default handling proceed
+}
+
+void Logger::InstallCrashHandler( void )
+{
+	if( !g_VehHandle )
+		g_VehHandle = AddVectoredExceptionHandler( 1, AresWareVeh );
+}
+
+void Logger::RemoveCrashHandler( void )
+{
+	if( g_VehHandle )
+	{
+		RemoveVectoredExceptionHandler( g_VehHandle );
+		g_VehHandle = NULL;
+	}
+}
+
 void Logger::Init( void )
 {
 	EnsureCs( );
 	EnterCriticalSection( &g_LogCs );
 	EnsureOpen( );
 	LeaveCriticalSection( &g_LogCs );
+	InstallCrashHandler( );
 }
 
 const char* Logger::Path( void )
@@ -106,6 +148,8 @@ void Logger::Write( const char* fmt, ... )
 
 void Logger::Shutdown( void )
 {
+	RemoveCrashHandler( ); // handler lives inside this DLL - must go away first
+
 	if( !g_bCsInit ) return;
 
 	EnterCriticalSection( &g_LogCs );
