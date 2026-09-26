@@ -1,0 +1,524 @@
+#include "Main.h"
+#include <limits>
+
+DWORD dwReturnAddress = NULL;
+DWORD dwCreateMove = NULL; // runtime: ( DWORD ) BASE_CLIENT + 0x87270 (module base is not known at static init)
+
+extern float g_flAAHitReactUntil; // set by the player_hurt handler (see GameEventManager.cpp)
+extern int   g_iAAHitReactCount;
+
+static bool bSendPacket;
+int sequence_number = 0;
+
+float _clamp( float val, float minVal, float maxVal )
+{
+	if ( maxVal < minVal )
+		return maxVal;
+	else if( val < minVal )
+		return minVal;
+	else if( val > maxVal )
+		return maxVal;
+	else
+		return val;
+}
+
+static bool pass = false;
+static int queue = 0;
+static bool angelfix = false;
+
+void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
+{
+	int MoveType = LocalPlayer->m_MoveType( );
+	Vector Velocity = LocalPlayer->m_vecVelocity( );
+
+	bool WallDTC = false;
+	bool ret = true;
+	bool ShouldChoke = false;
+
+	bool inair = !( LocalPlayer->m_fFlags( ) & FL_ONGROUND );
+
+	int tmpLagticks;
+	if( g_CVars.Miscellaneous.Fakelag.AirOnly )
+	{
+		tmpLagticks = ( inair ) ? LagValue : 1;
+	}
+	else tmpLagticks = LagValue;
+
+	// creds to machete for giving me this brilliant idea lol
+	int DeltaTicks = _clamp( abs( queue - tmpLagticks ), 0, 15 );
+
+	if( g_CVars.Miscellaneous.Fakelag.Active )
+	{
+		if( g_CVars.Miscellaneous.Fakelag.Mode == 0 )
+		{
+			if( DeltaTicks > 0 ) ShouldChoke = true;
+		}
+		else if( g_CVars.Miscellaneous.Fakelag.Mode == 1 )
+		{
+			if( ( pCmd->command_number % 30 ) < 15 )
+			{
+				if( DeltaTicks > 0 ) ShouldChoke = true;
+			}
+		}
+		else if( g_CVars.Miscellaneous.Fakelag.Mode == 2 ) // thx polak
+		{
+			float Velocity2D = Velocity.Length2D( ) * g_pGlobals->interval_per_tick;
+
+			while( tmpLagticks - 2 <= 14 )
+			{
+				tmpLagticks -= 2;
+				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
+
+				tmpLagticks -= 1;
+				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
+
+				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
+
+				tmpLagticks += 1;
+				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
+
+				tmpLagticks += 2;
+				if( ( tmpLagticks * Velocity2D ) > 68.f ) break;
+
+				tmpLagticks += 5;
+			};
+
+			if( DeltaTicks > 0 ) ShouldChoke = true;
+		}
+		else if( g_CVars.Miscellaneous.Fakelag.Mode == 3 ) // Segregation: Min/Max window, break on 64 units
+		{
+			int iMin = min( 14, g_CVars.Miscellaneous.Fakelag.Min );
+			if( iMin < 0 ) iMin = 0;
+			int iMax = min( 15, g_CVars.Miscellaneous.Fakelag.Max );
+			if( iMax < 1 ) iMax = 1;
+			if( iMax <= iMin ) iMax = iMin + 1;
+
+			if( queue >= ( unsigned int )iMax )
+			{
+				// reached the maximum: force a real packet
+			}
+			else if( ( unsigned int )queue >= ( unsigned int )iMin )
+			{
+				// between Min and Max only break the choke after 64 units of movement
+				float flDistSqr = ( LocalPlayer->m_vecOrigin( ) - g_CVars.Miscellaneous.Fakelag.LastSendOrigin ).LengthSqr( );
+				if( flDistSqr > 4096.f )
+				{
+					g_CVars.Miscellaneous.Fakelag.LastSendOrigin = LocalPlayer->m_vecOrigin( );
+					// let it send
+				}
+				else ShouldChoke = true;
+			}
+			else ShouldChoke = true; // below Min: keep choking
+		}
+	}
+	else
+	{
+		static bool flip;
+		flip = !flip;
+		if( flip ) ShouldChoke = true;
+	}
+
+	if( pass ) ShouldChoke = false;
+
+	bSendPacket = ( ShouldChoke ) ? false : true;
+
+	if( !bSendPacket )
+	{
+		if( queue >= 14 )
+		{
+			bSendPacket = true;
+			queue = 0;
+		}
+		else ++queue;
+	}
+	else queue = 0;
+
+	// Segregation wiring: when AA is on, every 3rd command is ALWAYS choked
+	// - that choked command is the one carrying the fake yaw/pitch. Without
+	// this slice, fake angles only appear while the fakelag feature happens
+	// to be choking. The queue-cap above batches them back out in time.
+	if( g_CVars.Miscellaneous.AntiAim.Active && bSendPacket )
+	{
+		int iChokeEvery = g_CVars.Miscellaneous.AntiAim.ChokeEvery;
+		if( iChokeEvery < 2 ) iChokeEvery = 2;
+		if( ( pCmd->command_number % iChokeEvery ) == 1 && queue < 13 )
+		{
+			bSendPacket = false;
+			++queue;
+		}
+	}
+
+	if( g_CVars.Miscellaneous.AntiAim.Active )
+	{
+		// ================================================================
+		// own anti-aim engine: pitch spoof + real(sent) / fake(choked) yaw.
+		// bSendPacket==true  -> the SENT cmd is what the enemy resolver eats;
+		// bSendPacket==false -> choked cmds only flash in their backtrack window.
+		// ================================================================
+		pCmd->buttons &= ~IN_ATTACK;
+
+
+		// direction to the nearest enemy = the semantic base of AtTarget /
+		// Backwards / Sideways; without an enemy the camera yaw is the base
+		BasePlayer* pTarget = NULL;
+		float flBestDistSqr = 100000000.f;
+		Vector vLocalOrigin = LocalPlayer->m_vecOrigin( );
+		for( int i = 1; i <= g_pGlobals->maxClients; i++ )
+		{
+			if( i == g_pEngineClient->GetLocalPlayer( ) ) continue;
+			BasePlayer* Ent = ( BasePlayer* )g_pClientEntityList->GetClientEntity( i );
+			if( !Ent ) continue;
+			if( !( *( int* )( ( DWORD ) Ent + 0x87 ) == 0 ) ) continue;
+			if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
+
+			float d2 = ( Ent->m_vecOrigin( ) - vLocalOrigin ).LengthSqr( );
+			if( d2 < flBestDistSqr ) { flBestDistSqr = d2; pTarget = Ent; }
+		}
+
+		float yawBase = pCmd->viewangles.y;
+		if( pTarget )
+		{
+			Vector vTo = pTarget->m_vecOrigin( ) - vLocalOrigin;
+			yawBase = RAD2DEG( atan2f( vTo.y, vTo.x ) );
+		}
+
+		auto AAHash = []( unsigned int n ) -> unsigned int
+		{
+			n ^= ( n >> 11 ); n *= 2654435761u; n ^= ( n >> 15 );
+			return n;
+		};
+
+		// network-grid quantization (Segregation Compress_Angle) - ONLY for yaw/z:
+		// the masked variant maps every negative pitch to its positive twin,
+		// which destroyed -179.99 (fake down became fake up)! Pitch gets a
+		// plain symmetric truncation instead, so the sign survives.
+		auto CompressAngle = []( float x, int shift ) -> float
+		{
+			return (float)( ( (int)( x / 360.f * (float)shift ) ) & ( shift - 1 ) ) * ( 360.f / (float)shift );
+		};
+
+		// v3 engine: per-side yaw resolvers. yawBase = direction to the nearest
+		// enemy; the slider gives a -180..180 offset where 180 = full back.
+		auto ResolveSide = [&]( const auto& side ) -> float
+		{
+			switch( side.YawMode )
+			{
+				case 0: return yawBase + side.YawAngle;								// static
+				case 1: // jitter
+				{
+					int iv = side.JitterInterval;
+					if( iv < 1 ) iv = 1;
+					int phase = ( pCmd->command_number / iv ) & 1;
+					switch( side.JitterStyle )
+					{
+						case 0: return yawBase + side.YawAngle + ( phase ? 0.f : side.JitterAmount );		// offset
+						case 1: return yawBase + side.YawAngle + ( phase ? -side.JitterAmount : side.JitterAmount );	// center
+						case 2: return yawBase + side.YawAngle + ( phase ? 0.f : 180.f );				// reverse
+					}
+				} break;
+				case 2: return yawBase + fmodf( ( float )pCmd->command_number * side.SpinSpeed, 360.f );	// spin
+				case 3: // random: fresh -180..180 offset every command
+				{
+					unsigned int n = AAHash( pCmd->command_number + ( ( unsigned int )( bSendPacket ? 0 : 1 ) * 0x9E3779B1u ) );
+					float r = ( ( n >> 16 ) & 0xFF ) * ( 1.f / 255.f );
+					return yawBase + r * 360.f - 180.f;
+				}
+			}
+			return yawBase + 180.f;
+		};
+
+		if( bSendPacket )
+			pCmd->viewangles.y = ResolveSide( g_CVars.Miscellaneous.AntiAim.Real );
+		else
+			pCmd->viewangles.y = ResolveSide( g_CVars.Miscellaneous.AntiAim.Fake );
+
+		switch( g_CVars.Miscellaneous.AntiAim.PitchMode )
+		{
+			case 0: break;															// camera
+			case 1: pCmd->viewangles.x = 89.f; break;								// down
+			case 2: pCmd->viewangles.x = -89.f; break;								// up
+			case 3: pCmd->viewangles.x = bSendPacket ? 89.f : -179.990005f; break;	// fake down
+			case 4: pCmd->viewangles.x = bSendPacket ? 89.f : 179.990005f; break;	// fake up
+			case 5: pCmd->viewangles.x = ( pCmd->command_number & 1 ) ? 89.f : -89.f; break;	// jitter
+			case 6: // random down/up
+			{
+				unsigned int n = AAHash( pCmd->command_number * 0x27D4EB2Fu );
+				pCmd->viewangles.x = ( ( ( n >> 16 ) & 0xFF ) > 127 ) ? 89.f : -89.f;
+			} break;
+		}
+
+		pCmd->viewangles.x = (float)(int)( pCmd->viewangles.x / 360.f * 65536.f ) * ( 360.f / 65536.f );
+		pCmd->viewangles.y = CompressAngle( pCmd->viewangles.y, 65536 );
+		pCmd->viewangles.z = CompressAngle( pCmd->viewangles.z, 256 );
+	}
+	pass = false;
+}
+
+void sendcmd( const char* input, ... )
+{
+	va_list va_alist;
+	char buf[ 256 ];
+
+	va_start( va_alist, input );
+	vsprintf( buf, input, va_alist );
+	va_end( va_alist );
+
+	g_pEngineClient->ExecuteClientCmd( buf );
+}
+
+void ForceFullUpdate( BasePlayer* Ent )
+{
+	typedef void( __thiscall* ForceFullUpdate_t )( void* );
+	( ( ForceFullUpdate_t )( ( DWORD ) BASE_ENGINE + 0x9E0D0 ) )( Ent );
+}
+
+void CorrectTickCount( CUserCmd* pCmd )
+{
+	if( !g_CVars.Aimbot.Interpolation.LagPrediction ) return;
+
+	static ConVar* cvar_cl_interp = g_pCvar->FindVar( /*cl_interp*/XorStr<0x24,10,0x7F9B18B0>("\x47\x49\x79\x4E\x46\x5D\x4F\x59\x5C"+0x7F9B18B0).s );
+	static ConVar* cvar_cl_updaterate = g_pCvar->FindVar( /*cl_updaterate*/XorStr<0xC6,14,0xD9FFF99F>("\xA5\xAB\x97\xBC\xBA\xAF\xAD\xB9\xAB\xBD\xB1\xA5\xB7"+0xD9FFF99F).s );
+	static ConVar* cvar_cl_interp_ratio = g_pCvar->FindVar( /*cl_interp_ratio*/XorStr<0xBF,16,0x298E884B>("\xDC\xAC\x9E\xAB\xAD\xB0\xA0\xB4\xB7\x97\xBB\xAB\xBF\xA5\xA2"+0x298E884B).s );
+	static ConVar* cvar_sv_minupdaterate = g_pCvar->FindVar( /*sv_minupdaterate*/XorStr<0xF6,17,0x99ECD573>("\x85\x81\xA7\x94\x93\x95\x89\x8D\x9A\x9E\x74\x64\x70\x62\x70\x60"+0x99ECD573).s );
+	static ConVar* cvar_sv_maxupdaterate = g_pCvar->FindVar( /*sv_maxupdaterate*/XorStr<0x6A,17,0x6C62999F>("\x19\x1D\x33\x00\x0F\x17\x05\x01\x16\x12\x00\x10\x04\x16\x0C\x1C"+0x6C62999F).s );
+	static ConVar* cvar_sv_client_min_interp_ratio = g_pCvar->FindVar( /*sv_client_min_interp_ratio*/XorStr<0x9B,27,0x783554E3>("\xE8\xEA\xC2\xFD\xF3\xC9\xC4\xCC\xD7\xFB\xC8\xCF\xC9\xF7\xC0\xC4\xDF\xC9\xDF\xDE\xF0\xC2\xD0\xC6\xDA\xDB"+0x783554E3).s );
+	static ConVar* cvar_sv_client_max_interp_ratio = g_pCvar->FindVar( /*sv_client_max_interp_ratio*/XorStr<0xAF,27,0xED44D950>("\xDC\xC6\xEE\xD1\xDF\xDD\xD0\xD8\xC3\xE7\xD4\xDB\xC3\xE3\xD4\xD0\xCB\xA5\xB3\xB2\x9C\xB6\xA4\xB2\xAE\xA7"+0xED44D950).s );
+
+	float cl_interp = cvar_cl_interp->GetFloat( );
+	int cl_updaterate = cvar_cl_updaterate->GetInt( ),
+	sv_maxupdaterate = cvar_sv_maxupdaterate->GetInt( ),
+	sv_minupdaterate = cvar_sv_minupdaterate->GetInt( ),
+	cl_interp_ratio = cvar_cl_interp_ratio->GetInt( ),
+	sv_client_min_interp_ratio = cvar_sv_client_min_interp_ratio->GetInt( ),
+	sv_client_max_interp_ratio = cvar_sv_client_max_interp_ratio->GetInt( );
+
+	if( sv_client_min_interp_ratio > cl_interp_ratio ) cl_interp_ratio = sv_client_min_interp_ratio;
+	if( cl_interp_ratio > sv_client_max_interp_ratio ) cl_interp_ratio = sv_client_max_interp_ratio;
+	if( sv_maxupdaterate <= cl_updaterate ) cl_updaterate = sv_maxupdaterate;
+	if( sv_minupdaterate > cl_updaterate ) cl_updaterate = sv_minupdaterate;
+
+	float interp = cl_interp_ratio / cl_updaterate;
+	if( interp > cl_interp ) cl_interp = interp;
+
+	BasePlayer* LocalPlayer = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
+	( void )LocalPlayer;
+
+	if( g_Aimbot.TargetIndex != -1 )
+	{
+		// latency-correct record: aim at + send the tick of the same history
+		// entry (curtime - RTT - interp, clamped by sv_maxunlag = 1s), so the
+		// server restores exactly the bones the aimbot computed points on
+		int record = Resolver_PickRecord( g_Aimbot.TargetIndex );
+		float sim = pPlayerHistory[ g_Aimbot.TargetIndex ][ record ].m_SimulationTime;
+
+		if( sim > 0.f )
+		{
+			int tick = TIME_TO_TICKS( sim );
+			bool timeout = ( tick < ( pCmd->tick_count - 50 ) );
+			if( !timeout ) pCmd->tick_count = tick;
+		}
+	}
+}
+
+typedef void( __thiscall* CreateMove_t )( void*, int, float, bool );
+void __fastcall CreateMove( void* ecx, void* edx, int sequence_number, float input_sample_frametime, bool active )
+{
+	CreateMoveVMT->Function< CreateMove_t >( 18 )( ecx, sequence_number, input_sample_frametime, active );
+
+	BasePlayer* LocalPlayer = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
+	if( !LocalPlayer ) return;
+	if( !g_pInput ) return;
+
+	CSWeapon* Weapon = ( CSWeapon* ) LocalPlayer->GetActiveBaseCombatWeapon( );
+
+	bSendPacket = true;
+	CUserCmd* pCmd = g_pInput->GetUserCmd( sequence_number );
+	if( !pCmd ) return;
+
+	g_TickCount = pCmd->tick_count;
+
+	if( g_GUI.ShouldDisableInput( ) )
+	{
+		pCmd->buttons &= ~IN_ATTACK;
+		pCmd->buttons &= ~IN_ATTACK2;
+		pCmd->buttons &= ~IN_FORWARD;
+		pCmd->buttons &= ~IN_BACK;
+		pCmd->buttons &= ~IN_MOVELEFT;
+		pCmd->buttons &= ~IN_MOVERIGHT;
+	}
+
+	g_Stuff.sidemove_old = pCmd->sidemove;
+	g_Stuff.forwardmove_old = pCmd->forwardmove;
+	g_Stuff.radarangles = pCmd->viewangles;
+	g_Stuff.viewangles_old = pCmd->viewangles;
+	g_Stuff.ForceCVars( );
+
+	g_iGameTicks++;
+
+	if( g_CVars.MovementRecorder.Active ) // todo: fix
+	{
+		if( GetAsyncKeyState( VK_F6 ) ) MovementRecorder.State = RECORDING; // record
+		if( GetAsyncKeyState( VK_F7 ) ) // save
+		{
+			g_Macro.CurrentName = /*demo_1*/XorStr<0x15,7,0xEF9CCFF8>("\x71\x73\x7A\x77\x46\x2B"+0xEF9CCFF8).s;
+			g_Macro.Save = true;
+			g_Macro.Load = false;
+		}
+		if( GetAsyncKeyState( VK_F8 ) ) // load
+		{
+			g_Macro.CurrentName = /*demo_1*/XorStr<0x3E,7,0x37290FEA>("\x5A\x5A\x2D\x2E\x1D\x72"+0x37290FEA).s;
+			g_Macro.Load = true;
+			g_Macro.Save = false;
+		}
+		if( GetAsyncKeyState( VK_F9 ) ) MovementRecorder.State = PLAYING; // play
+		if( GetAsyncKeyState( VK_F10 ) ) MovementRecorder.State = NOTHING; // stop playing/recording
+		if( GetAsyncKeyState( VK_F11 ) ) MovementRecorder.State = STARTPOS; // find startposition
+
+		MovementRecorder.RecordMovement( pCmd, LocalPlayer, pCmd->viewangles );
+	}
+
+	if( LocalPlayer->m_lifeState( ) != 0 ) return;
+
+	if( g_CVars.Miscellaneous.BunnyHop ) g_Stuff.BunnyHop( pCmd, LocalPlayer );
+	//if( g_CVars.Miscellaneous.EdgeJump ) g_Stuff.EdgeJump( pCmd, LocalPlayer );
+
+	g_Prediction.Start( pCmd, LocalPlayer );
+	EyePosition = LocalPlayer->EyePosition( );
+
+	if( g_CVars.Miscellaneous.AutoKnife ) g_Stuff.Knifebot.Main( pCmd, LocalPlayer, Weapon );
+
+	if( Weapon && Weapon->IsWeapon( ) )
+	{
+		if( g_CVars.Aimbot.Active )
+		{
+			QAngle tmp = pCmd->viewangles;
+			g_Aimbot.Main( pCmd, LocalPlayer );
+
+			if( g_CVars.Aimbot.SnapLimiter )
+			{
+				float delta_x, delta_y, limit;
+				delta_x = g_Stuff.GuwopNormalize( pCmd->viewangles.x - tmp.x );
+				delta_y = g_Stuff.GuwopNormalize( pCmd->viewangles.y - tmp.y );
+
+				if( g_CVars.Aimbot.AngleLimit >= 180 ) limit = 180;
+				else limit = float( g_CVars.Aimbot.AngleLimit ) + g_CVars.Aimbot.AngleLimitTens; // eks dee
+
+				if( !( ( delta_x < limit && delta_x > -limit ) && ( delta_y < limit && delta_y > -limit ) ) ) pCmd->viewangles = tmp;
+			}
+		}
+
+		// trigger AFTER aimbot: CanHit validates the final viewangles of this cmd
+		if( g_CVars.Triggerbot.Active ) g_Stuff.SeedTrigger( pCmd, LocalPlayer, Weapon );
+
+		if( pCmd->buttons & IN_ATTACK )
+		{
+			if( g_Stuff.IsReadyToShoot( LocalPlayer, Weapon ) )	
+			{
+				if( g_Aimbot.TargetIndex != -1 )
+				{
+					g_iBulletsFired[ g_Aimbot.TargetIndex ]++;
+					Resolver_OnShot( g_Aimbot.TargetIndex );	// advance bruteforce / capture hit offset
+				}
+				angelfix = false;
+				pass = true;
+				queue = 0;
+
+				bool trigger = ( g_CVars.Triggerbot.Active && !g_CVars.Triggerbot.IsShooting );
+
+				if( !g_CVars.Triggerbot.Active || trigger )
+				{
+					if( g_CVars.Accuracy.ForceSeed ) g_Stuff.ForceSeed( pCmd );
+					if( g_CVars.Accuracy.PerfectAccuracy )
+					{
+						switch( g_CVars.Accuracy.NoSpreadMode )
+						{
+							case 1: g_NoSpread.Main( pCmd, pCmd->viewangles, LocalPlayer, Weapon, g_CVars.Miscellaneous.AntiAim.Static ); break;
+							case 2: g_NoSpread.Iterative( pCmd, pCmd->viewangles, LocalPlayer, Weapon, g_CVars.Miscellaneous.AntiAim.Static ); break;
+							case 3: g_NoSpread.CoolNospreee( pCmd, pCmd->viewangles, LocalPlayer, Weapon, g_CVars.Miscellaneous.AntiAim.Static ); break;
+							default: g_NoSpread.Main( pCmd, pCmd->viewangles, LocalPlayer, Weapon, g_CVars.Miscellaneous.AntiAim.Static ); break;
+						}
+						g_Stuff.NoRecoil( pCmd, LocalPlayer, g_CVars.Miscellaneous.AntiAim.Static );
+					}
+				}
+
+				if( g_CVars.Aimbot.PerfectSilent ) bSendPacket = false;
+
+				CorrectTickCount( pCmd );
+			}
+			else
+			{
+				if( g_CVars.Aimbot.AntiSMAC ) pCmd->viewangles = QAngle( 0, 0, 0 );
+				else AntiAim( LocalPlayer, pCmd, ( g_CVars.Miscellaneous.Fakelag.InAttack ) ? g_CVars.Miscellaneous.Fakelag.Value : 1 );
+
+				pCmd->buttons &= ~IN_ATTACK;
+			}
+		}
+		else
+		{
+			if( g_CVars.Aimbot.AntiSMAC ) pCmd->viewangles = QAngle( 0, 0, 0 );
+			else AntiAim( LocalPlayer, pCmd, g_CVars.Miscellaneous.Fakelag.Value );
+		}
+	}
+
+	if( g_CVars.Miscellaneous.AutoStrafe ) g_Stuff.AutoStrafe( pCmd, LocalPlayer );
+	g_Stuff.MovementFix.FixMove( LocalPlayer, pCmd, angelfix );
+
+	// Auto Stop: counter-strafe while attacking for better first-shot
+	// accuracy. Runs AFTER FixMove, so the inputs are already expressed
+	// in the final view space of this cmd (yaw-only: ground movement
+	// in Source is flattened to the horizontal plane).
+	if( g_CVars.Miscellaneous.AutoStop > 0 && ( pCmd->buttons & IN_ATTACK ) &&
+		( LocalPlayer->m_fFlags( ) & FL_ONGROUND ) )
+	{
+		Vector vel = LocalPlayer->m_vecVelocity( );
+		float speed2d = sqrtf( vel.x * vel.x + vel.y * vel.y );
+		if( speed2d > 5.f )
+		{
+			float yaw = DEG2RAD( pCmd->viewangles.y );
+			float ix = -vel.x / speed2d;	// world-space counter direction
+			float iy = -vel.y / speed2d;
+			float fm = ix * cosf( yaw ) + iy * sinf( yaw );
+			float sm = ix * sinf( yaw ) - iy * cosf( yaw );	// +sidemove = right
+			float force = 450.f;
+			if( g_CVars.Miscellaneous.AutoStop == 1 ) force = ( speed2d < 450.f ) ? speed2d : 450.f;	// Min Speed: proportional
+			pCmd->forwardmove = fm * force;
+			pCmd->sidemove = sm * force;
+		}
+	}
+
+	g_Prediction.End( pCmd, LocalPlayer );
+
+	if( g_CVars.Miscellaneous.AirStuck )
+	{
+		// todo: fix local pos so the shots while stuck are accurate
+		if( GetAsyncKeyState( 'F' ) & 1 ) g_CVars.Miscellaneous.AirStuckPress = !g_CVars.Miscellaneous.AirStuckPress;
+
+		if( g_CVars.Miscellaneous.AirStuckPress )
+		{
+			if( !( pCmd->buttons & IN_ATTACK ) ) pCmd->tick_count = INT_MAX;
+		}
+	}
+	
+	if( bSendPacket ) g_qThirdPerson = pCmd->viewangles;
+}
+
+void __declspec( naked ) __fastcall Hooked_CreateMove( void* ecx, void* edx, int sequence_number, float input_sample_frametime, bool active )
+{
+	__asm
+	{
+		push ebp
+		mov ebp, esp
+		push ebx
+		movzx eax, active
+		push eax
+		mov eax, input_sample_frametime
+		push eax
+		mov eax, sequence_number
+		push eax
+		call CreateMove		       
+		pop ebx
+		mov esp, ebp
+		pop ebp
+		retn 0xC
+	}
+}

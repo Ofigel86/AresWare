@@ -16,76 +16,100 @@
     <Filter Include="Detours">
       <UniqueIdentifier>{2255d91a-4fb7-448d-a5c5-c8f9d0a19ee3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{b499ddbb-0da3-4f4a-a289-edb5d93da577}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Hooks">
+      <UniqueIdentifier>{5ee718b3-f314-4cb3-9d2b-312e96e70c84}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Features">
+      <UniqueIdentifier>{c41d60dd-34a5-406c-b87b-fbecd3969cef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="GUI">
+      <UniqueIdentifier>{836825fb-4520-4e91-a9b5-581d6a58040b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Vendor">
+      <UniqueIdentifier>{72620b26-adcb-4888-a877-afab0e505448}</UniqueIdentifier>
+    </Filter>
     <Filter Include="ImGui">
       <UniqueIdentifier>{a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="SdkIncludes.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Core\SdkIncludes.h">
+      <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="VMTHook.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Core\VMTHook.h">
+      <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Main.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Core\Logger.h">
+      <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Hook.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Core\ModuleBases.h">
+      <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="D3D9Hook.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Core\Main.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Hook.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Hooks\D3D9Hook.h">
+      <Filter>Hooks</Filter>
     </ClInclude>
     <ClInclude Include="SDK\NetvarManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Stuff.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Features\Stuff.h">
+      <Filter>Features</Filter>
     </ClInclude>
-    <ClInclude Include="Prediction.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Hooks\Prediction.h">
+      <Filter>Hooks</Filter>
     </ClInclude>
-    <ClInclude Include="NoSpread.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Features\NoSpread.h">
+      <Filter>Features</Filter>
     </ClInclude>
-    <ClInclude Include="Aimbot.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Features\Aimbot.h">
+      <Filter>Features</Filter>
     </ClInclude>
-    <ClInclude Include="Drawing.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="GUI\Drawing.h">
+      <Filter>GUI</Filter>
     </ClInclude>
-    <ClInclude Include="GUI.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="GUI\GUI.h">
+      <Filter>GUI</Filter>
     </ClInclude>
-    <ClInclude Include="md5.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Vendor\md5.h">
+      <Filter>Vendor</Filter>
     </ClInclude>
-    <ClInclude Include="ade32.h">
-      <Filter>Detours</Filter>
+    <ClInclude Include="Vendor\ade32.h">
+      <Filter>Vendor</Filter>
     </ClInclude>
-    <ClInclude Include="detours2.h">
-      <Filter>Detours</Filter>
+    <ClInclude Include="Vendor\detours2.h">
+      <Filter>Vendor</Filter>
     </ClInclude>
-    <ClInclude Include="NOTES.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Core\NOTES.h">
+      <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="Macro.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Features\Macro.h">
+      <Filter>Features</Filter>
     </ClInclude>
-    <ClInclude Include="Recorder.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Features\Recorder.h">
+      <Filter>Features</Filter>
     </ClInclude>
-    <ClInclude Include="GameEventManager.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Features\Resolver.h">
+      <Filter>Features</Filter>
     </ClInclude>
-    <ClInclude Include="Whitelist.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Hooks\GameEventManager.h">
+      <Filter>Hooks</Filter>
     </ClInclude>
-    <ClInclude Include="XOR.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Features\Whitelist.h">
+      <Filter>Features</Filter>
     </ClInclude>
-    <ClInclude Include="Config.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Vendor\XOR.h">
+      <Filter>Vendor</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Config.h">
+      <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="ImGui\imconfig.h">
       <Filter>ImGui</Filter>
@@ -113,98 +137,107 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="VMTHook.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Core\VMTHook.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Main.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Core\Logger.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="Hook.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Core\ModuleBases.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="D3D9Hook.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Core\Main.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="CreateMove.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Core\Hook.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="GetUserCmd.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\D3D9Hook.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="InPrediction.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\CreateMove.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="PaintTraverse.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\GetUserCmd.cpp">
+      <Filter>Hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\InPrediction.cpp">
+      <Filter>Hooks</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\PaintTraverse.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
     <ClCompile Include="SDK\NetvarManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Stuff.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Features\Stuff.cpp">
+      <Filter>Features</Filter>
     </ClCompile>
-    <ClCompile Include="Prediction.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\Prediction.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="NoSpread.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Features\NoSpread.cpp">
+      <Filter>Features</Filter>
     </ClCompile>
-    <ClCompile Include="Aimbot.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Features\Aimbot.cpp">
+      <Filter>Features</Filter>
     </ClCompile>
-    <ClCompile Include="CL_Move.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\CL_Move.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="DrawModelEx.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\DrawModelEx.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="RunCommand.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\RunCommand.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="FindMaterial.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\FindMaterial.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="FireBullets.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\FireBullets.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="Drawing.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="GUI\Drawing.cpp">
+      <Filter>GUI</Filter>
     </ClCompile>
-    <ClCompile Include="GUI.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="GUI\GUI.cpp">
+      <Filter>GUI</Filter>
     </ClCompile>
-    <ClCompile Include="FrameStageNotify.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\FrameStageNotify.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="Interpolation.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\Interpolation.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="ade32.cpp">
-      <Filter>Detours</Filter>
+    <ClCompile Include="Vendor\ade32.cpp">
+      <Filter>Vendor</Filter>
     </ClCompile>
-    <ClCompile Include="detours2.cpp">
-      <Filter>Detours</Filter>
+    <ClCompile Include="Vendor\detours2.cpp">
+      <Filter>Vendor</Filter>
     </ClCompile>
-    <ClCompile Include="Macro.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Features\Macro.cpp">
+      <Filter>Features</Filter>
     </ClCompile>
-    <ClCompile Include="Recorder.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Features\Recorder.cpp">
+      <Filter>Features</Filter>
     </ClCompile>
-    <ClCompile Include="GameEventManager.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Features\Resolver.cpp">
+      <Filter>Features</Filter>
     </ClCompile>
-    <ClCompile Include="Whitelist.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\GameEventManager.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="KeyEvent.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Features\Whitelist.cpp">
+      <Filter>Features</Filter>
     </ClCompile>
-    <ClCompile Include="Config.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Hooks\KeyEvent.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
-    <ClCompile Include="OverrideView.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Core\Config.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooks\OverrideView.cpp">
+      <Filter>Hooks</Filter>
     </ClCompile>
     <ClCompile Include="ImGui\imgui.cpp">
       <Filter>ImGui</Filter>

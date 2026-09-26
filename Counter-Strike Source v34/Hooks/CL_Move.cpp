@@ -1,0 +1,42 @@
+#include "Main.h"
+#include "detours.h"
+
+typedef void ( *CL_Move_t )( float, bool );
+CL_Move_t _CL_Move;
+
+void Hooked_CL_Move( float accumulated_extra_samples, bool bFinalTick )
+{
+	_CL_Move( accumulated_extra_samples, bFinalTick );
+
+		if( g_CVars.Miscellaneous.Speedhack && GetAsyncKeyState( 0x45 ) )
+	{
+		g_bCL_Move = true;
+		//i < Value, not <= : Value extra calls double-counted one iteration
+		for( int i = 0; i < g_CVars.Miscellaneous.SpeedhackValue; i++ ) _CL_Move( accumulated_extra_samples, bFinalTick );
+	}
+
+	g_bCL_Move = false;
+}
+
+void CL_Move( void )
+{
+	DWORD dwTarget = ( DWORD ) BASE_ENGINE + 0x42510;
+
+	if( !AddressInModule( dwTarget, ( DWORD ) BASE_ENGINE ) )
+	{
+		Logger::Write( "CL_Move detour SKIPPED: target 0x%08X not in engine.dll code", dwTarget );
+		return;
+	}
+
+	_CL_Move = ( CL_Move_t ) DetourFunction( ( PBYTE ) dwTarget, ( PBYTE ) Hooked_CL_Move );
+	Logger::Write( "CL_Move detoured @ 0x%08X -> trampoline 0x%08X", dwTarget, ( DWORD ) _CL_Move );
+}
+
+void UnCL_Move( void )
+{
+	if( _CL_Move )
+	{
+		DetourRemove( ( PBYTE ) _CL_Move, ( PBYTE ) Hooked_CL_Move );
+		_CL_Move = NULL;
+	}
+}

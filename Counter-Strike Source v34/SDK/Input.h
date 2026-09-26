@@ -145,11 +145,12 @@ namespace Valve
 		virtual void FireGameEvent( IGameEvent* ) = 0;
 	};
  
-#define CLASSNAME IGameEventManager2
-	class IGameEventManager2
+	#define CLASSNAME IGameEventManager2
+		class IGameEventManager2
 	{
 	public:
 		VFUNCR3( AddListener, Index2Offset( 3 ), bool, IGameEventListener2*, const char*, bool );
+		VFUNCR1( RemoveListener, Index2Offset( 5 ), void, IGameEventListener2* );
 		VFUNCR1( FireEventClientSide, Index2Offset( 8 ), bool, IGameEvent* );
 	};
 };

@@ -47,6 +47,9 @@ bool NetvarManager::Init()
 	Valve::ClientClass* pClass=g_pBaseClientDll->GetAllClasses();
 	if(!pClass)
 		return false;
+	//The constructor already walks GetAllClasses(); without this clear a
+	//second Init() (or ctor+Init) would append duplicate RecvTable pointers.
+	m_recvTables.clear();
 	while(pClass)
 	{
 		if(pClass->m_pRecvTable)
