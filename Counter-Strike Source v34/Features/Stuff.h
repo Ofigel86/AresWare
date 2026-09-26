@@ -47,6 +47,7 @@ public:
 		bool Active, AutoShoot, AutoWall, MultiSpot, HitScan, FriendlyFire, Silent, PerfectSilent, AntiSMAC, BodyAWP, SnapLimiter;
 		int TargetSelection, Hitbox, HitboxMode, Height, AngleLimit, MinDamage, Key, AutoHeightMode[ 64 ];
 		float AngleLimitTens, PointScale;
+		float AimHeight = 0.9f;		// Segregation: vertical fraction inside the hitbox (0..1), default 0.9
 
 		class Resolver
 		{
@@ -118,6 +119,20 @@ public:
 			bool Active, Static, WallDetection, DuckInAir, TurnOff, AtTargets;
 			int Pitch, Yaw, Variation, DuckPitch, DuckYaw, DuckVariation, WallDetectionMode;
 			float RealValue, FakeValue;
+			// own anti-aim engine, v3: single profile, full control
+			struct AASide
+			{
+				int   YawMode        = 0;		// 0 Static, 1 Jitter, 2 Spin
+				float YawAngle       = 180.f;		// -180..180, offset from enemy direction (180 = back)
+				int   JitterStyle    = 1;		// 0 Offset, 1 Center, 2 Reverse
+				float JitterAmount   = 45.f;
+				int   JitterInterval = 2;
+				float SpinSpeed      = 20.f;
+			};
+			int    PitchMode  = 3;			// 0 Off 1 Down 2 Up 3 FakeDown 4 FakeUp 5 Jitter 6 Random (both sides)
+			AASide Real;
+			AASide Fake;
+			int    ChokeEvery = 3;			// every Nth command becomes the fake one
 		};
 
 		class Fakelag
@@ -125,6 +140,8 @@ public:
 		public:
 			bool Active, InAttack, AirOnly;
 			int Mode, Value;
+			int Min = 1, Max = 14;		// Segregation-mode choke window (Mode 3)
+			Vector LastSendOrigin;		// position snapshot of the last sent packet (64-unit break)
 		};
 
 		bool BunnyHop, AutoStrafe, CircleStrafe, EdgeJump, Speedhack, OriginCorrection, AutoKnife, RoundSay, CheatsBypass, AirStuck, AirStuckPress, ThirdPerson, Save, Load;
@@ -309,7 +326,7 @@ public:
 	{
 	public:
 		QAngle tmp;
-		void AtTargets( BasePlayer*, CUserCmd* );
+		void AtTargets( BasePlayer*, CUserCmd*, bool bSendPacket );
 		bool WallDetection( BasePlayer*, CUserCmd*, float );
 		void WallDetection2( BasePlayer*, CUserCmd*, bool, float, float );
 	};

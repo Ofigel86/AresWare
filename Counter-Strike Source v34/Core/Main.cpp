@@ -103,6 +103,7 @@ void printconsole( const char* msg, ... )
 	szBuffer[ len + 2 ] = '\0';
 
 	printf( "%s", szBuffer );
+	Logger::Write( "%s", szBuffer ); // mirror console output into AresWare.log
 }
 
 void runconsole( )

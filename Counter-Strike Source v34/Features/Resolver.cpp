@@ -20,6 +20,11 @@ struct ResolverPlayerState
 	float	offsetAtLastShot;		// offset in use when we last fired at them
 	float	stationarySince;		// curtime they went idle, -1 while moving
 	int	yawMode;			// Smart aim-relative classification (AutoHeight)
+	int	bodyHits;			// sequential non-head hits - current offset stalls
+	int	headHits;			// head hits count (diag)
+	int	jitterDetect;			// updates left for the jitter signature
+	float	lastYawDelta;			// norm(rawYaw - prevRawYaw) captured last update
+	float	jitterMag;			// smoothed alternating-flip magnitude in degrees
 };
 
 static ResolverPlayerState g_ResolverState[ 64 ];
@@ -44,6 +49,11 @@ static void Resolver_InitPlayer( ResolverPlayerState& st )
 	st.offsetAtLastShot = 0.f;
 	st.stationarySince = -1.f;
 	st.yawMode = 0;
+	st.bodyHits = 0;
+	st.headHits = 0;
+	st.jitterDetect = 0;
+	st.lastYawDelta = 0.f;
+	st.jitterMag = 0.f;
 }
 
 void Resolver_ResetPlayer( int idx )
@@ -135,17 +145,44 @@ void Resolver_OnShot( int idx )
 		st.bfIndex = ( st.bfIndex + 1 ) % kResolverOffsetCount;
 }
 
-void Resolver_OnHit( int idx )
+void Resolver_OnHit( int idx, int hitgroup, int damage )
 {
 	if( idx < 1 || idx > 63 ) return;
 	ResolverPlayerState& st = g_ResolverState[ idx ];
 	if( !st.initialized ) return;
 
-	// Segregation Event_Processor: remember the offset that produced the hit
-	// and keep using it until the behavior clearly changes
-	st.memorizedOffset = st.offsetAtLastShot;
-	st.memoryActive = true;
-	st.memoryExpire = g_pGlobals->curtime + 6.f;
+	// hitgroup 1 == HITGROUP_HEAD (CSS hitgroup order: 0 generic, 1 head,
+	// 2 chest, 3 stomach, 4/5 arms, 6/7 legs)
+	if( hitgroup == 1 )
+	{
+		// Segregation Event_Processor: remember the offset that produced the
+		// HEAD hit and keep using it until the behavior clearly changes
+		st.memorizedOffset = st.offsetAtLastShot;
+		st.memoryActive = true;
+		st.memoryExpire = g_pGlobals->curtime + 6.f;
+		st.headHits++;
+		st.bodyHits = 0;
+		Logger::Write( "[resolver] idx=%d HEAD %ddmg - offset %.1f memorized%s (head %d)",
+			idx, damage, st.memorizedOffset, st.headHits - 1 ? "" : " (relearned)", st.headHits );
+	}
+	else
+	{
+		// A non-head hit proves the offset used for this bullet yields body
+		// contact only (classic vs down-pitch AA: head lies inside the chest
+		// volume). The old behavior memorized ANY hit's offset - a bodyshot
+		// froze the body-producing offset in memory for 6 seconds and every
+		// next bullet landed in the body again ("always body" loop). Now a
+		// body hit releases stale memory and walks the bruteforce table on.
+		st.bodyHits++;
+		if( st.memoryActive )
+		{
+			st.memoryActive = false;
+			Logger::Write( "[resolver] idx=%d body hg=%d %ddmg - stale memory released", idx, hitgroup, damage );
+		}
+		st.bfIndex = ( st.bfIndex + 1 ) % kResolverOffsetCount;
+		Logger::Write( "[resolver] idx=%d body hg=%d %ddmg (streak %d) - bf advance to %d",
+			idx, hitgroup, damage, st.bodyHits, st.bfIndex );
+	}
 }
 
 int Resolver_PickRecord( int idx )
@@ -164,6 +201,14 @@ int Resolver_PickRecord( int idx )
 	shift += Resolver_GetInterp( );
 	if( shift > 1.f ) shift = 1.f;
 	if( shift < 0.f ) shift = 0.f;
+
+	// jittering players: resolve works on the FRESHEST snapshot phase, so the
+	// record we aim at must be the newest too — a latency-matched old record
+	// restores a body pose that no longer matches the yaw we just resolved
+	ResolverPlayerState& st = g_ResolverState[ idx ];
+	if( st.initialized && st.jitterDetect > 0
+	    && pPlayerHistory[ idx ][ 0 ].m_SimulationTime > 0.f )
+		return 0;
 
 	float target = g_pGlobals->curtime - shift;
 
@@ -190,13 +235,20 @@ int Resolver_PickRecord( int idx )
 }
 
 // Resolve the yaw of bruteforce candidate `bfIndex` for the current signals.
-static float Resolver_CandidateYaw( int bfIndex, float rawYaw, bool velValid, float velYaw )
+static float Resolver_CandidateYaw( ResolverPlayerState& st, int bfIndex, float rawYaw, bool velValid, float velYaw )
 {
+	// jitter-compensated table: while the signature is fresh their plausible
+	// offsets narrow to the measured flip magnitude instead of generic +-90
+	bool j = st.jitterDetect > 0 && st.jitterMag >= 15.f;
+	float d = st.jitterMag;
+	if( d < 15.f ) d = 15.f;
+	if( d > 105.f ) d = 105.f;
+
 	switch( bfIndex % kResolverOffsetCount )
 	{
 		case 0: return Resolver_Norm( rawYaw - kResolverOffsets[ 0 ] );	// trust networked
-		case 1: return Resolver_Norm( rawYaw - kResolverOffsets[ 1 ] );	// eye + 90
-		case 2: return Resolver_Norm( rawYaw - kResolverOffsets[ 2 ] );	// eye - 90
+		case 1: return Resolver_Norm( rawYaw - ( j ? -d : kResolverOffsets[ 1 ] ) );	// eye + flip-mag / + 90
+		case 2: return Resolver_Norm( rawYaw - ( j ?  d : kResolverOffsets[ 2 ] ) );	// eye - flip-mag / - 90
 		case 3: return Resolver_Norm( rawYaw - kResolverOffsets[ 3 ] );	// full inverse
 		default:
 			// velocity-implied gait yaw: independent networked signal (m_vecVelocity)
@@ -237,6 +289,20 @@ void Resolver_Apply( int idx, BasePlayer* ent, bool doResolve )
 		if( theirShots < st.lastTheirShots )			// their spray reset
 			if( !st.memoryActive ) st.bfIndex = 0;
 	}
+
+	// ---- jitter signature: consecutive yaw deltas flip sign with real
+	// magnitude (>=15 deg). Tracked even while resolution is gated off so the
+	// detection is warm by the time we start resolving them.
+	float dNow = first ? 0.f : Resolver_Norm( rawYaw - st.lastRawYaw );
+	if( !first && dNow * st.lastYawDelta < -1.f
+	    && fabsf( dNow ) >= 15.f && fabsf( st.lastYawDelta ) >= 15.f )
+	{
+		float m = ( fabsf( dNow ) + fabsf( st.lastYawDelta ) ) * 0.5f;
+		st.jitterMag = ( st.jitterMag <= 0.f ) ? m : ( st.jitterMag * 0.7f + m * 0.3f );
+		st.jitterDetect = 32;			// keep compensated candidates ~32 updates
+	}
+	if( st.jitterDetect > 0 ) st.jitterDetect--;
+	st.lastYawDelta = dNow;
 
 	st.lastTheirShots = theirShots;
 	st.lastRawYaw = rawYaw;
@@ -328,7 +394,7 @@ void Resolver_Apply( int idx, BasePlayer* ent, bool doResolve )
 			if( faceFront > 0.f && idle >= faceFront )
 				offset = 0.f;			// gait snapped feet back to the eye
 			else
-				offset = Resolver_Norm( rawYaw - Resolver_CandidateYaw( st.bfIndex, rawYaw, velValid, velYaw ) );
+				offset = Resolver_Norm( rawYaw - Resolver_CandidateYaw( st, st.bfIndex, rawYaw, velValid, velYaw ) );
 		}
 
 		float resolved = Resolver_Norm( Resolver_Norm( rawYaw - offset ) );

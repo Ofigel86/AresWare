@@ -359,8 +359,17 @@ static Valve::RecvVarProxyFn s_pfnOldFlashDuration = NULL;
 
 void Hook( void )
 {
+	Logger::Init( );
+	Logger::Write( "=== AresWare session start (log: %s) ===", Logger::Path( ) );
+	Logger::Write( "Waiting for engine.dll / client.dll..." );
 
 	while( GetModuleHandleA( /*engine*/XorStr<0xFF,7,0x5467D774>("\x9A\x6E\x66\x6B\x6D\x61"+0x5467D774).s ) == NULL || GetModuleHandleA( /*client*/XorStr<0x9A,7,0x861DD552>("\xF9\xF7\xF5\xF8\xF0\xEB"+0x861DD552).s ) == NULL ) Sleep( 100 );
+
+	Logger::Write( "Game modules found, resolving runtime module bases..." );
+
+	ResolveModuleBases( );
+
+	Logger::Write( "Initializing interface factories (CreateInterface brute-force)..." );
 
 	for( int i = 0; i <= 7; i++ ) InitInterfaces( InterfacesArray[ i ].idx, InterfacesArray[ i ].name.c_str( ) );
 	printconsole( /* Interfaces initialized...*/XorStr<0x0C,27,0x060618EC>("\x2C\x44\x60\x7B\x75\x63\x74\x72\x77\x70\x65\x37\x71\x77\x73\x6F\x75\x7C\x72\x76\x5A\x44\x46\x0D\x0A\x0B"+0x060618EC).s );
@@ -382,13 +391,67 @@ void Hook( void )
 	g_pMaterialSystem = GrabInterface( IMaterialSystem*, INTERFACE_MATERIAL, "VMaterialSystem" );	
 	g_pGameEventManager = GrabInterface( IGameEventManager2*, INTERFACE_ENGINE, "GAMEEVENTSMANAGER" );
 
+	// per-interface diagnostic dump so a failed GrabInterface is visible in the log
+	{
+		struct iface_entry_t { const char* name; void* ptr; };
+		iface_entry_t iface_entries[ ] =
+		{
+			{ "IBaseClientDLL",        ( void* )g_pBaseClientDll },
+			{ "IClientEntityList",     ( void* )g_pClientEntityList },
+			{ "IPrediction",           ( void* )g_pPrediction },
+			{ "IGameMovement",         ( void* )g_pGameMovement },
+			{ "IVEngineClient",        ( void* )g_pEngineClient },
+			{ "ICvar",                 ( void* )g_pCvar },
+			{ "IVModelInfo",           ( void* )g_pModelInfo },
+			{ "IEngineTrace",          ( void* )g_pEngineTrace },
+			{ "IPhysicsSurfaceProps",  ( void* )g_pPhysicsSurfaceProps },
+			{ "vgui::IPanel",          ( void* )g_pPanel },
+			{ "vgui::ISurface",        ( void* )g_pSurface },
+			{ "IVRenderView",          ( void* )g_pRender },
+			{ "IVModelRender",         ( void* )g_pModelRender },
+			{ "IVDebugOverlay",        ( void* )g_pDebugOverlay },
+			{ "IMaterialSystem",       ( void* )g_pMaterialSystem },
+			{ "IGameEventManager2",    ( void* )g_pGameEventManager }
+		};
+
+		int failed = 0;
+		for( int e = 0; e < ( int )( sizeof( iface_entries ) / sizeof( iface_entries[ 0 ] ) ); e++ )
+		{
+			if( iface_entries[ e ].ptr )
+				Logger::Write( "  [  OK  ] %-22s 0x%08X", iface_entries[ e ].name, ( DWORD )iface_entries[ e ].ptr );
+			else
+			{
+				Logger::Write( "  [FAILED] %-22s interface not found!", iface_entries[ e ].name );
+				failed++;
+			}
+		}
+
+		if( failed ) Logger::Write( "WARNING: %d interface(s) failed to grab!", failed );
+		else         Logger::Write( "All interfaces grabbed successfully." );
+	}
+
+	if( !g_pBaseClientDll )
+	{
+		Logger::Write( "FATAL: no IBaseClientDLL - cannot continue, aborting hook thread." );
+		return;
+	}
+
 	g_pInput = **( IInput*** )( ( *( uintptr_t** ) g_pBaseClientDll )[ 11 ] + 0x2 );
 	g_pGlobals = **( CGlobalVarsBase*** )( ( *( uintptr_t** ) g_pBaseClientDll )[ 0 ] + 0x2F );
+
+	Logger::Write( "  [INFO ] %-22s 0x%08X", "IInput", ( DWORD )g_pInput );
+	Logger::Write( "  [INFO ] %-22s 0x%08X", "CGlobalVarsBase", ( DWORD )g_pGlobals );
+
+	Logger::SetStage( "vstdlib random functions" );
 
 	HMODULE vstdlib = GetModuleHandleA( /*vstdlib.dll*/XorStr<0x8B,12,0x922FC0BB>("\xFD\xFF\xF9\xEA\xE3\xF9\xF3\xBC\xF7\xF8\xF9"+0x922FC0BB).s );
     RandomSeed = ( RandomSeedFn )GetProcAddress( vstdlib, /*RandomSeed*/XorStr<0xA8,11,0x514D0126>("\xFA\xC8\xC4\xCF\xC3\xC0\xFD\xCA\xD5\xD5"+0x514D0126).s );
     RandomFloat = ( RandomFloatFn )GetProcAddress( vstdlib, /*RandomFloat*/XorStr<0xD5,12,0x17E3FE6D>("\x87\xB7\xB9\xBC\xB6\xB7\x9D\xB0\xB2\xBF\xAB"+0x17E3FE6D).s );
     RandomInt = ( RandomIntFn )GetProcAddress( vstdlib, /*RandomInt*/XorStr<0x82,10,0x05AB732A>("\xD0\xE2\xEA\xE1\xE9\xEA\xC1\xE7\xFE"+0x05AB732A).s );
+
+	Logger::Write( "vstdlib random fns: seed=0x%08X float=0x%08X int=0x%08X", ( DWORD )RandomSeed, ( DWORD )RandomFloat, ( DWORD )RandomInt );
+	if( !RandomSeed || !RandomFloat || !RandomInt ) Logger::Write( "WARNING: some vstdlib random fns missing!" );
+	Logger::SetStage( "VMT hooks: EngineClient/Client/Input/Prediction" );
 
 	PDWORD* pdwPanelVMT = ( PDWORD* )g_pPanel; 
 	PDWORD* pdwInputVMT = ( PDWORD* )g_pInput; 
@@ -416,10 +479,17 @@ void Hook( void )
 	PredictionVMT->HookFunction( 19, Hooked_RunCommand );
 	PredictionVMT->HookFunction( 23, Hooked_Update );
 
+	Logger::Write( "VMT hooks done: EngineClient, Client(CreateMove 18 / FrameStage 32), Input(GetUserCmd 8), Prediction(SetViewAngles 16 / RunCommand 19 / Update 23)" );
+	Logger::SetStage( "engine detours" );
+	Logger::Write( "Installing engine detours (CL_Move / FX_FireBullets / CL_RunPrediction)..." );
+
 	CL_Move( );
 	FX_FireBullets( );
 	CL_RunPrediction( );
 	//ClientInterpolation( );
+
+	Logger::Write( "Engine detours installed." );
+	Logger::SetStage( "VMT hooks: ModelRender/MaterialSystem/PaintTraverse" );
 
 	ModelRenderVMT = new CVMTHook( pdwModelRenderVMT );
 	ModelRenderVMT->HookFunction( 19, Hooked_DrawModelEx );
@@ -432,7 +502,13 @@ void Hook( void )
 	PaintTraverseVMT = new CVMTHook( pdwPanelVMT );
 	PaintTraverseVMT->HookFunction( 40, Hooked_PaintTraverse );
 
+	Logger::Write( "VMT hooks done: ModelRender(DrawModelEx 19), MaterialSystem(FindMaterial 27), Panel(PaintTraverse 40)" );
+	Logger::SetStage( "g_CVars.Init" );
+
 	g_CVars.Init( );
+
+	Logger::Write( "g_CVars initialized." );
+	Logger::SetStage( "NetvarManager / recv proxies" );
 
 	g_pNetvarManager = new HackInterfaces::NetvarManager( );
 	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0xF1,12,0xB60E482B>("\xB5\xA6\xAC\xB7\xA6\xA6\x9B\x99\x80\x9F\x89"+0xB60E482B).s, /*m_angEyeAngles[0]*/XorStr<0x8A,18,0x3656D77C>("\xE7\xD4\xED\xE3\xE9\xCA\xE9\xF4\xD3\xFD\xF3\xF9\xF3\xE4\xC3\xA9\xC7"+0x3656D77C).s, PlayerList_EyeAngles_Pitch, &s_pfnOldEyePitch );
@@ -442,6 +518,8 @@ void Hook( void )
 	//g_pNetvarManager->HookRecvProp( /*DT_BaseEntity*/XorStr<0x7E,14,0x34E50703>("\x3A\x2B\xDF\xC3\xE3\xF0\xE1\xC0\xE8\xF3\xE1\xFD\xF3"+0x34E50703).s, /*m_flSimulationTime*/XorStr<0x1D,19,0xCD57C537>("\x70\x41\x79\x4C\x72\x4B\x4E\x51\x49\x47\x53\x41\x46\x44\x7F\x45\x40\x4B"+0xCD57C537).s, BaseEntity_SimulationTime );
 	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0x96,12,0x69D79DA0>("\xD2\xC3\xC7\xDA\xC9\xCB\xF0\xFC\xE7\xFA\xD2"+0x69D79DA0).s, /*m_flFallVelocity*/XorStr<0x72,17,0x97E4AF69>("\x1F\x2C\x12\x19\x30\x16\x14\x15\x2C\x1E\x10\x12\x1D\x16\xF4\xF8"+0x97E4AF69).s, BasePlayer_FallVelocity, &s_pfnOldFallVelocity );
 	//g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0xBE,12,0xF8678CD8>("\xFA\xEB\x9F\x82\x91\x93\xA8\xA4\xBF\xA2\xBA"+0xF8678CD8).s, /*m_nTickBase*/XorStr<0x50,12,0x8EA8F7FC>("\x3D\x0E\x3C\x07\x3D\x36\x3D\x15\x39\x2A\x3F"+0x8EA8F7FC).s, BasePlayer_TickBase );
+	Logger::Write( "NetvarManager created, hooking recv proxies..." );
+
 	g_pNetvarManager->HookRecvProp( /*DT_CSPlayer*/XorStr<0x17,12,0x4063FD44>("\x53\x4C\x46\x59\x48\x4C\x71\x7F\x66\x45\x53"+0x4063FD44).s, /*m_flFlashDuration*/XorStr<0x3C,18,0x4EA121B8>("\x51\x62\x58\x53\x06\x2D\x23\x30\x2C\x01\x33\x35\x29\x3D\x23\x24\x22"+0x4EA121B8).s, FlashProxy, &s_pfnOldFlashDuration );
 	printconsole( /* Hooks done...\n*/XorStr<0xEE,16,0x806644F3>("\xCE\xA7\x9F\x9E\x99\x80\xD4\x91\x99\x99\x9D\xD7\xD4\xD5\xF6"+0x806644F3).s );
 
@@ -451,11 +529,16 @@ void Hook( void )
 	mat_unlit_out = g_Stuff.CreateMaterial( false, false, false );
 	mat_outline = g_Stuff.CreateMaterial( false, true, false );
 
+	Logger::Write( "Chams materials created (vertex/unlit/outline)." );
+	Logger::SetStage( "D3D9 hook" );
+
 	InitializeD3D9Hook( );
+	Logger::Write( "AresWare fully loaded - F12 to unload." );
 }
 
 void UnHook( void )
 {
+	Logger::Write( "UnHooking AresWare..." );
 	ShutdownD3D9Hook( );
 
 	if( CreateMoveVMT ) CreateMoveVMT->SetHookEnabled( false );
@@ -487,4 +570,7 @@ void UnHook( void )
 
 	//Remove user32 cursor detours
 	UnCursorHooks( );
+
+	Logger::Write( "=== AresWare unloaded, session end ===" );
+	Logger::Shutdown( );
 }

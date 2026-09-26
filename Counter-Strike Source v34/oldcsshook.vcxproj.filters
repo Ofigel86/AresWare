@@ -42,6 +42,12 @@
     <ClInclude Include="Core\VMTHook.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Logger.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\ModuleBases.h">
+      <Filter>Core</Filter>
+    </ClInclude>
     <ClInclude Include="Core\Main.h">
       <Filter>Core</Filter>
     </ClInclude>
@@ -132,6 +138,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Core\VMTHook.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Logger.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\ModuleBases.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="Core\Main.cpp">

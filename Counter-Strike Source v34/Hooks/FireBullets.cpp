@@ -23,8 +23,33 @@ void __cdecl Hooked_FX_FireBulletsClient( int iPlayerIndex, const Vector &vOrigi
 
 void FX_FireBullets( void )
 {
-	FX_FireBulletsServer = ( FX_FireBullets_t ) Detour_FX_FireBulletsServer.DetourFunction( ( ( DWORD ) BASE_SERVER + 0x2FD320 ), ( PBYTE ) Hooked_FX_FireBulletsServer );
-	FX_FireBulletsClient = ( FX_FireBullets_t ) Detour_FX_FireBulletsClient.DetourFunction( ( ( DWORD ) BASE_CLIENT + 0x1D5060 ), ( PBYTE ) Hooked_FX_FireBulletsClient );
+	DWORD dwServerTarget = ( DWORD ) BASE_SERVER + 0x2FD320;
+	DWORD dwClientTarget = ( DWORD ) BASE_CLIENT + 0x1D5060;
+
+	if( !g_dwBaseServerDll )
+	{
+		// main-menu injection: server.dll appears only in-game
+		Logger::Write( "FX_FireBullets server detour SKIPPED: server.dll not loaded" );
+	}
+	else if( !AddressInModule( dwServerTarget, ( DWORD ) BASE_SERVER ) )
+	{
+		Logger::Write( "FX_FireBullets server detour SKIPPED: target 0x%08X not in server.dll code", dwServerTarget );
+	}
+	else
+	{
+		FX_FireBulletsServer = ( FX_FireBullets_t ) Detour_FX_FireBulletsServer.DetourFunction( dwServerTarget, ( PBYTE ) Hooked_FX_FireBulletsServer );
+		Logger::Write( "FX_FireBullets[server] detoured @ 0x%08X -> trampoline 0x%08X", dwServerTarget, ( DWORD ) FX_FireBulletsServer );
+	}
+
+	if( !AddressInModule( dwClientTarget, ( DWORD ) BASE_CLIENT ) )
+	{
+		Logger::Write( "FX_FireBullets client detour SKIPPED: target 0x%08X not in client.dll code", dwClientTarget );
+	}
+	else
+	{
+		FX_FireBulletsClient = ( FX_FireBullets_t ) Detour_FX_FireBulletsClient.DetourFunction( dwClientTarget, ( PBYTE ) Hooked_FX_FireBulletsClient );
+		Logger::Write( "FX_FireBullets[client] detoured @ 0x%08X -> trampoline 0x%08X", dwClientTarget, ( DWORD ) FX_FireBulletsClient );
+	}
 }
 
 void UnFX_FireBullets( void )

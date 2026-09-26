@@ -295,9 +295,15 @@ void Stuff::MovementFix::FixMove( BasePlayer* LocalPlayer, CUserCmd* pCmd, bool 
 
 //===============================================================================================
 
-void Stuff::AntiAim::AtTargets( BasePlayer* LocalPlayer, CUserCmd* pCmd )
+void Stuff::AntiAim::AtTargets( BasePlayer* LocalPlayer, CUserCmd* pCmd, bool bSendPacket )
 {
+	// Segregation-style at-target anti-aim:
+	//   base yaw always faces the nearest enemy (like their atan2(target - local)),
+	//   the REAL packet adds RealValue, every CHOKED packet jitters between +/- FakeValue
+	//   (their First_Choked_Angle_Y / Second_Choked_Angle_Y pair).
 	float TmpDistance = 999999.f;
+	QAngle tmp;
+	bool bFound = false;
 
 	for( int i = g_pGlobals->maxClients; i >= 1; i-- )
 	{
@@ -315,9 +321,29 @@ void Stuff::AntiAim::AtTargets( BasePlayer* LocalPlayer, CUserCmd* pCmd )
 			TmpDistance = Distance;
 			g_Stuff.CalculateAngles( EyePosition, dst, tmp );
 			Normalize( tmp );
-			pCmd->viewangles = tmp;
+			bFound = true;
 		}
 	}
+
+	if( !bFound ) return;
+
+	// point the real body exactly at the closest enemy, jittering backward on choked cmds
+	float flBaseYaw = tmp.y;
+	if( bSendPacket )
+	{
+		tmp.y = flBaseYaw + g_CVars.Miscellaneous.AntiAim.RealValue;
+	}
+	else
+	{
+		float flFake = g_CVars.Miscellaneous.AntiAim.FakeValue;
+		tmp.y = flBaseYaw + ( ( pCmd->command_number % 2 ) ? flFake : -flFake );
+	}
+
+	// make sure the sent yaw stays inside the signed 16-bit network range
+	while( tmp.y > 180.f ) tmp.y -= 360.f;
+	while( tmp.y < -180.f ) tmp.y += 360.f;
+
+	pCmd->viewangles.y = tmp.y;
 }
 
 bool Stuff::AntiAim::WallDetection( BasePlayer* LocalPlayer, CUserCmd* pCmd, float angle )

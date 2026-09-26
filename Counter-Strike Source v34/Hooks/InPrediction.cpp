@@ -11,7 +11,7 @@ void __stdcall Gate_SetViewAngles( PFLOAT pfAngles, BaseEntity* ent, DWORD dwRet
 {
 	PFLOAT pfPunchAngle;
 	
-	if( dwReturnAddress == 0x240192BE )
+	if( dwReturnAddress == ( DWORD ) BASE_CLIENT + 0x192BE )
 	{
 		if( ent && ent->entindex( ) == g_pEngineClient->GetLocalPlayer( ) && pfAngles )
 		{

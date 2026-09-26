@@ -9,6 +9,7 @@
 #define __CSWEAPON_H__
 
 #include "GlobalVarsBase.h"
+#include "../Core/ModuleBases.h"
 #include "BaseCombatWeapon.h"
 
 enum WeaponType_t
@@ -115,7 +116,7 @@ namespace Valve
 
 		inline CSPlayer* GetPlayerOwner( )
 		{
-			return ( ( CSPlayer* ( __thiscall* )( CSWeapon* ) ) 0x241E0D40 )( this );
+			return ( ( CSPlayer* ( __thiscall* )( CSWeapon* ) )( ( DWORD ) BASE_CLIENT + 0x1E0D40 ) )( this );
 		}
 
 		inline int GetWeaponID( )

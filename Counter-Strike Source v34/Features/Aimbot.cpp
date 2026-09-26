@@ -22,6 +22,22 @@ bool Aimbot::CheckVisible( Vector& vecAbsStart, Vector& vecAbsEnd, BasePlayer* T
 
 }
 
+// per-entity per-tick caches: SetupBones (and the hitscan re-running it up to
+// 19 times) was the main FPS sink of Hit Scan / Multi Spot
+extern int g_iGameTicks;
+static matrix3x4_t g_AimBoneCache[ 128 ];
+static int  g_AimBoneCacheEnt = -1;
+static int  g_AimBoneCacheTick = -1;
+static bool g_AimBoneCacheOK  = false;
+static void* g_AimBoneCacheHitboxSet = NULL;
+
+// autowall penetration simulation per entity per tick (the sim traces the
+// full weapon range with bounces - caching loses a little direction
+// accuracy between hitboxes but kills up to 150 sims per enemy per tick)
+static int  g_AWCacheEnt = -1;
+static int  g_AWCacheTick = -1;
+static float g_AWCacheValue = -1.f;
+
 bool Aimbot::CheckVisibleAWallCheck( Vector& vecAbsStart, Vector& vecAbsEnd, BasePlayer* Target, BasePlayer* LocalPlayer )
 {
 	CSWeapon* Weapon = ( CSWeapon* ) LocalPlayer->GetActiveBaseCombatWeapon( );
@@ -43,8 +59,18 @@ bool Aimbot::CheckVisibleAWallCheck( Vector& vecAbsStart, Vector& vecAbsEnd, Bas
 
 	if( g_CVars.Aimbot.AutoWall )
 	{
-		BaseEntity* pPlayerHit = nullptr;
-		if( GetTotalDamage( LocalPlayer, Weapon, &pPlayerHit ) >= g_CVars.Aimbot.MinDamage ) return true;
+		if( g_AWCacheEnt == Target->entindex( ) && g_AWCacheTick == g_iGameTicks )
+		{
+			if( g_AWCacheValue >= g_CVars.Aimbot.MinDamage ) return true;
+		}
+		else
+		{
+			BaseEntity* pPlayerHit = nullptr;
+			g_AWCacheValue = GetTotalDamage( LocalPlayer, Weapon, &pPlayerHit );
+			g_AWCacheEnt = Target->entindex( );
+			g_AWCacheTick = g_iGameTicks;
+			if( g_AWCacheValue >= g_CVars.Aimbot.MinDamage ) return true;
+		}
 	}
 
 	return false;
@@ -55,6 +81,19 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 	// every early-out below must undo the backtrack record application,
 	// otherwise the entity is left stuck in an old pose
 	bool bAppliedRecord = false;
+	mstudiohitboxset_t* studiohitboxset = NULL;
+	matrix3x4_t* matrix = g_AimBoneCache;
+
+	int iEnt = Entity->entindex( );
+	if( g_AimBoneCacheEnt == iEnt && g_AimBoneCacheTick == g_iGameTicks && g_AimBoneCacheOK )
+	{
+		studiohitboxset = ( mstudiohitboxset_t* )g_AimBoneCacheHitboxSet;
+		goto have_bones;	// bones (& hitbox set) already computed for this entity this tick
+	}
+	else
+	{
+		g_AimBoneCacheOK = false;	// only cache once the *whole* slow path succeeded
+	}
 
 	if( g_CVars.Aimbot.Interpolation.LagPrediction )
 	{
@@ -75,8 +114,7 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 		*( int* )( ( DWORD ) Entity + 0x49C + 0x4 ) = 0;						// baseanimating + 0x49C
 	}
 
-	matrix3x4_t matrix[ 128 ];
-	if( !( Entity->SetupBones( matrix, 128, 0x100, Entity->m_flSimulationTime( ) ) ) )
+	if( !( Entity->SetupBones( g_AimBoneCache, 128, 0x100, Entity->m_flSimulationTime( ) ) ) )
 	{
 		if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
 		return;
@@ -88,12 +126,19 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 		return;
 	}
 	studiohdr_t* studiohdr = g_pModelInfo->GetStudiomodel( pModel );
-	mstudiohitboxset_t* studiohitboxset = studiohdr ? studiohdr->pHitboxSet( Entity->m_nHitboxSet( ) ) : NULL;
+	studiohitboxset = studiohdr ? studiohdr->pHitboxSet( Entity->m_nHitboxSet( ) ) : NULL;
 	if( !studiohitboxset )
 	{
 		if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
 		return;
 	}
+
+	g_AimBoneCacheEnt = iEnt;
+	g_AimBoneCacheTick = g_iGameTicks;
+	g_AimBoneCacheOK = true;
+	g_AimBoneCacheHitboxSet = studiohitboxset;
+
+have_bones:
 	mstudiobbox_t* studiobbox = studiohitboxset->pHitbox( iHitbox );
 	if( !studiobbox )
 	{
@@ -128,70 +173,41 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 	for( int i = 0; i < 8; i++ )
 		points[ i + 1 ] = vCenter + ( vCorners[ i ] - vCenter ) * flPointScale;
 
-	float flPitch = Entity->m_angEyeAngles( ).x;
-
-	if( iHitbox == 12 )
-	{
-		if( g_CVars.Aimbot.HitboxMode == 0 )
-		{
-			if( g_CVars.Aimbot.AutoHeightMode[ Entity->entindex( ) ] == 1 )
-			{
-				if( Entity->m_vecVelocity( ).Length2D( ) < 40.f && !( Entity->m_fFlags( ) & FL_DUCKING ) )
-				{
-					Vector a = ( ( points[ 3 ] + points[ 5 ] ) * .5f );
-
-					if( ( flPitch > 50.f ) && ( flPitch < 91.f ) )
-					{
-						Vector b = ( ( ( a - points[ 0 ] ) / 3 ) * 4 );
-						Vector c = ( points[ 0 ] + ( b * .7f ) );
-						points[ 0 ] = c;
-					}
-					else if( ( flPitch >= -91.f ) && ( flPitch <= -50.f ) ) points[ 0 ].z -= 1.f;
-				}
-				else
-				{
-					if( ( flPitch > 50.f ) && ( flPitch < 91.f ) )
-					{
-						points[ 0 ].x = studiobbox->bbmin.x * .75f;
-						points[ 0 ].y = studiobbox->bbmax.y * .75f; 
-						points[ 0 ].z = ( studiobbox->bbmin.z + studiobbox->bbmax.z ) * .5f;
-					}
-					else if( ( flPitch >= -91.f ) && ( flPitch <= -50.f ) ) points[ 0 ].z -= 1.f;
-				}
-			}
-		}
-		else
-		{
-			if( g_CVars.Aimbot.HitboxMode == 2 || g_CVars.Aimbot.HitboxMode == 3 )
-			{			
-				if( ( flPitch > 50.f ) && ( flPitch < 91.f ) )
-				{
-					points[ 0 ].x = studiobbox->bbmin.x * .75f;
-					points[ 0 ].y = studiobbox->bbmax.y * .75f; 
-					points[ 0 ].z = ( studiobbox->bbmin.z + studiobbox->bbmax.z ) * .5f;
-
-					if( g_CVars.Aimbot.HitboxMode == 2 ) points[ 0 ] += Vector( 0, .9f, .5f );
-				}
-				else if( ( flPitch >= -91.f ) && ( flPitch <= -50.f ) ) points[ 0 ].z -= 1.f;
-			}
-			else if( g_CVars.Aimbot.HitboxMode == 4 )
-			{
-				Vector a = ( ( points[ 3 ] + points[ 5 ] ) * .5f );
-
-				if( ( flPitch > 50.f ) && ( flPitch < 91.f ) )
-				{
-					Vector b = ( ( ( a - points[ 0 ] ) / 3 ) * 4 );
-					Vector c = ( points[ 0 ] + ( b * .7f ) );
-					points[ 0 ] = c;
-				}
-				else if( ( flPitch >= -91.f ) && ( flPitch <= -50.f ) ) points[ 0 ].z -= 1.f;
-			}
-		}
-	}
-	// other hitboxes keep the true local center: the old "points[0] += points[0]*.5"
-	// pushed the aim point 50% away from the bone origin, potentially outside the box
-
 	for( int index = 0; index <= 8; ++index ) VectorTransform( points[ index ], matrix[ studiobbox->bone ], vecCorners[ index ] );
+
+	// ================================================================
+	// Segregation aiming geometry, transplanted as-is:
+	//   all 8 hitbox corners passed through the bone matrix (their Bones[14]),
+	//   minmax of the REAL world Z vertices (their Hitbox_Z_Vertices),
+	//   head aim point = vWorldCenter.xy + Zmin + (Zmax-Zmin)*Interface_Aim_Height.
+	// Applied unconditionally: there is no "height mode" anywhere in their
+	// code - only the Interface_Aim_Height fraction (default 0.9).
+	// ================================================================
+	float hFrac = g_CVars.Aimbot.AimHeight;
+	if( hFrac < 0.f ) hFrac = 0.f;
+	if( hFrac > 1.f ) hFrac = 1.f;
+
+	Vector vCenterWorld;
+	VectorTransform( vCenter, matrix[ studiobbox->bone ], vCenterWorld );
+
+	float vZMin = 999999.f, vZMax = -999999.f;
+	for( int i = 0; i < 8; i++ )
+	{
+		Vector vCornerWorld;
+		VectorTransform( vCorners[ i ], matrix[ studiobbox->bone ], vCornerWorld );
+		if( vCornerWorld.z < vZMin ) vZMin = vCornerWorld.z;
+		if( vCornerWorld.z > vZMax ) vZMax = vCornerWorld.z;
+	}
+
+	if( iHitbox == 12 ) // their Bones[14] = head bone: aim-height fraction
+	{
+		vecCorners[ 0 ] = Vector( vCenterWorld.x, vCenterWorld.y,
+			vZMin + ( vZMax - vZMin ) * hFrac );
+	}
+	else // every other hitbox: plain world center
+	{
+		vecCorners[ 0 ] = vCenterWorld;
+	}
 
 	if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
 }
@@ -413,8 +429,50 @@ int Rate( BasePlayer* LocalPlayer, BasePlayer* Ent )
 	return rate;
 }
 
+// lightweight profiler for the aimbot cost suspicion: accumulates an EMA and
+// the worst tick, then emits one [perf] line every 15 s into AresWare.log
+namespace
+{
+	struct AimbotPerfScope
+	{
+		LARGE_INTEGER t0;
+
+		AimbotPerfScope( ) { QueryPerformanceCounter( &t0 ); }
+
+		~AimbotPerfScope( )
+		{
+			LARGE_INTEGER t1, freq;
+			QueryPerformanceCounter( &t1 );
+			QueryPerformanceFrequency( &freq );
+
+			const double ms = ( double )( t1.QuadPart - t0.QuadPart ) * 1000.0 / ( double )freq.QuadPart;
+
+			static double ema = 0.0, worst = 0.0;
+			static int calls = 0;
+			static ULONGLONG lastLog = 0;
+
+			ema = ( ema == 0.0 ) ? ms : ( ema * 0.95 + ms * 0.05 );
+			if( ms > worst ) worst = ms;
+			calls++;
+
+			const ULONGLONG now = GetTickCount64( );
+			if( !lastLog ) lastLog = now;
+			if( now - lastLog > 15000 )
+			{
+				Logger::Write( "[perf] Aimbot::Main avg %.3f ms / worst %.3f ms over %d calls in 15 s",
+					( float )ema, ( float )worst, calls );
+				worst = 0.0;
+				calls = 0;
+				lastLog = now; // fixed: previously never updated -> [perf] line was written every call
+			}
+		}
+	};
+}
+
 void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 {
+	AimbotPerfScope _perfScope;
+
 	CSWeapon* Weapon = ( CSWeapon* ) LocalPlayer->GetActiveBaseCombatWeapon( );
 	if( !Weapon || !Weapon->IsWeapon( ) ) return;
 

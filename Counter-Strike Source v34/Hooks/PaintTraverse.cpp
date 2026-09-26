@@ -1,4 +1,5 @@
 #include "Main.h"
+#include "D3D9Hook.h"
 
 void Crosshair( )
 {
@@ -142,13 +143,15 @@ void BoundingBoxESP( )
 		if( bDucking ) HalfWidth *= 1.345794392523364f;
 
 		Vector box = Vector( ( vPlayerHeadScreen.x - HalfWidth ), vPlayerHeadScreen.y, 0.f );
-		if( g_CVars.Visuals.ESP.Box ) g_Drawing.OutlinedBox( box.x, box.y, ( HalfWidth * 2 ), Height, Color( colour.r( ), colour.g( ), colour.b( ), 160 ), Color( 0, 0, 0, 128 ) );
+		// D3D9/ImGui fallback also draws the box - leave it to one renderer or the two outlines shimmer
+		if( g_CVars.Visuals.ESP.Box && !g_bD3D9Hooked ) g_Drawing.OutlinedBox( box.x, box.y, ( HalfWidth * 2 ), Height, Color( colour.r( ), colour.g( ), colour.b( ), 160 ), Color( 0, 0, 0, 128 ) );
 
 		if( g_CVars.Visuals.ESP.AimSpot ) g_Drawing.DrawAimSpot( Ent, g_CVars.Aimbot.Hitbox, Color( 255, 255, 255, 160 ) );
 
 		g_pEngineClient->GetPlayerInfo( Index, &PlayerInfo );
 
-		if( g_CVars.Visuals.ESP.Name )
+		// name comes from the ImGui fallback once D3D9 is up (crisp text) - skip the vgui copy then
+		if( g_CVars.Visuals.ESP.Name && !g_bD3D9Hooked )
 		{
 			g_Drawing.MenuStringNormal( true, false, box.x + HalfWidth, box.y - 13, Color( 255, 255, 255, 200 ),
 				( g_CVars.PlayerList.Friend[ Index ] ) ? /*Friend: %s*/XorStr<0xE1,11,0x9B2BE55F>("\xA7\x90\x8A\x81\x8B\x82\xDD\xC8\xCC\x99"+0x9B2BE55F).s : /*%s*/XorStr<0x72,3,0x0FA22CF9>("\x57\x00"+0x0FA22CF9).s, PlayerInfo.name );
@@ -170,9 +173,13 @@ void BoundingBoxESP( )
 			{
 				box.y += Height + 3;
 
-				g_Drawing.OutlinedRect( box.x - 1, box.y - 1, ( HalfWidth * 2 ) + 2, 4, patch );
-				g_Drawing.FilledRect( box.x, box.y, ( HalfWidth * 2 ), 2, patch );
-				g_Drawing.FilledRect( box.x, box.y, ( ( Health / ( double ) maxhp ) * ( HalfWidth * 2 ) ), 2, Color( ( 255 - Scale ), Scale, 0, 160 ) );
+				// ImGui fallback renders the same under-box bar - skip the vgui strobes when it is live
+				if( !g_bD3D9Hooked )
+				{
+					g_Drawing.OutlinedRect( box.x - 1, box.y - 1, ( HalfWidth * 2 ) + 2, 4, patch );
+					g_Drawing.FilledRect( box.x, box.y, ( HalfWidth * 2 ), 2, patch );
+					g_Drawing.FilledRect( box.x, box.y, ( ( Health / ( double ) maxhp ) * ( HalfWidth * 2 ) ), 2, Color( ( 255 - Scale ), Scale, 0, 160 ) );
+				}
 			}
 		}
  
@@ -375,6 +382,27 @@ void __fastcall Hooked_PaintTraverse( void* ptr, int edx, unsigned int vguiPanel
 
 	const char* pszPanelName = g_pPanel->GetName( vguiPanel );
 
+	// log every unique panel name once per session: if the ESP gate below
+	// matches nothing on this exact v34 build, the log tells us the real name
+	{
+		static char szSeen[ 64 ][ 64 ] = { { 0 } };
+		static int  iSeen = 0;
+
+		if( pszPanelName && pszPanelName[ 0 ] )
+		{
+			bool bKnown = false;
+			for( int s = 0; s < iSeen; s++ )
+				if( !strcmp( szSeen[ s ], pszPanelName ) ) { bKnown = true; break; }
+
+			if( !bKnown && iSeen < 64 )
+			{
+				strncpy( szSeen[ iSeen ], pszPanelName, 63 );
+				Logger::Write( "[panels] seen vgui panel: \"%s\"", szSeen[ iSeen ] );
+				iSeen++;
+			}
+		}
+	}
+
 	//Register the game-event listener exactly once: the old code called
 	//RegisterSelf() every panel repaint and piled up duplicate listeners.
 	{
@@ -386,8 +414,20 @@ void __fastcall Hooked_PaintTraverse( void* ptr, int edx, unsigned int vguiPanel
 		}
 	}
 
+	// old heuristic ([0]=='M' && [3]=='S' && [9]=='T') only matched
+	// "MatSystemTopPanel" - some v34 builds repaint the game scene on a
+	// different top panel, which silently killed all vgui ESP
 	bool bValid = false;
-	if( pszPanelName && pszPanelName[ 0 ] == 'M' && pszPanelName[ 3 ] == 'S' && pszPanelName[ 9 ] == 'T' ) bValid = true;
+	if( pszPanelName && ( strstr( pszPanelName, "MatSystemTopPanel" ) || strstr( pszPanelName, "FocusOverlayPanel" ) ) )
+	{
+		static bool bLoggedGate = false;
+		if( !bLoggedGate )
+		{
+			Logger::Write( "[panels] ESP draw gate passed on panel: \"%s\"", pszPanelName );
+			bLoggedGate = true;
+		}
+		bValid = true;
+	}
 
 	if( bValid )
 	{

@@ -8,6 +8,7 @@
 #ifndef __BASEPLAYER_H__
 #define __BASEPLAYER_H__
 #include "NetvarManager.h"
+#include "../Core/ModuleBases.h"
 
 #include "BaseCombatCharacter.h"
 #define	FL_ONGROUND	( 1 << 0 )
@@ -371,49 +372,49 @@ namespace Valve
 		inline int LookupPoseParameter( const char* name )
 		{
 			typedef int( __thiscall* LookupPoseParameter_t )( void*, const char* );
-			return ( ( LookupPoseParameter_t )( ( ( DWORD ) 0x24033F40 ) ) )( this, name );
+			return ( ( LookupPoseParameter_t )( ( ( ( DWORD ) BASE_CLIENT + 0x33F40 ) ) ) )( this, name );
 		}
 
 		inline void SetAbsOrigin( const Vector& absOrigin )
 		{
 			typedef void( __thiscall* SetAbsOrigin_t )( void*, const Vector& );
-			( ( SetAbsOrigin_t )( ( DWORD ) 0x24045620 ) )( this, absOrigin );
+			( ( SetAbsOrigin_t )( ( ( DWORD ) BASE_CLIENT + 0x45620 ) ) )( this, absOrigin );
 		}
 
 		inline void SetAbsAngles( const QAngle& absAngles )
 		{
 			typedef void( __thiscall* SetAbsAngles_t )( void*, const QAngle& );
-			( ( SetAbsAngles_t )( ( DWORD ) 0x24045720 ) )( this, absAngles );
+			( ( SetAbsAngles_t )( ( ( DWORD ) BASE_CLIENT + 0x45720 ) ) )( this, absAngles );
 		}
 
 		inline void SetCycle( const float& flCycle )
 		{
 			typedef void( __thiscall* SetCycle_t )( void*, const float& );
-			( ( SetCycle_t )( ( DWORD ) 0x24031BD0 ) )( this, flCycle );
+			( ( SetCycle_t )( ( ( DWORD ) BASE_CLIENT + 0x31BD0 ) ) )( this, flCycle );
 		}
 
 		inline void SetSequence( const int& nSequence )
 		{
 			typedef void( __thiscall* SetSequence_t )( void*, const int& );
-			( ( SetSequence_t )( ( DWORD ) 0x24038800 ) )( this, nSequence );
+			( ( SetSequence_t )( ( ( DWORD ) BASE_CLIENT + 0x38800 ) ) )( this, nSequence );
 		}
 
 		inline void InvalidateBoneCache( )
 		{
 			typedef void( __thiscall* InvalidateBoneCache_t )( void* );
-			( ( InvalidateBoneCache_t )( ( DWORD ) 0x240317F0 ) )( this );
+			( ( InvalidateBoneCache_t )( ( ( DWORD ) BASE_CLIENT + 0x317F0 ) ) )( this );
 		}
 
 		inline void SetLocalOrigin( const Vector& vecLocalOrigin )
 		{
 			typedef void( __thiscall* SetLocalOrigin_t )( void*, const Vector& );
-			( ( SetLocalOrigin_t )( ( DWORD ) 0x240417B0 ) )( this, vecLocalOrigin );
+			( ( SetLocalOrigin_t )( ( ( DWORD ) BASE_CLIENT + 0x417B0 ) ) )( this, vecLocalOrigin );
 		}
 
 		inline void SetLocalAngles( const QAngle& angLocalAngles )
 		{
 			typedef void( __thiscall* SetLocalAngles_t )( void*, const QAngle& );
-			( ( SetLocalAngles_t )( ( DWORD ) 0x24041880 ) )( this, angLocalAngles );
+			( ( SetLocalAngles_t )( ( ( DWORD ) BASE_CLIENT + 0x41880 ) ) )( this, angLocalAngles );
 		}
 	};
 };

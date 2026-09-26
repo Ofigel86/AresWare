@@ -137,8 +137,22 @@ void Hooked_CL_PreprocessEntities( )
 
 void CL_RunPrediction( void )
 {
-	_CL_RunPrediction = ( CL_RunPrediction_t ) DetourFunction( ( PBYTE ) ( ( DWORD ) BASE_ENGINE + 0x464C0 ), ( PBYTE ) Hooked_CL_RunPrediction );
-	_CL_PreprocessEntities = ( CL_PreprocessEntities_t ) DetourFunction( ( PBYTE ) ( ( DWORD ) BASE_ENGINE + 0x3EC70 ), ( PBYTE ) Hooked_CL_PreprocessEntities );
+	DWORD dwRunPred = ( DWORD ) BASE_ENGINE + 0x464C0;
+	DWORD dwPreprocess = ( DWORD ) BASE_ENGINE + 0x3EC70;
+
+	if( AddressInModule( dwRunPred, ( DWORD ) BASE_ENGINE ) )
+	{
+		_CL_RunPrediction = ( CL_RunPrediction_t ) DetourFunction( ( PBYTE ) dwRunPred, ( PBYTE ) Hooked_CL_RunPrediction );
+		Logger::Write( "CL_RunPrediction detoured @ 0x%08X -> trampoline 0x%08X", dwRunPred, ( DWORD ) _CL_RunPrediction );
+	}
+	else Logger::Write( "CL_RunPrediction detour SKIPPED: target 0x%08X not in engine.dll code", dwRunPred );
+
+	if( AddressInModule( dwPreprocess, ( DWORD ) BASE_ENGINE ) )
+	{
+		_CL_PreprocessEntities = ( CL_PreprocessEntities_t ) DetourFunction( ( PBYTE ) dwPreprocess, ( PBYTE ) Hooked_CL_PreprocessEntities );
+		Logger::Write( "CL_PreprocessEntities detoured @ 0x%08X -> trampoline 0x%08X", dwPreprocess, ( DWORD ) _CL_PreprocessEntities );
+	}
+	else Logger::Write( "CL_PreprocessEntities detour SKIPPED: target 0x%08X not in engine.dll code", dwPreprocess );
 }
 
 void UnCL_RunPrediction( void )

@@ -258,8 +258,7 @@ static void RageTargeting( void )
 
 		ImGui::SliderFloat( "Point Scale", &g_CVars.Aimbot.PointScale, 0.0f, 1.0f, "%.2f" );
 
-		const char* heightModeNames[] = { "Auto", "Origin", "Center", "Center Fixed", "Highest" };
-		ImGui::Combo( "Height Mode", &g_CVars.Aimbot.HitboxMode, heightModeNames, IM_ARRAYSIZE( heightModeNames ) );
+		ImGui::SliderFloat( "Aim Height", &g_CVars.Aimbot.AimHeight, 0.0f, 1.0f, "%.2f" );
 
 		const char* targetSelectionNames[] = { "Distance", "Health", "Next Shot", "Random" };
 		ImGui::Combo( "Target Selection", &g_CVars.Aimbot.TargetSelection, targetSelectionNames, IM_ARRAYSIZE( targetSelectionNames ) );
@@ -304,52 +303,73 @@ static void RageAccuracy( void )
 
 static void RageAntiAim( void )
 {
-	ImGui::BeginChild( "Rage_AntiAim", ImVec2( 440, 0 ), true );
+	// ---------------- header: pitch + choke rate ----------------
+	ImGui::BeginChild( "Rage_AA_Header", ImVec2( 0, 105 ), true );
 	{
-		SectionHeader( "ANTI-AIM (HVH)" );
+		SectionHeader( "ANTI-AIM" );
 		ImGui::Checkbox( "Anti-Aim Active", &g_CVars.Miscellaneous.AntiAim.Active );
 
-		const char* pitchNames[] = { "Off", "Normal", "Inverse Normal", "Safe", "Fake Down", "Down", "Up", "Lag Down", "Lag Up" };
-		ImGui::Combo( "Pitch", &g_CVars.Miscellaneous.AntiAim.Pitch, pitchNames, IM_ARRAYSIZE( pitchNames ) );
+		const char* aaPitchModes[] = { "Off", "Down", "Up", "Fake Down", "Fake Up", "Jitter", "Random" };
+		ImGui::Combo( "Pitch", &g_CVars.Miscellaneous.AntiAim.PitchMode, aaPitchModes, IM_ARRAYSIZE( aaPitchModes ) );
 
-		const char* yawNames[] = { "Forwards", "Backwards", "Sideways", "Jitter", "Static", "Static Reversed", "Lisp", "Custom" };
-		ImGui::Combo( "Yaw", &g_CVars.Miscellaneous.AntiAim.Yaw, yawNames, IM_ARRAYSIZE( yawNames ) );
+		const char* chokeRates[] = { "Fake every 2nd cmd", "Fake every 3rd cmd", "Fake every 4th cmd" };
+		static int s_ChokeIdx = g_CVars.Miscellaneous.AntiAim.ChokeEvery - 2;
+		if( s_ChokeIdx < 0 ) s_ChokeIdx = 0;
+		if( s_ChokeIdx > 2 ) s_ChokeIdx = 2;
+		if( ImGui::Combo( "Choke Rate", &s_ChokeIdx, chokeRates, IM_ARRAYSIZE( chokeRates ) ) )
+			g_CVars.Miscellaneous.AntiAim.ChokeEvery = s_ChokeIdx + 2;
+	}
+	ImGui::EndChild( );
 
-		std::vector< const char* > yawVariations;
-		if( g_CVars.Miscellaneous.AntiAim.Yaw == 3 )
+	// ---------------- REAL (left) / FAKE (right) ----------------
+	const char* aaYawModes[] = { "Static", "Jitter", "Spin", "Random" };
+	const char* aaJitStyles[] = { "Offset", "Center", "Reverse" };
+
+	auto DrawSide = [&]( auto& side, const char* tableId, const char* header, float halfWidth, int sideIdx )
+	{
+		ImGui::BeginChild( tableId, ImVec2( halfWidth, 230 ), true );
 		{
-			yawVariations = { "Normal", "Synced", "Static", "Static Synced" };
+			SectionHeader( header );
+			char lbl[ 96 ];
+			#define AA_LBL( txt ) ( sprintf_s( lbl, sizeof( lbl ), "%s##s%d", txt, sideIdx ), lbl )
+
+			ImGui::Combo( AA_LBL( "Yaw Mode" ), &side.YawMode, aaYawModes, IM_ARRAYSIZE( aaYawModes ) );
+
+			if( side.YawMode < 2 )	// spin & random do not read the angle slider
+				ImGui::SliderFloat( AA_LBL( "Yaw Angle" ), &side.YawAngle, -180.f, 180.f, "%.0f deg" );
+
+			if( side.YawMode == 1 )
+			{
+				ImGui::Combo( AA_LBL( "Jitter Style" ), &side.JitterStyle, aaJitStyles, IM_ARRAYSIZE( aaJitStyles ) );
+				if( side.JitterStyle != 2 )	// reverse is always 180
+					ImGui::SliderFloat( AA_LBL( "Jitter Degrees" ), &side.JitterAmount, 1.f, 180.f, "%.0f deg" );
+				ImGui::SliderInt( AA_LBL( "Jitter Interval" ), &side.JitterInterval, 1, 8 );
+			}
+			if( side.YawMode == 2 )
+				ImGui::SliderFloat( AA_LBL( "Spin Speed" ), &side.SpinSpeed, 3.f, 90.f, "%.0f deg/cmd" );
+			#undef AA_LBL
 		}
-		else if( g_CVars.Miscellaneous.AntiAim.Yaw == 6 )
-		{
-			yawVariations = { "m3nly", "m3nly #2", "Jitter", "1337" };
-		}
-		else if( g_CVars.Miscellaneous.AntiAim.Yaw == 7 )
-		{
-			yawVariations = { "Additional", "Static" };
-		}
-		else
-		{
-			yawVariations = { "Normal", "Fake Side 1", "Fake Side 2", "Random" };
-		}
+		ImGui::EndChild( );
+	};
 
-		if( g_CVars.Miscellaneous.AntiAim.Variation >= ( int )yawVariations.size( ) )
-			g_CVars.Miscellaneous.AntiAim.Variation = 0;
+	float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemInnerSpacing.x ) * 0.5f;
+	DrawSide( g_CVars.Miscellaneous.AntiAim.Real, "Rage_AA_Real", "REAL YAW (SENT)", halfWidth, 0 );
+	ImGui::SameLine( );
+	DrawSide( g_CVars.Miscellaneous.AntiAim.Fake, "Rage_AA_Fake", "FAKE YAW (CHOKED)", halfWidth, 1 );
 
-		ImGui::Combo( "Yaw Mode", &g_CVars.Miscellaneous.AntiAim.Variation, yawVariations.data( ), ( int )yawVariations.size( ) );
+	// ---------------- FAKELAG, 3rd table at the bottom ----------------
+	ImGui::BeginChild( "Rage_AA_Fakelag", ImVec2( 0, 195 ), true );
+	{
+		SectionHeader( "FAKE LAG" );
+		ImGui::Checkbox( "Fake Lag Active", &g_CVars.Miscellaneous.Fakelag.Active );
+		ImGui::Checkbox( "Fake Lag In Attack", &g_CVars.Miscellaneous.Fakelag.InAttack );
+		ImGui::Checkbox( "Fake Lag Air Only", &g_CVars.Miscellaneous.Fakelag.AirOnly );
+		ImGui::SliderInt( "Choke Ticks", &g_CVars.Miscellaneous.Fakelag.Value, 0, 14 );
 
-		ImGui::SliderFloat( "Custom Real Yaw", &g_CVars.Miscellaneous.AntiAim.RealValue, 0.0f, 360.0f, "%.1f deg" );
-		ImGui::SliderFloat( "Custom Fake Yaw", &g_CVars.Miscellaneous.AntiAim.FakeValue, 0.0f, 360.0f, "%.1f deg" );
-
-		ImGui::Checkbox( "InAttack Pitch", &g_CVars.Miscellaneous.AntiAim.Static );
-		ImGui::Checkbox( "Wall Detection", &g_CVars.Miscellaneous.AntiAim.WallDetection );
-
-		const char* wallDtcModes[] = { "Normal", "Fake", "Fake Out", "Jitter" };
-		ImGui::Combo( "Wall DTC Mode", &g_CVars.Miscellaneous.AntiAim.WallDetectionMode, wallDtcModes, IM_ARRAYSIZE( wallDtcModes ) );
-
-		ImGui::Checkbox( "At Targets", &g_CVars.Miscellaneous.AntiAim.AtTargets );
-		ImGui::Checkbox( "Duck In Air", &g_CVars.Miscellaneous.AntiAim.DuckInAir );
-		ImGui::Checkbox( "Enemy Check", &g_CVars.Miscellaneous.AntiAim.TurnOff );
+		const char* fakelagModes[] = { "Factor", "Switch", "Adaptive", "Segregation" };
+		ImGui::Combo( "Fake Lag Mode", &g_CVars.Miscellaneous.Fakelag.Mode, fakelagModes, IM_ARRAYSIZE( fakelagModes ) );
+		ImGui::SliderInt( "Min Choked", &g_CVars.Miscellaneous.Fakelag.Min, 0, 14 );
+		ImGui::SliderInt( "Max Choked", &g_CVars.Miscellaneous.Fakelag.Max, 1, 15 );
 	}
 	ImGui::EndChild( );
 }
@@ -520,8 +540,10 @@ static void MiscOther( void )
 		ImGui::Checkbox( "Fake Lag Air Only", &g_CVars.Miscellaneous.Fakelag.AirOnly );
 		ImGui::SliderInt( "Choke Ticks", &g_CVars.Miscellaneous.Fakelag.Value, 0, 14 );
 
-		const char* fakelagModes[] = { "Factor", "Switch", "Adaptive" };
+		const char* fakelagModes[] = { "Factor", "Switch", "Adaptive", "Segregation" };
 		ImGui::Combo( "Fake Lag Mode", &g_CVars.Miscellaneous.Fakelag.Mode, fakelagModes, IM_ARRAYSIZE( fakelagModes ) );
+		ImGui::SliderInt( "Min Choked", &g_CVars.Miscellaneous.Fakelag.Min, 0, 14 );
+		ImGui::SliderInt( "Max Choked", &g_CVars.Miscellaneous.Fakelag.Max, 1, 15 );
 
 		ImGui::Spacing( );
 	}
@@ -651,4 +673,133 @@ void GUI::RenderConfigsTab( void )
 		ImGui::BulletText( "F6 - F11: Movement Recorder Controls" );
 	}
 	ImGui::EndChild( );
+}
+// ---------------------------------------------------------------------------
+// vgui-independent ESP fallback: the classic vgui path (PaintTraverse top
+// panel) stays, but on this build it produced nothing at all, so the same
+// player visuals are also drawn through the ImGui pipeline that the menu
+// already proves to work. Box/Name/Health are covered here; bone lines and
+// aim-spot remain on the vgui path.
+// ---------------------------------------------------------------------------
+void GUI::DrawImGuiESP( void )
+{
+	if( !g_pGlobals || !g_pEngineClient || !g_pClientEntityList ) return;
+
+	// self-heal screen size every frame (covers wrong GetScreenSize vfunc
+	// index and windowed<->fullscreen changes; DisplaySize is ground truth)
+	{
+		const ImVec2 disp = ImGui::GetIO( ).DisplaySize;
+		if( disp.x > 8.f && disp.y > 8.f )
+		{
+			screen_x = ( int )disp.x;
+			screen_y = ( int )disp.y;
+		}
+	}
+
+	const bool bInGame = g_pEngineClient->IsInGame( ) != 0;
+	static int s_dbgDrawn = 0, s_dbgW2sFail = 0, s_dbgFiltered = 0;
+
+	// on-screen + log diagnostics (temporary): renders even when everything
+	// else fails, so one look at the corner pinpoints the breakage stage
+	ImDrawList* pDbgDraw = ImGui::GetBackgroundDrawList( );
+	if( pDbgDraw )
+	{
+		char dbg[ 256 ];
+		sprintf_s( dbg, "ESP dbg | inGame=%d scr=%dx%d box=%d name=%d hp=%d maxcl=%d ok=%d w2sFail=%d filt=%d",
+			bInGame ? 1 : 0, screen_x, screen_y,
+			g_CVars.Visuals.ESP.Box ? 1 : 0, g_CVars.Visuals.ESP.Name ? 1 : 0, g_CVars.Visuals.ESP.Health ? 1 : 0,
+			g_pGlobals ? g_pGlobals->maxClients : -1, s_dbgDrawn, s_dbgW2sFail, s_dbgFiltered );
+		pDbgDraw->AddText( ImVec2( 9.f, 9.f ), IM_COL32( 0, 0, 0, 180 ), dbg );
+		pDbgDraw->AddText( ImVec2( 10.f, 10.f ), IM_COL32( 255, 220, 0, 240 ), dbg );
+
+		static ULONGLONG lastLog = 0;
+		const ULONGLONG now = GetTickCount64( );
+		if( now - lastLog > 10000 )
+		{
+			lastLog = now;
+			Logger::Write( "[esp] %s", dbg );
+			s_dbgDrawn = s_dbgW2sFail = s_dbgFiltered = 0;
+		}
+	}
+
+	if( !bInGame ) return;
+
+	if( !g_CVars.Visuals.ESP.Box && !g_CVars.Visuals.ESP.Name && !g_CVars.Visuals.ESP.Health ) return;
+
+	ImDrawList* pDraw = ImGui::GetBackgroundDrawList( );
+	if( !pDraw ) return;
+
+	BasePlayer* LocalPlayer = ( BasePlayer* )g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
+	if( !LocalPlayer ) return;
+
+	for( int Index = 1; Index <= g_pGlobals->maxClients; Index++ )
+	{
+		BasePlayer* Ent = ( BasePlayer* )g_pClientEntityList->GetClientEntity( Index );
+		if( !Ent || Ent == LocalPlayer ) continue;
+		if( Ent->IsDormant( ) ) { s_dbgFiltered++; continue; }
+		if( Ent->m_lifeState( ) != 0 ) { s_dbgFiltered++; continue; }
+		if( g_CVars.Visuals.ESP.EnemyOnly && Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) { s_dbgFiltered++; continue; }
+
+		Color colour = Color::White( );
+		if( !g_CVars.PlayerList.Friend[ Index ] )
+		{
+			if( Ent->m_iTeamNum( ) == 2 ) colour = g_CVars.ColorSelector.ESP.TT;
+			else if( Ent->m_iTeamNum( ) == 3 ) colour = g_CVars.ColorSelector.ESP.CT;
+		}
+
+		Vector vFoot = Ent->GetAbsOrigin( );
+		bool bDucking = ( Ent->m_fFlags( ) & FL_DUCKING ) != 0;
+		Vector vHead = vFoot + Vector( 0.f, 0.f, bDucking ? 53.5f : 72.f );
+
+		Vector sFoot, sHead;
+		if( !g_Stuff.WorldToScreen( vFoot, sFoot ) ) { s_dbgW2sFail++; continue; }
+		if( !g_Stuff.WorldToScreen( vHead, sHead ) ) { s_dbgW2sFail++; continue; }
+		s_dbgDrawn++;
+
+		float Height = sFoot.y - sHead.y;
+		float HalfW = Height * .225f;
+		if( bDucking ) HalfW *= 1.345794392523364f;
+		if( Height < 2.f ) continue;
+
+		float x = sHead.x - HalfW;
+		float y = sHead.y;
+		float w = HalfW * 2.f;
+
+		const ImU32 colMain = IM_COL32( ( int )colour.r( ), ( int )colour.g( ), ( int )colour.b( ), 210 );
+		const ImU32 colDark = IM_COL32( 0, 0, 0, 160 );
+
+		if( g_CVars.Visuals.ESP.Box )
+		{
+			pDraw->AddRect( ImVec2( x - 1.f, y - 1.f ), ImVec2( x + w + 1.f, y + Height + 1.f ), colDark );
+			pDraw->AddRect( ImVec2( x + 1.f, y + 1.f ), ImVec2( x + w - 1.f, y + Height - 1.f ), colDark );
+			pDraw->AddRect( ImVec2( x, y ), ImVec2( x + w, y + Height ), colMain );
+		}
+
+		if( g_CVars.Visuals.ESP.Name )
+		{
+			player_info_t PlayerInfo;
+			if( g_pEngineClient->GetPlayerInfo( Index, &PlayerInfo ) )
+			{
+				const ImVec2 ts = ImGui::CalcTextSize( PlayerInfo.name );
+				pDraw->AddText( ImVec2( sHead.x - ts.x * .5f + 1.f, y - 13.f + 1.f ), colDark, PlayerInfo.name );
+				pDraw->AddText( ImVec2( sHead.x - ts.x * .5f, y - 13.f ), IM_COL32( 255, 255, 255, 225 ), PlayerInfo.name );
+			}
+		}
+
+		if( g_CVars.Visuals.ESP.Health )
+		{
+			int Health = Ent->m_iHealth( );
+			if( Health > 0 )
+			{
+				if( Health > 100 ) Health = 100;
+				const float frac = Health / 100.f;
+				const int   Scale = ( int )( Health * 2.55f );
+				const float by = y + Height + 3.f;
+
+				pDraw->AddRectFilled( ImVec2( x - 1.f, by - 1.f ), ImVec2( x + w + 1.f, by + 3.f ), IM_COL32( 0, 0, 0, 140 ) );
+				pDraw->AddRectFilled( ImVec2( x, by ), ImVec2( x + w * frac, by + 2.f ),
+					IM_COL32( 255 - Scale, Scale, 0, 190 ) );
+			}
+		}
+	}
 }

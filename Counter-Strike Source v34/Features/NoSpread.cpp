@@ -54,7 +54,7 @@ WeaponInfo NoSpread::GetWeaponInfo( CSWeapon* Weapon )
 		if( Weapon->SpecialMode( ) ) TempWeaponInfo.Damage = 30;
 	}
 
-	DWORD dwGetBulletTypeParameters = 0x241CE4B0;
+	DWORD dwGetBulletTypeParameters = ( DWORD ) BASE_CLIENT + 0x1CE4B0;
 
 	__asm
 	{

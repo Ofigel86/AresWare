@@ -8,6 +8,7 @@ public:
 	bool ShouldDisableInput( void );
 	void SetupStyle( void );
 	void DrawImGui( void );
+	void DrawImGuiESP( void ); // vgui-independent ESP fallback (drawn through the ImGui pipeline)
 
 private:
 	void RenderRagebotTab( void );

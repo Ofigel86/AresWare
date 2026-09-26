@@ -12,6 +12,7 @@ extern Reset_t oReset;
 extern WNDPROC oWndProc;
 extern HWND g_hGameWindow;
 extern bool g_bImGuiInitialized;
+extern bool g_bD3D9Hooked;
 
 bool InitializeD3D9Hook( void );
 void ShutdownD3D9Hook( void );

@@ -82,17 +82,22 @@ void CConfig::Load( void )
 	g_CVars.Aimbot.Active = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*Active*/XorStr<0x05,7,0x27ACD844>("\x44\x65\x73\x61\x7F\x6F"+0x27ACD844).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.AutoShoot = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AutoShoot*/XorStr<0x11,10,0xA8DBBE49>("\x50\x67\x67\x7B\x46\x7E\x78\x77\x6D"+0xA8DBBE49).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.AutoWall = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AutoWall*/XorStr<0xEF,9,0x87A95EA9>("\xAE\x85\x85\x9D\xA4\x95\x99\x9A"+0x87A95EA9).s, 0, path.c_str( ) );
-	g_CVars.Aimbot.MultiSpot = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*MultiSpot*/XorStr<0xD1,10,0x86EC0E0A>("\x9C\xA7\xBF\xA0\xBC\x85\xA7\xB7\xAD"+0x86EC0E0A).s, 0, path.c_str( ) );
-	g_CVars.Aimbot.HitScan = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*HitScan*/XorStr<0xCB,8,0xFC340577>("\x83\xA5\xB9\x9D\xAC\xB1\xBF"+0xFC340577).s, 0, path.c_str( ) );
+	g_CVars.Aimbot.MultiSpot = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*MultiSpot*/XorStr<0xD1,10,0x86EC0E0A>("\x9C\xA7\xBF\xA0\xBC\x85\xA7\xB7\xAD"+0x86EC0E0A).s, 1, path.c_str( ) );
+	g_CVars.Aimbot.HitScan = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*HitScan*/XorStr<0xCB,8,0xFC340577>("\x83\xA5\xB9\x9D\xAC\xB1\xBF"+0xFC340577).s, 1, path.c_str( ) );
 	g_CVars.Aimbot.FriendlyFire = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*FriendlyFire*/XorStr<0xFC,13,0x954C6400>("\xBA\x8F\x97\x9A\x6E\x65\x6E\x7A\x42\x6C\x74\x62"+0x954C6400).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.TargetSelection = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*TargetSelection*/XorStr<0xC3,16,0x9E78006D>("\x97\xA5\xB7\xA1\xA2\xBC\x9A\xAF\xA7\xA9\xAE\xBA\xA6\xBF\xBF"+0x9E78006D).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.Hitbox = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*Hitbox*/XorStr<0x61,7,0xE7859F64>("\x29\x0B\x17\x06\x0A\x1E"+0xE7859F64).s, 0, path.c_str( ) );
+	// sanitize: raw ids outside the GUI set (12/11/10/9) silently aimed at the pelvis
+	// while the menu displayed "Head" - clamp them to the head
+	if( g_CVars.Aimbot.Hitbox != 12 && g_CVars.Aimbot.Hitbox != 11 &&
+		g_CVars.Aimbot.Hitbox != 10 && g_CVars.Aimbot.Hitbox != 9 ) g_CVars.Aimbot.Hitbox = 12;
 	g_CVars.Aimbot.HitboxMode = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*HitboxMode*/XorStr<0xDB,11,0xBA9B04D1>("\x93\xB5\xA9\xBC\xB0\x98\xAC\x8D\x87\x81"+0xBA9B04D1).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.Silent = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*Silent*/XorStr<0xE1,7,0xA335B50B>("\xB2\x8B\x8F\x81\x8B\x92"+0xA335B50B).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.PerfectSilent = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*PerfectSilent*/XorStr<0xEC,14,0xBB750D0C>("\xBC\x88\x9C\x89\x95\x92\x86\xA0\x9D\x99\x93\x99\x8C"+0xBB750D0C).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.AntiSMAC = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AntiSMAC*/XorStr<0x07,9,0xDB906D0E>("\x46\x66\x7D\x63\x58\x41\x4C\x4D"+0xDB906D0E).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.BodyAWP = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*BodyAWP*/XorStr<0xCA,8,0x15077618>("\x88\xA4\xA8\xB4\x8F\x98\x80"+0x15077618).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.PointScale = GetPrivateProfileFloat( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*PointScale*/XorStr<0xBE,11,0x1EFB65EC>("\xEE\xD0\xA9\xAF\xB6\x90\xA7\xA4\xAA\xA2"+0x1EFB65EC).s, 0, path.c_str( ) );
+	g_CVars.Aimbot.AimHeight = GetPrivateProfileFloat( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, "AimHeight", 0.9f, path.c_str( ) );
 	g_CVars.Aimbot.SnapLimiter = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*SnapLimiter*/XorStr<0xCD,12,0xE92FD079>("\x9E\xA0\xAE\xA0\x9D\xBB\xBE\xBD\xA1\xB3\xA5"+0xE92FD079).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.AngleLimit = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AngleLimit*/XorStr<0x55,11,0x2BCB8202>("\x14\x38\x30\x34\x3C\x16\x32\x31\x34\x2A"+0x2BCB8202).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.AngleLimitTens = GetPrivateProfileFloat( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AngleLimitTens*/XorStr<0x4F,15,0x42DB868E>("\x0E\x3E\x36\x3E\x36\x18\x3C\x3B\x3E\x2C\x0D\x3F\x35\x2F"+0x42DB868E).s, 0, path.c_str( ) );
@@ -101,7 +106,7 @@ void CConfig::Load( void )
 
 	g_CVars.Aimbot.Interpolation.LagPrediction = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*LagPrediction*/XorStr<0x0C,14,0x8FC405E0>("\x40\x6C\x69\x5F\x62\x74\x76\x7A\x77\x61\x7F\x78\x76"+0x8FC405E0).s, 0, path.c_str( ) );
 
-	g_CVars.Aimbot.Resolver.Active = GetPrivateProfileInteger( /*Resolver*/XorStr<0xC1,9,0xE5DCA663>("\x93\xA7\xB0\xAB\xA9\xB0\xA2\xBA"+0xE5DCA663).s, /*Active*/XorStr<0x05,7,0x27ACD844>("\x44\x65\x73\x61\x7F\x6F"+0x27ACD844).s, 0, path.c_str( ) );
+	g_CVars.Aimbot.Resolver.Active = GetPrivateProfileInteger( /*Resolver*/XorStr<0xC1,9,0xE5DCA663>("\x93\xA7\xB0\xAB\xA9\xB0\xA2\xBA"+0xE5DCA663).s, /*Active*/XorStr<0x05,7,0x27ACD844>("\x44\x65\x73\x61\x7F\x6F"+0x27ACD844).s, 1, path.c_str( ) );
 	g_CVars.Aimbot.Resolver.Smart = GetPrivateProfileInteger( /*Resolver*/XorStr<0xC1,9,0xE5DCA663>("\x93\xA7\xB0\xAB\xA9\xB0\xA2\xBA"+0xE5DCA663).s, /*Smart*/XorStr<0x1B,6,0x3199AD52>("\x48\x71\x7C\x6C\x6B"+0x3199AD52).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.Resolver.Mode = GetPrivateProfileInteger( /*Resolver*/XorStr<0xC1,9,0xE5DCA663>("\x93\xA7\xB0\xAB\xA9\xB0\xA2\xBA"+0xE5DCA663).s, /*Mode*/XorStr<0xA1,5,0x038D62E9>("\xEC\xCD\xC7\xC1"+0x038D62E9).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.Resolver.Type = GetPrivateProfileInteger( /*Resolver*/XorStr<0xC1,9,0xE5DCA663>("\x93\xA7\xB0\xAB\xA9\xB0\xA2\xBA"+0xE5DCA663).s, /*Type*/XorStr<0x33,5,0x7A74F612>("\x67\x4D\x45\x53"+0x7A74F612).s, 0, path.c_str( ) );
@@ -118,9 +123,9 @@ void CConfig::Load( void )
 	g_CVars.Accuracy.PerfectAccuracy = GetPrivateProfileInteger( /*Accuracy*/XorStr<0xAF,9,0x175251A2>("\xEE\xD3\xD2\xC7\xC1\xD5\xD6\xCF"+0x175251A2).s, /*PerfectAccuracy*/XorStr<0x62,16,0xCAB6BBCD>("\x32\x06\x16\x03\x03\x04\x1C\x28\x09\x08\x19\x1F\x0F\x0C\x09"+0xCAB6BBCD).s, 0, path.c_str( ) );
 	g_CVars.Accuracy.NoSpreadMode = GetPrivateProfileInteger( /*Accuracy*/XorStr<0xAF,9,0x175251A2>("\xEE\xD3\xD2\xC7\xC1\xD5\xD6\xCF"+0x175251A2).s, /*NoSpreadMode*/XorStr<0x89,13,0xABE30353>("\xC7\xE5\xD8\xFC\xFF\xEB\xEE\xF4\xDC\xFD\xF7\xF1"+0xABE30353).s, 1, path.c_str( ) );
 
-	g_CVars.Visuals.ESP.Box = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Box", 0, path.c_str( ) );
-	g_CVars.Visuals.ESP.Name = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Name", 0, path.c_str( ) );
-	g_CVars.Visuals.ESP.Health = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Health", 0, path.c_str( ) );
+	g_CVars.Visuals.ESP.Box = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Box", 1, path.c_str( ) ); // default ON: the ImGui menu for toggling was never reachable on the test rig
+	g_CVars.Visuals.ESP.Name = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Name", 1, path.c_str( ) ); // default ON (same reason)
+	g_CVars.Visuals.ESP.Health = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Health", 1, path.c_str( ) ); // default ON (same reason)
 	g_CVars.Visuals.ESP.Weapon = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Weapon", 0, path.c_str( ) );
 	g_CVars.Visuals.ESP.Bone = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Bone", 0, path.c_str( ) );
 	g_CVars.Visuals.ESP.AimSpot = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "AimSpot", 0, path.c_str( ) );
@@ -157,13 +162,31 @@ void CConfig::Load( void )
 	g_CVars.Miscellaneous.AntiAim.DuckInAir = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "DuckInAir", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.AntiAim.RealValue = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "RealValue", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.AntiAim.FakeValue = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "FakeValue", 0, path.c_str( ) );
-	g_CVars.Miscellaneous.AntiAim.TurnOff = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "EnemyCheck", 0, path.c_str( ) );
 
-	g_CVars.Miscellaneous.Fakelag.Active = GetPrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, /*Active*/XorStr<0x05,7,0x27ACD844>("\x44\x65\x73\x61\x7F\x6F"+0x27ACD844).s, 0, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.PitchMode = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAPitchMode", 3, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.ChokeEvery = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAChokeEvery", 3, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Real.YawMode = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealYawMode", 0, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Real.YawAngle = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealYawAngle", 180.f, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Real.JitterStyle = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealJitterStyle", 0, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Real.JitterAmount = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealJitterAmount", 45.f, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Real.JitterInterval = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealJitterInterval", 2, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Real.SpinSpeed = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealSpinSpeed", 20.f, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Fake.YawMode = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeYawMode", 1, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Fake.YawAngle = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeYawAngle", 180.f, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Fake.JitterStyle = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeJitterStyle", 1, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Fake.JitterAmount = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeJitterAmount", 45.f, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Fake.JitterInterval = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeJitterInterval", 2, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.Fake.SpinSpeed = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeSpinSpeed", 20.f, path.c_str( ) );
+
+
+
+	g_CVars.Miscellaneous.AntiAim.ChokeEvery = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAChokeEvery", 3, path.c_str( ) );
 	g_CVars.Miscellaneous.Fakelag.Mode = GetPrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, /*Mode*/XorStr<0xA1,5,0x038D62E9>("\xEC\xCD\xC7\xC1"+0x038D62E9).s, 0, path.c_str( ) );
 	g_CVars.Miscellaneous.Fakelag.Value = GetPrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, "Value", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.Fakelag.InAttack = GetPrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, "InAttack", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.Fakelag.AirOnly = GetPrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, "AirOnly", 0, path.c_str( ) );
+	g_CVars.Miscellaneous.Fakelag.Min = GetPrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, "Min", 1, path.c_str( ) );
+	g_CVars.Miscellaneous.Fakelag.Max = GetPrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, "Max", 14, path.c_str( ) );
 
 	g_CVars.Miscellaneous.BunnyHop = GetPrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "BunnyHop", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.AutoStrafe = GetPrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "AutoStrafe", 0, path.c_str( ) );
@@ -231,6 +254,7 @@ void CConfig::Save( void )
 	WritePrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AntiSMAC*/XorStr<0x07,9,0xDB906D0E>("\x46\x66\x7D\x63\x58\x41\x4C\x4D"+0xDB906D0E).s, g_CVars.Aimbot.AntiSMAC, path.c_str( ) );
 	WritePrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*BodyAWP*/XorStr<0xCA,8,0x15077618>("\x88\xA4\xA8\xB4\x8F\x98\x80"+0x15077618).s, g_CVars.Aimbot.BodyAWP, path.c_str( ) );
 	WritePrivateProfileFloat( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*PointScale*/XorStr<0xBE,11,0x1EFB65EC>("\xEE\xD0\xA9\xAF\xB6\x90\xA7\xA4\xAA\xA2"+0x1EFB65EC).s, g_CVars.Aimbot.PointScale, path.c_str( ) );
+	WritePrivateProfileFloat( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, "AimHeight", g_CVars.Aimbot.AimHeight, path.c_str( ) );
 	WritePrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*SnapLimiter*/XorStr<0xCD,12,0xE92FD079>("\x9E\xA0\xAE\xA0\x9D\xBB\xBE\xBD\xA1\xB3\xA5"+0xE92FD079).s, g_CVars.Aimbot.SnapLimiter, path.c_str( ) );
 	WritePrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AngleLimit*/XorStr<0x55,11,0x2BCB8202>("\x14\x38\x30\x34\x3C\x16\x32\x31\x34\x2A"+0x2BCB8202).s, g_CVars.Aimbot.AngleLimit, path.c_str( ) );
 	WritePrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AngleLimitTens*/XorStr<0x4F,15,0x42DB868E>("\x0E\x3E\x36\x3E\x36\x18\x3C\x3B\x3E\x2C\x0D\x3F\x35\x2F"+0x42DB868E).s, g_CVars.Aimbot.AngleLimitTens, path.c_str( ) );
@@ -295,13 +319,31 @@ void CConfig::Save( void )
 	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "DuckInAir", g_CVars.Miscellaneous.AntiAim.DuckInAir, path.c_str( ) );
 	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "RealValue", g_CVars.Miscellaneous.AntiAim.RealValue, path.c_str( ) );
 	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "FakeValue", g_CVars.Miscellaneous.AntiAim.FakeValue, path.c_str( ) );
-	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "EnemyCheck", g_CVars.Miscellaneous.AntiAim.TurnOff, path.c_str( ) );
 
-	WritePrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, /*Active*/XorStr<0x05,7,0x27ACD844>("\x44\x65\x73\x61\x7F\x6F"+0x27ACD844).s, g_CVars.Miscellaneous.Fakelag.Active, path.c_str( ) );
+	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAPitchMode", g_CVars.Miscellaneous.AntiAim.PitchMode, path.c_str( ) );
+	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAChokeEvery", g_CVars.Miscellaneous.AntiAim.ChokeEvery, path.c_str( ) );
+	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealYawMode", g_CVars.Miscellaneous.AntiAim.Real.YawMode, path.c_str( ) );
+	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealYawAngle", g_CVars.Miscellaneous.AntiAim.Real.YawAngle, path.c_str( ) );
+	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealJitterStyle", g_CVars.Miscellaneous.AntiAim.Real.JitterStyle, path.c_str( ) );
+	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealJitterAmount", g_CVars.Miscellaneous.AntiAim.Real.JitterAmount, path.c_str( ) );
+	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealJitterInterval", g_CVars.Miscellaneous.AntiAim.Real.JitterInterval, path.c_str( ) );
+	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AARealSpinSpeed", g_CVars.Miscellaneous.AntiAim.Real.SpinSpeed, path.c_str( ) );
+	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeYawMode", g_CVars.Miscellaneous.AntiAim.Fake.YawMode, path.c_str( ) );
+	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeYawAngle", g_CVars.Miscellaneous.AntiAim.Fake.YawAngle, path.c_str( ) );
+	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeJitterStyle", g_CVars.Miscellaneous.AntiAim.Fake.JitterStyle, path.c_str( ) );
+	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeJitterAmount", g_CVars.Miscellaneous.AntiAim.Fake.JitterAmount, path.c_str( ) );
+	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeJitterInterval", g_CVars.Miscellaneous.AntiAim.Fake.JitterInterval, path.c_str( ) );
+	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAFakeSpinSpeed", g_CVars.Miscellaneous.AntiAim.Fake.SpinSpeed, path.c_str( ) );
+
+
+
+	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AAChokeEvery", g_CVars.Miscellaneous.AntiAim.ChokeEvery, path.c_str( ) );
 	WritePrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, /*Mode*/XorStr<0xA1,5,0x038D62E9>("\xEC\xCD\xC7\xC1"+0x038D62E9).s, g_CVars.Miscellaneous.Fakelag.Mode, path.c_str( ) );
 	WritePrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, "Value", g_CVars.Miscellaneous.Fakelag.Value, path.c_str( ) );
 	WritePrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, "InAttack", g_CVars.Miscellaneous.Fakelag.InAttack, path.c_str( ) );
 	WritePrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, "AirOnly", g_CVars.Miscellaneous.Fakelag.AirOnly, path.c_str( ) );
+	WritePrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, "Min", g_CVars.Miscellaneous.Fakelag.Min, path.c_str( ) );
+	WritePrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, "Max", g_CVars.Miscellaneous.Fakelag.Max, path.c_str( ) );
 
 	WritePrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "BunnyHop", g_CVars.Miscellaneous.BunnyHop, path.c_str( ) );
 	WritePrivateProfileInteger( /*Miscellaneous*/XorStr<0x45,14,0x11CF7276>("\x08\x2F\x34\x2B\x2C\x26\x27\x2D\x23\x2B\x20\x25\x22"+0x11CF7276).s, "AutoStrafe", g_CVars.Miscellaneous.AutoStrafe, path.c_str( ) );
