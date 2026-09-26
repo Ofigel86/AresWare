@@ -166,17 +166,24 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 			yawBase = RAD2DEG( atan2f( vTo.y, vTo.x ) );
 		}
 
+		// deterministic noise -> stable offsets without CRT state
+		auto AAHash = []( unsigned int n ) -> unsigned int
+		{
+			n ^= ( n >> 11 ); n *= 2654435761u; n ^= ( n >> 15 );
+			return n;
+		};
+
+		// stable-per-window offset for the plain Random mode (re-rolled per real packet)
 		static float flRandYaw = 0.f;
 		if( bSendPacket )
-		{
-			// re-roll once per real packet -> the fake run between two sent
-			// packets shares one random offset (stable silhouette per window)
-			unsigned int n = ( unsigned int )( pCmd->command_number * 1103515245u + 12345u );
-			n ^= ( n >> 11 ); n *= 2654435761u; n ^= ( n >> 15 );
-			flRandYaw = ( ( ( n >> 16 ) & 0xFF ) * ( 1.f / 255.f ) ) * 360.f - 180.f;
-		}
+			flRandYaw = ( ( AAHash( pCmd->command_number * 1103515245u + 12345u ) >> 16 ) & 0xFF ) * ( 360.f / 255.f ) - 180.f;
 
-		auto ResolveYaw = [&]( int mode, float flCustom ) -> float
+		float flJitter = g_CVars.Miscellaneous.AntiAim.AAJitterAmount;
+		int   iJitterInterval = g_CVars.Miscellaneous.AntiAim.AAJitterInterval;
+		if( iJitterInterval < 1 ) iJitterInterval = 1;
+		float flSpinSpeed = g_CVars.Miscellaneous.AntiAim.AASpinSpeed;
+
+		auto ResolveYaw = [&]( int mode, float flCustom, int role ) -> float
 		{
 			switch( mode )
 			{
@@ -184,18 +191,35 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 				case 1: return yawBase;						// at target
 				case 2: return yawBase + 180.f;				// backwards
 				case 3: return yawBase + ( ( pCmd->command_number & 1 ) ? 90.f : -90.f );	// sideways flip
-				case 4: return yawBase + 180.f + flRandYaw;	// random jitter around the back
-				case 5: return yawBase + flCustom;			// custom offset
+				case 4: return yawBase + 180.f + flRandYaw;	// random, stable within one choke window
+				case 5: // jitter: alternates +-amount around the back every interval
+				{
+					int phase = ( pCmd->command_number / iJitterInterval ) & 1;
+					return yawBase + 180.f + ( phase ? flJitter : -flJitter );
+				}
+				case 6: // random jitter: fresh offset inside +-amount every interval
+				{
+					unsigned int n = AAHash( pCmd->command_number / iJitterInterval
+						+ ( ( unsigned int )role * 0x9E3779B1u ) );
+					float r = ( ( n >> 16 ) & 0xFF ) * ( 1.f / 255.f );
+					return yawBase + 180.f + ( r * 2.f - 1.f ) * flJitter;
+				}
+				case 7: // spin: sweeps the full circle, sudden per-tick steps
+				{
+					float f = fmodf( ( float )pCmd->command_number * flSpinSpeed, 360.f );
+					return yawBase + f - 180.f;
+				}
+				case 8: return yawBase + flCustom;			// custom offset
 			}
 			return yawBase + 180.f;
 		};
 
 		if( bSendPacket )
 			pCmd->viewangles.y = ResolveYaw( g_CVars.Miscellaneous.AntiAim.AARealYawMode,
-				g_CVars.Miscellaneous.AntiAim.AARealCustom );
+				g_CVars.Miscellaneous.AntiAim.AARealCustom, 0 );
 		else
 			pCmd->viewangles.y = ResolveYaw( g_CVars.Miscellaneous.AntiAim.AAFakeYawMode,
-				g_CVars.Miscellaneous.AntiAim.AAFakeCustom );
+				g_CVars.Miscellaneous.AntiAim.AAFakeCustom, 1 );
 
 		switch( g_CVars.Miscellaneous.AntiAim.AAPitchMode )
 		{
@@ -204,8 +228,14 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 			case 2: pCmd->viewangles.x = -89.f; break;				// up
 			case 3: pCmd->viewangles.x = bSendPacket ? 89.f : -179.990005f; break;	// fake down
 			case 4: pCmd->viewangles.x = bSendPacket ? 89.f : 179.990005f; break;	// fake up
-			case 5: pCmd->viewangles.x = ( pCmd->command_number & 1 ) ? 89.f : -89.f; break;	// jitter
-			case 6: pCmd->viewangles.x = g_CVars.Miscellaneous.AntiAim.AAPitchCustom; break;
+			case 5: pCmd->viewangles.x = ( pCmd->command_number & 1 ) ? 89.f : -89.f; break;	// jitter fast
+			case 6: pCmd->viewangles.x = ( ( pCmd->command_number / iJitterInterval ) & 1 ) ? 89.f : -89.f; break;	// jitter slow
+			case 7: // random down/up
+			{
+				unsigned int n = AAHash( pCmd->command_number * 0x27D4EB2Fu );
+				pCmd->viewangles.x = ( ( ( n >> 16 ) & 0xFF ) * ( 1.f / 255.f ) > 0.5f ) ? 89.f : -89.f;
+			} break;
+			case 8: pCmd->viewangles.x = g_CVars.Miscellaneous.AntiAim.AAPitchCustom; break;
 		}
 
 		// network-grid quantization (Segregation Compress_Angle)

@@ -120,12 +120,15 @@ public:
 			int Pitch, Yaw, Variation, DuckPitch, DuckYaw, DuckVariation, WallDetectionMode;
 			float RealValue, FakeValue;
 			// own anti-aim engine cvars
-			int   AAPitchMode = 3;          // 0 Off, 1 Down 89, 2 Up -89, 3 FakeDown, 4 FakeUp, 5 Jitter, 6 Custom
+			int   AAPitchMode = 3;          // 0 Off 1 Down 2 Up 3 FakeDown 4 FakeUp 5 JitFast 6 JitSlow 7 Rand 8 Custom
 			float AAPitchCustom = 89.f;
-			int   AARealYawMode = 2;        // 0 Off, 1 AtTarget, 2 Backwards, 3 Sideways, 4 Random, 5 Custom
-			int   AAFakeYawMode = 4;        // same list, applied on choked commands
+			int   AARealYawMode = 2;        // 0 Off 1 AtTarget 2 Backwards 3 Sideways 4 Random 5 Jit 6 RandJit 7 Spin 8 Custom
+			int   AAFakeYawMode = 6;        // same list, applied on choked commands
 			float AARealCustom = 180.f;
 			float AAFakeCustom = 180.f;
+			float AAJitterAmount = 45.f;    // how far the yaw jitters swing off the back
+			int   AAJitterInterval = 2;     // commands per jitter phase (1 = every command)
+			float AASpinSpeed = 20.f;		// degrees per command for the Spin mode
 		};
 
 		class Fakelag

@@ -308,19 +308,23 @@ static void RageAntiAim( void )
 		SectionHeader( "ANTI-AIM" );
 		ImGui::Checkbox( "Anti-Aim Active", &g_CVars.Miscellaneous.AntiAim.Active );
 
-		const char* aaPitchModes[] = { "Off", "Down", "Up", "Fake Down", "Fake Up", "Jitter", "Custom" };
+		const char* aaPitchModes[] = { "Off", "Down", "Up", "Fake Down", "Fake Up", "Jitter Fast", "Jitter Slow", "Random", "Custom" };
 		ImGui::Combo( "Pitch", &g_CVars.Miscellaneous.AntiAim.AAPitchMode, aaPitchModes, IM_ARRAYSIZE( aaPitchModes ) );
-		if( g_CVars.Miscellaneous.AntiAim.AAPitchMode == 6 )
+		if( g_CVars.Miscellaneous.AntiAim.AAPitchMode == 8 )
 			ImGui::SliderFloat( "Custom Pitch", &g_CVars.Miscellaneous.AntiAim.AAPitchCustom, -89.f, 89.f, "%.1f" );
 
-		const char* aaYawModes[] = { "Off", "At Target", "Backwards", "Sideways", "Random", "Custom" };
+		const char* aaYawModes[] = { "Off", "At Target", "Backwards", "Sideways", "Random", "Jitter", "Jitter Random", "Spin", "Custom" };
 		ImGui::Combo( "Real Yaw", &g_CVars.Miscellaneous.AntiAim.AARealYawMode, aaYawModes, IM_ARRAYSIZE( aaYawModes ) );
-		if( g_CVars.Miscellaneous.AntiAim.AARealYawMode == 5 )
+		if( g_CVars.Miscellaneous.AntiAim.AARealYawMode == 8 )
 			ImGui::SliderFloat( "Real Yaw Offset", &g_CVars.Miscellaneous.AntiAim.AARealCustom, -180.f, 180.f, "%.1f" );
 
 		ImGui::Combo( "Fake Yaw", &g_CVars.Miscellaneous.AntiAim.AAFakeYawMode, aaYawModes, IM_ARRAYSIZE( aaYawModes ) );
-		if( g_CVars.Miscellaneous.AntiAim.AAFakeYawMode == 5 )
+		if( g_CVars.Miscellaneous.AntiAim.AAFakeYawMode == 8 )
 			ImGui::SliderFloat( "Fake Yaw Offset", &g_CVars.Miscellaneous.AntiAim.AAFakeCustom, -180.f, 180.f, "%.1f" );
+
+		ImGui::SliderFloat( "Jitter Amount", &g_CVars.Miscellaneous.AntiAim.AAJitterAmount, 1.f, 180.f, "%.0f" );
+		ImGui::SliderInt( "Jitter Interval", &g_CVars.Miscellaneous.AntiAim.AAJitterInterval, 1, 8 );
+		ImGui::SliderFloat( "Spin Speed", &g_CVars.Miscellaneous.AntiAim.AASpinSpeed, 3.f, 60.f, "%.0f" );
 	}
 	ImGui::EndChild( );
 }
