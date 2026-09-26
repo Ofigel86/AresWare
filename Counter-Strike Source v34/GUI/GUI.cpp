@@ -258,13 +258,7 @@ static void RageTargeting( void )
 
 		ImGui::SliderFloat( "Point Scale", &g_CVars.Aimbot.PointScale, 0.0f, 1.0f, "%.2f" );
 
-		const char* heightModeNames[] = { "Auto", "Origin", "Center", "Center Fixed", "Highest" };
-		ImGui::Combo( "Height Mode", &g_CVars.Aimbot.HitboxMode, heightModeNames, IM_ARRAYSIZE( heightModeNames ) );
-		int iAimHeightPct = ( int )( g_CVars.Aimbot.AimHeight * 100.f + 0.5f );
-		if( iAimHeightPct > 100 ) iAimHeightPct = 100;
-		if( iAimHeightPct < 0 ) iAimHeightPct = 0;
-		if( ImGui::SliderInt( "Aim Height %", &iAimHeightPct, 50, 100 ) )
-			g_CVars.Aimbot.AimHeight = ( float )iAimHeightPct * 0.01f;
+		ImGui::SliderFloat( "Aim Height", &g_CVars.Aimbot.AimHeight, 0.0f, 1.0f, "%.2f" );
 
 		const char* targetSelectionNames[] = { "Distance", "Health", "Next Shot", "Random" };
 		ImGui::Combo( "Target Selection", &g_CVars.Aimbot.TargetSelection, targetSelectionNames, IM_ARRAYSIZE( targetSelectionNames ) );
@@ -311,50 +305,13 @@ static void RageAntiAim( void )
 {
 	ImGui::BeginChild( "Rage_AntiAim", ImVec2( 440, 0 ), true );
 	{
-		SectionHeader( "ANTI-AIM (HVH)" );
+		SectionHeader( "ANTI-AIM (SEGREGATION)" );
 		ImGui::Checkbox( "Anti-Aim Active", &g_CVars.Miscellaneous.AntiAim.Active );
 
-		const char* pitchNames[] = { "Off", "Normal", "Inverse Normal", "Safe", "Fake Down", "Down", "Up", "Lag Down", "Lag Up" };
-		ImGui::Combo( "Pitch", &g_CVars.Miscellaneous.AntiAim.Pitch, pitchNames, IM_ARRAYSIZE( pitchNames ) );
-
-		const char* yawNames[] = { "Forwards", "Backwards", "Sideways", "Jitter", "Static", "Static Reversed", "Lisp", "Custom" };
-		ImGui::Combo( "Yaw", &g_CVars.Miscellaneous.AntiAim.Yaw, yawNames, IM_ARRAYSIZE( yawNames ) );
-
-		std::vector< const char* > yawVariations;
-		if( g_CVars.Miscellaneous.AntiAim.Yaw == 3 )
-		{
-			yawVariations = { "Normal", "Synced", "Static", "Static Synced" };
-		}
-		else if( g_CVars.Miscellaneous.AntiAim.Yaw == 6 )
-		{
-			yawVariations = { "m3nly", "m3nly #2", "Jitter", "1337" };
-		}
-		else if( g_CVars.Miscellaneous.AntiAim.Yaw == 7 )
-		{
-			yawVariations = { "Additional", "Static" };
-		}
-		else
-		{
-			yawVariations = { "Normal", "Fake Side 1", "Fake Side 2", "Random" };
-		}
-
-		if( g_CVars.Miscellaneous.AntiAim.Variation >= ( int )yawVariations.size( ) )
-			g_CVars.Miscellaneous.AntiAim.Variation = 0;
-
-		ImGui::Combo( "Yaw Mode", &g_CVars.Miscellaneous.AntiAim.Variation, yawVariations.data( ), ( int )yawVariations.size( ) );
-
-		ImGui::SliderFloat( "Custom Real Yaw", &g_CVars.Miscellaneous.AntiAim.RealValue, 0.0f, 360.0f, "%.1f deg" );
-		ImGui::SliderFloat( "Custom Fake Yaw", &g_CVars.Miscellaneous.AntiAim.FakeValue, 0.0f, 360.0f, "%.1f deg" );
-
-		ImGui::Checkbox( "InAttack Pitch", &g_CVars.Miscellaneous.AntiAim.Static );
-		ImGui::Checkbox( "Wall Detection", &g_CVars.Miscellaneous.AntiAim.WallDetection );
-
-		const char* wallDtcModes[] = { "Normal", "Fake", "Fake Out", "Jitter" };
-		ImGui::Combo( "Wall DTC Mode", &g_CVars.Miscellaneous.AntiAim.WallDetectionMode, wallDtcModes, IM_ARRAYSIZE( wallDtcModes ) );
-
-		ImGui::Checkbox( "At Targets", &g_CVars.Miscellaneous.AntiAim.AtTargets );
-		ImGui::Checkbox( "Duck In Air", &g_CVars.Miscellaneous.AntiAim.DuckInAir );
-		ImGui::Checkbox( "Enemy Check", &g_CVars.Miscellaneous.AntiAim.TurnOff );
+		ImGui::SliderFloat( "Fake Pitch X", &g_CVars.Miscellaneous.AntiAim.AngleX, -89.f, 180.f, "%.1f" );
+		ImGui::SliderFloat( "Choked Yaw A", &g_CVars.Miscellaneous.AntiAim.FirstChokedYaw, -180.f, 180.f, "%.1f" );
+		ImGui::SliderFloat( "Choked Yaw B", &g_CVars.Miscellaneous.AntiAim.SecondChokedYaw, -180.f, 180.f, "%.1f" );
+		ImGui::SliderFloat( "Yaw On Send", &g_CVars.Miscellaneous.AntiAim.AngleY, -180.f, 180.f, "%.1f" );
 	}
 	ImGui::EndChild( );
 }

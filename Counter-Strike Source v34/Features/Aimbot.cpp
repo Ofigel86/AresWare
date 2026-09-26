@@ -128,67 +128,40 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 	for( int i = 0; i < 8; i++ )
 		points[ i + 1 ] = vCenter + ( vCorners[ i ] - vCenter ) * flPointScale;
 
-	float flPitch = Entity->m_angEyeAngles( ).x;
-
-	if( iHitbox == 12 )
-	{
-		if( g_CVars.Aimbot.HitboxMode == 0 )
-		{
-			if( g_CVars.Aimbot.AutoHeightMode[ Entity->entindex( ) ] == 1 )
-			{
-				if( Entity->m_vecVelocity( ).Length2D( ) < 40.f && !( Entity->m_fFlags( ) & FL_DUCKING ) )
-				{
-					Vector a = ( ( points[ 3 ] + points[ 5 ] ) * .5f );
-
-					if( ( flPitch > 50.f ) && ( flPitch < 91.f ) )
-					{
-						Vector b = ( ( ( a - points[ 0 ] ) / 3 ) * 4 );
-						Vector c = ( points[ 0 ] + ( b * .7f ) );
-						points[ 0 ] = c;
-					}
-					else if( ( flPitch >= -91.f ) && ( flPitch <= -50.f ) ) points[ 0 ].z -= 1.f;
-				}
-				else
-				{
-					if( ( flPitch > 50.f ) && ( flPitch < 91.f ) )
-					{
-						points[ 0 ].x = studiobbox->bbmin.x * .75f;
-						points[ 0 ].y = studiobbox->bbmax.y * .75f; 
-						points[ 0 ].z = ( studiobbox->bbmin.z + studiobbox->bbmax.z ) * .5f;
-					}
-					else if( ( flPitch >= -91.f ) && ( flPitch <= -50.f ) ) points[ 0 ].z -= 1.f;
-				}
-			}
-		}
-	}
 	for( int index = 0; index <= 8; ++index ) VectorTransform( points[ index ], matrix[ studiobbox->bone ], vecCorners[ index ] );
 
-	// Segregation aim-height logic (their Interface_Aim_Height, default 0.9):
-	// pass every full-box corner through the bone matrix, find the REAL world-space
-	// Z extremes among the 8 vertices (their Hitbox_Z_Vertices / minmax_element),
-	// then aim at the vertical fraction between them:
-	//   Target[2] = Zmin + (Zmax - Zmin) * h   (Bones[14][2][3] is already in world Z).
-	if( g_CVars.Aimbot.HitboxMode != 0 )
+	// ================================================================
+	// Segregation aiming geometry, transplanted as-is:
+	//   all 8 hitbox corners passed through the bone matrix (their Bones[14]),
+	//   minmax of the REAL world Z vertices (their Hitbox_Z_Vertices),
+	//   head aim point = vWorldCenter.xy + Zmin + (Zmax-Zmin)*Interface_Aim_Height.
+	// Applied unconditionally: there is no "height mode" anywhere in their
+	// code - only the Interface_Aim_Height fraction (default 0.9).
+	// ================================================================
+	float hFrac = g_CVars.Aimbot.AimHeight;
+	if( hFrac < 0.f ) hFrac = 0.f;
+	if( hFrac > 1.f ) hFrac = 1.f;
+
+	Vector vCenterWorld;
+	VectorTransform( vCenter, matrix[ studiobbox->bone ], vCenterWorld );
+
+	float vZMin = 999999.f, vZMax = -999999.f;
+	for( int i = 0; i < 8; i++ )
 	{
-		float hFrac = g_CVars.Aimbot.AimHeight;
-		if( hFrac > 1.f ) hFrac *= 0.01f; // tolerate percent in the ini
-		if( hFrac < 0.f ) hFrac = 0.f;
-		if( hFrac > 1.f ) hFrac = 1.f;
+		Vector vCornerWorld;
+		VectorTransform( vCorners[ i ], matrix[ studiobbox->bone ], vCornerWorld );
+		if( vCornerWorld.z < vZMin ) vZMin = vCornerWorld.z;
+		if( vCornerWorld.z > vZMax ) vZMax = vCornerWorld.z;
+	}
 
-		Vector vCenterWorld;
-		VectorTransform( vCenter, matrix[ studiobbox->bone ], vCenterWorld );
-
-		float vZMin = 999999.f, vZMax = -999999.f;
-		for( int i = 0; i < 8; i++ )
-		{
-			Vector vCornerWorld;
-			VectorTransform( vCorners[ i ], matrix[ studiobbox->bone ], vCornerWorld );
-			if( vCornerWorld.z < vZMin ) vZMin = vCornerWorld.z;
-			if( vCornerWorld.z > vZMax ) vZMax = vCornerWorld.z;
-		}
-
+	if( iHitbox == 12 ) // their Bones[14] = head bone: aim-height fraction
+	{
 		vecCorners[ 0 ] = Vector( vCenterWorld.x, vCenterWorld.y,
 			vZMin + ( vZMax - vZMin ) * hFrac );
+	}
+	else // every other hitbox: plain world center
+	{
+		vecCorners[ 0 ] = vCenterWorld;
 	}
 
 	if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );

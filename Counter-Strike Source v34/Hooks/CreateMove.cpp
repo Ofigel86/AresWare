@@ -7,11 +7,6 @@ DWORD dwCreateMove = NULL; // runtime: ( DWORD ) BASE_CLIENT + 0x87270 (module b
 extern float g_flAAHitReactUntil; // set by the player_hurt handler (see GameEventManager.cpp)
 extern int   g_iAAHitReactCount;
 
-// engine RNG with a safe fallback until vstdlib pointers are resolved
-static float AARand( float mn, float mx )
-{
-	return RandomFloat ? RandomFloat( mn, mx ) : ( ( mn + mx ) * .5f );
-}
 static bool bSendPacket;
 int sequence_number = 0;
 
@@ -30,192 +25,6 @@ float _clamp( float val, float minVal, float maxVal )
 static bool pass = false;
 static int queue = 0;
 static bool angelfix = false;
-
-void AntiAimPitch( CUserCmd* pCmd, BasePlayer* LocalPlayer )
-{
-	// note: lisp doesnt do shit in css, needs max float
-
-	switch( g_CVars.Miscellaneous.AntiAim.Pitch )
-	{
-		case 0: break;
-		case 1: pCmd->viewangles.x = 180.f; break;																// normal
-		case 2: pCmd->viewangles.x = -180.f; break; 															// inverse normal
-		case 3: pCmd->viewangles.x = 70.f; break;																// safe
-		case 4: pCmd->viewangles.x = -179.990005f; break; 														// fakedown
-		case 5: pCmd->viewangles.x = 697049.f; break;															// lisp down
-		case 6: pCmd->viewangles.x = 696871.f; break; 															// lisp up
-		case 7: pCmd->viewangles.x = ( bSendPacket ) ? 697049.f : 696871.f; break; 								// fake lisp down
-		case 8: pCmd->viewangles.x = ( bSendPacket ) ? 696871.f : 697049.f; break; 								// fake lisp up
-	}
-}
-
-static bool twitch, twitchfake, edgetwitch, edgetwitchfake;
-
-void AntiAimYaw( CUserCmd* pCmd, BasePlayer* LocalPlayer, bool fake, bool half )
-{
-	Vector Velocity = LocalPlayer->m_vecVelocity( );
-	
-	if( fake )
-	{
-		switch( g_CVars.Miscellaneous.AntiAim.Yaw )
-		{
-			case 0: 
-			{
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					case 0: break;
-					case 1: pCmd->viewangles.y += ( half ) ? 270.f : 181.f; break;
-					case 2: pCmd->viewangles.y += ( half ) ? 90.f : 179.f; break;
-					case 3: pCmd->viewangles.y += 180.f; break;
-				}
-				break;
-			}
-			case 1:
-			{
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					case 0: pCmd->viewangles.y += 180.f; break;
-					case 1: pCmd->viewangles.y += ( half ) ? 90.f : 1.f; break;
-					case 2: pCmd->viewangles.y += ( half ) ? 270.f : 359.f; break;
-					case 3: break;
-				}
-				break;
-			}
-			case 2:
-			{
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					case 0: pCmd->viewangles.y += 270.f; break;
-					case 1: pCmd->viewangles.y += ( half ) ? 180.f : 91.f; break;
-					case 2: pCmd->viewangles.y += ( half ) ? 360.f : 89.f; break;
-					case 3: pCmd->viewangles.y += 90.f; break;
-				}
-				break;
-			}
-			case 3:
-			{
-				twitchfake = !twitchfake; // fixed: old pair left twitchfake == twitch (fake jitter mirrored real)
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					// randomized fake-side jitter: table-driven resolvers (0 / +-90 / 180)
-					// lose the stable pattern they used to read
-					case 0: pCmd->viewangles.y += ( twitchfake ) ? 180.f + AARand( -45.f, 45.f ) : AARand( -20.f, 20.f ); break;
-					case 1: pCmd->viewangles.y += 180.f + ( ( twitchfake ) ? AARand( -179.99f, -135.f ) : AARand( -20.f, 20.f ) ); break;
-					case 2: pCmd->viewangles.y = ( twitchfake ) ? AARand( 60.f, 120.f ) : AARand( -120.f, -60.f ); break;
-					case 3: pCmd->viewangles.y = 180.f + ( ( twitchfake ) ? AARand( 70.f, 110.f ) : AARand( -110.f, -70.f ) ); break;
-				}
-				break;
-			}
-			case 4:
-			{
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					case 0: pCmd->viewangles.y = 180.f; break;
-					case 1: pCmd->viewangles.y = ( half ) ? 90.f : 1.f; break;
-					case 2: pCmd->viewangles.y = ( half ) ? 280.f : 359.f; break;
-					case 3: pCmd->viewangles.y = 360.f; break;
-				}
-				break;
-			}
-			case 5:
-			{
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					case 0: pCmd->viewangles.y = 360.f; break;
-					case 1: pCmd->viewangles.y = ( half ) ? 270.f : 181.f; break;
-					case 2: pCmd->viewangles.y = ( half ) ? 90.f : 179.f; break;
-					case 3: pCmd->viewangles.y = 180.f; break;
-				}
-				break;
-			}
-			case 6:
-			{
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					twitchfake = !twitchfake; // fixed: old pair left twitchfake == twitch (fake jitter mirrored real)
-					case 0: pCmd->viewangles.y += 697075.087936f; break;
-					case 1: pCmd->viewangles.y += 697018.087936f; break;
-					case 2: pCmd->viewangles.y += ( twitchfake ) ? 696960.f : 697140.f; break;
-					case 3:
-					{
-						int value = ( g_iGameTicks % 4 );
-						switch ( value ) 
-						{					
-							case 0: pCmd->viewangles.y = 697140.f; break;
-							case 1: pCmd->viewangles.y = 697230.f; break;
-							case 2: pCmd->viewangles.y = 696960.f; break;
-							case 3: pCmd->viewangles.y = 697050.f; break;
-						}
-					}
-				}
-				break;
-			}
-			case 7:
-			{
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					case 0: pCmd->viewangles.y += g_CVars.Miscellaneous.AntiAim.FakeValue; break;
-					case 1: pCmd->viewangles.y = g_CVars.Miscellaneous.AntiAim.FakeValue; break;
-				}
-				break;
-			}
-		}
-	}
-	else
-	{
-		switch( g_CVars.Miscellaneous.AntiAim.Yaw )
-		{
-			case 0: break;
-			case 1: pCmd->viewangles.y += 180.f; break;
-			case 2: pCmd->viewangles.y += 270.f; break;
-			case 3:
-			{
-				twitch = !twitch;
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					case 0: pCmd->viewangles.y += ( twitch ) ? 180.f : 0.f; break;
-					case 1: pCmd->viewangles.y += 180.f + ( ( twitch ) ? -179.990005f : 0.f ); break;
-					case 2: pCmd->viewangles.y = ( twitch ) ? 90.f : -90.f; break;
-					case 3: pCmd->viewangles.y = 180.f + ( ( twitch ) ? 90.f : -89.990005f ); break;
-				}
-				break;
-			}
-			case 4: pCmd->viewangles.y = 180.f; break;
-			case 5: pCmd->viewangles.y = 0.f; break;
-			case 6:
-			{
-				twitch = !twitch;
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					case 0: pCmd->viewangles.y -= 696805.f; break;
-					case 1: pCmd->viewangles.y -= 696805.f; break;
-					case 2: pCmd->viewangles.y += ( twitch ) ? 696960.f : 697140.f; break; 
-					case 3: // fake 4-step spin
-					{
-						int value = ( g_iGameTicks % 4 );
-						switch ( value ) 
-						{
-							case 0: pCmd->viewangles.y = 696960.f; break;
-							case 1: pCmd->viewangles.y = 697050.f; break;
-							case 2: pCmd->viewangles.y = 697140.f; break;
-							case 3: pCmd->viewangles.y = 697230.f; break;
-						}
-					}
-				}
-				break;
-			}
-			case 7:
-			{
-				switch( g_CVars.Miscellaneous.AntiAim.Variation )
-				{
-					case 0: pCmd->viewangles.y += g_CVars.Miscellaneous.AntiAim.RealValue; break;
-					case 1: pCmd->viewangles.y = g_CVars.Miscellaneous.AntiAim.RealValue; break;
-				}
-				break;
-			}
-		}
-	}
-}
 
 void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 {
@@ -304,12 +113,9 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 	}
 	else
 	{
-		if( g_CVars.Miscellaneous.AntiAim.Active )
-		{
-			static bool flip;
-			flip = !flip;
-			if( flip ) ShouldChoke = true;
-		}
+		static bool flip;
+		flip = !flip;
+		if( flip ) ShouldChoke = true;
 	}
 
 	if( pass ) ShouldChoke = false;
@@ -329,75 +135,71 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 
 	if( g_CVars.Miscellaneous.AntiAim.Active )
 	{
-		for( int i = g_pGlobals->maxClients; i >= 1; i-- )
+		// ================================================================
+		// SEGREGATION anti-aim (verbatim transplant of their Copy_Command):
+		//   reached ONLY on non-firing commands (their In_Attack == 0 gate).
+		//   pitch = Interface_Angle_X                (default 180)
+		//   choked cmds: yaw = atan2(target-local) + First/Second_Choked_Y
+		//                (alternating by command_number parity)
+		//   sent cmds:   yaw = atan2(target-local) + Interface_Angle_Y
+		//   then every angle is compressed to the network grid.
+		//   No enemy nearby -> camera angles pass through (only compressed).
+		// ================================================================
+		pCmd->buttons &= ~IN_ATTACK;
+
+		BasePlayer* pTarget = NULL;
+		float flBestDistSqr = 100000000.f;
+		Vector vLocalOrigin = LocalPlayer->m_vecOrigin( );
+
+		for( int i = 1; i <= g_pGlobals->maxClients; i++ )
 		{
-			if( i == g_pEngineClient->GetLocalPlayer( ) ) continue;			
+			if( i == g_pEngineClient->GetLocalPlayer( ) ) continue;
 			BasePlayer* Ent = ( BasePlayer* )g_pClientEntityList->GetClientEntity( i );
 			if( !Ent ) continue;
-			if( !( *( int* )( ( DWORD ) Ent + 0x87 ) == 0 ) ) continue;
+			if( !( *( int* )( ( DWORD ) Ent + 0x87 ) == 0 ) ) continue;   // их life_state check
 			if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
 
-			ret = false;
-		}
-
-		if( g_CVars.Miscellaneous.AntiAim.TurnOff )
-		{
-			if( ret ) return;
-		}
-
-		if( ( MoveType == Valve::MoveType_t::MOVETYPE_LADDER ) && ( pCmd->buttons & IN_DUCK ) )
-		{
-			if( !bSendPacket ) pCmd->buttons &= ~IN_DUCK;
-		}
-
-		if( g_CVars.Miscellaneous.AntiAim.AtTargets ) g_Stuff.AntiAim.AtTargets( LocalPlayer, pCmd, bSendPacket );
-
-		if( g_CVars.Miscellaneous.AntiAim.WallDetection && Velocity.Length( ) < 300.f )
-		{
-			if( g_CVars.Miscellaneous.AntiAim.WallDetectionMode == 0 ) WallDTC = g_Stuff.AntiAim.WallDetection( LocalPlayer, pCmd, 0.f );
-			else if( g_CVars.Miscellaneous.AntiAim.WallDetectionMode == 1 ) WallDTC = g_Stuff.AntiAim.WallDetection( LocalPlayer, pCmd, ( bSendPacket ) ? 0.f : 180.f );
-			else if( g_CVars.Miscellaneous.AntiAim.WallDetectionMode == 2 ) WallDTC = g_Stuff.AntiAim.WallDetection( LocalPlayer, pCmd, ( bSendPacket ) ? 180.f : 0.f );
-			else if( g_CVars.Miscellaneous.AntiAim.WallDetectionMode == 3 )
+			float flDistSqr = ( Ent->m_vecOrigin( ) - vLocalOrigin ).LengthSqr( );
+			if( flDistSqr < flBestDistSqr )
 			{
-				if( bSendPacket )
-				{
-					edgetwitch = !edgetwitch;
-					WallDTC = g_Stuff.AntiAim.WallDetection( LocalPlayer, pCmd, ( edgetwitch ) ? 0.f : 180.f );
-				}
-				else
-				{
-					edgetwitchfake = !edgetwitch;
-					edgetwitchfake = !edgetwitchfake;
-					WallDTC = g_Stuff.AntiAim.WallDetection( LocalPlayer, pCmd, ( edgetwitch ) ? 0.f : 180.f );
-				}
+				flBestDistSqr = flDistSqr;
+				pTarget = Ent;
 			}
 		}
 
-		if( MoveType != Valve::MoveType_t::MOVETYPE_LADDER )
+		if( pTarget )
 		{
-			if( WallDTC ) pCmd->viewangles.x = 89.f;
+			pCmd->viewangles.x = g_CVars.Miscellaneous.AntiAim.AngleX;
+
+			Vector vTargetOrigin = pTarget->m_vecOrigin( );
+			float yawBase = RAD2DEG( atan2f( vTargetOrigin.y - vLocalOrigin.y,
+				vTargetOrigin.x - vLocalOrigin.x ) );
+
+			if( !bSendPacket )
+			{
+				// чокнутые команды: First/Second_Choked_Angle_Y по чётности command_number
+				if( ( pCmd->command_number & 1 ) == 0 )
+					pCmd->viewangles.y = yawBase + g_CVars.Miscellaneous.AntiAim.FirstChokedYaw;
+				else
+					pCmd->viewangles.y = yawBase + g_CVars.Miscellaneous.AntiAim.SecondChokedYaw;
+			}
 			else
 			{
-				AntiAimPitch( pCmd, LocalPlayer );
-				if( bSendPacket ) AntiAimYaw( pCmd, LocalPlayer, false, false );
-				else
-				{
-					AntiAimYaw( pCmd, LocalPlayer, true, true );
-
-					// hit-reaction: an enemy resolver just memorized the fake side it
-					// hurt us through - invert + noise it for ~1.5 s so that memory
-					// immediately goes stale
-					if( g_pGlobals && g_flAAHitReactUntil > 0.f && g_pGlobals->curtime < g_flAAHitReactUntil )
-					{
-						pCmd->viewangles.y += 180.f + AARand( -35.f, 35.f );
-					}
-
-					if( g_CVars.Miscellaneous.AntiAim.DuckInAir && LocalPlayer->GetVelocity( ).z > 0 ) pCmd->buttons |= IN_DUCK;
-				}
+				// реальная (отправляемая) команда: Interface_Angle_Y
+				pCmd->viewangles.y = yawBase + g_CVars.Miscellaneous.AntiAim.AngleY;
 			}
 		}
-	}
 
+		// их Compress_Angle: ((int)(x/360*shift) & (shift-1)) * (360/shift)
+		auto CompressAngle = []( float x, int shift ) -> float
+		{
+			return (float)( ( (int)( x / 360.f * (float)shift ) ) & ( shift - 1 ) ) * ( 360.f / (float)shift );
+		};
+
+		pCmd->viewangles.x = CompressAngle( pCmd->viewangles.x, 65536 );
+		pCmd->viewangles.y = CompressAngle( pCmd->viewangles.y, 65536 );
+		pCmd->viewangles.z = CompressAngle( pCmd->viewangles.z, 256 );
+	}
 	pass = false;
 }
 

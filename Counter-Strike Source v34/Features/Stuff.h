@@ -119,6 +119,11 @@ public:
 			bool Active, Static, WallDetection, DuckInAir, TurnOff, AtTargets;
 			int Pitch, Yaw, Variation, DuckPitch, DuckYaw, DuckVariation, WallDetectionMode;
 			float RealValue, FakeValue;
+			// Segregation transplant cvars (their defaults: all 180)
+			float AngleX = 180.f;           // Interface_Angle_X (fake pitch)
+			float AngleY = 180.f;           // Interface_Angle_Y (real/sent yaw offset)
+			float FirstChokedYaw = 180.f;   // Interface_First_Choked_Angle_Y
+			float SecondChokedYaw = 180.f;  // Interface_Second_Choked_Angle_Y
 		};
 
 		class Fakelag

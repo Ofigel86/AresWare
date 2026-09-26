@@ -93,7 +93,7 @@ void CConfig::Load( void )
 	g_CVars.Aimbot.AntiSMAC = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AntiSMAC*/XorStr<0x07,9,0xDB906D0E>("\x46\x66\x7D\x63\x58\x41\x4C\x4D"+0xDB906D0E).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.BodyAWP = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*BodyAWP*/XorStr<0xCA,8,0x15077618>("\x88\xA4\xA8\xB4\x8F\x98\x80"+0x15077618).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.PointScale = GetPrivateProfileFloat( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*PointScale*/XorStr<0xBE,11,0x1EFB65EC>("\xEE\xD0\xA9\xAF\xB6\x90\xA7\xA4\xAA\xA2"+0x1EFB65EC).s, 0, path.c_str( ) );
-	g_CVars.Aimbot.AimHeight = GetPrivateProfileFloat( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, "AimHeight", 90.f, path.c_str( ) );
+	g_CVars.Aimbot.AimHeight = GetPrivateProfileFloat( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, "AimHeight", 0.9f, path.c_str( ) );
 	g_CVars.Aimbot.SnapLimiter = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*SnapLimiter*/XorStr<0xCD,12,0xE92FD079>("\x9E\xA0\xAE\xA0\x9D\xBB\xBE\xBD\xA1\xB3\xA5"+0xE92FD079).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.AngleLimit = GetPrivateProfileInteger( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AngleLimit*/XorStr<0x55,11,0x2BCB8202>("\x14\x38\x30\x34\x3C\x16\x32\x31\x34\x2A"+0x2BCB8202).s, 0, path.c_str( ) );
 	g_CVars.Aimbot.AngleLimitTens = GetPrivateProfileFloat( /*Aimbot*/XorStr<0x06,7,0x1D2CE0D1>("\x47\x6E\x65\x6B\x65\x7F"+0x1D2CE0D1).s, /*AngleLimitTens*/XorStr<0x4F,15,0x42DB868E>("\x0E\x3E\x36\x3E\x36\x18\x3C\x3B\x3E\x2C\x0D\x3F\x35\x2F"+0x42DB868E).s, 0, path.c_str( ) );
@@ -158,6 +158,10 @@ void CConfig::Load( void )
 	g_CVars.Miscellaneous.AntiAim.DuckInAir = GetPrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "DuckInAir", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.AntiAim.RealValue = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "RealValue", 0, path.c_str( ) );
 	g_CVars.Miscellaneous.AntiAim.FakeValue = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "FakeValue", 0, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.AngleX = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AngleX", 180.f, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.AngleY = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AngleY", 180.f, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.FirstChokedYaw = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "YawFirst", 180.f, path.c_str( ) );
+	g_CVars.Miscellaneous.AntiAim.SecondChokedYaw = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "YawSecond", 180.f, path.c_str( ) );
 	g_CVars.Miscellaneous.AntiAim.TurnOff = GetPrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "EnemyCheck", 0, path.c_str( ) );
 
 	g_CVars.Miscellaneous.Fakelag.Active = GetPrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, /*Active*/XorStr<0x05,7,0x27ACD844>("\x44\x65\x73\x61\x7F\x6F"+0x27ACD844).s, 0, path.c_str( ) );
@@ -299,6 +303,10 @@ void CConfig::Save( void )
 	WritePrivateProfileInteger( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "DuckInAir", g_CVars.Miscellaneous.AntiAim.DuckInAir, path.c_str( ) );
 	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "RealValue", g_CVars.Miscellaneous.AntiAim.RealValue, path.c_str( ) );
 	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "FakeValue", g_CVars.Miscellaneous.AntiAim.FakeValue, path.c_str( ) );
+	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AngleX", g_CVars.Miscellaneous.AntiAim.AngleX, path.c_str( ) );
+	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "AngleY", g_CVars.Miscellaneous.AntiAim.AngleY, path.c_str( ) );
+	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "YawFirst", g_CVars.Miscellaneous.AntiAim.FirstChokedYaw, path.c_str( ) );
+	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "YawSecond", g_CVars.Miscellaneous.AntiAim.SecondChokedYaw, path.c_str( ) );
 	WritePrivateProfileFloat( /*AntiAim*/XorStr<0x67,8,0x84564416>("\x26\x06\x1D\x03\x2A\x05\x00"+0x84564416).s, "EnemyCheck", g_CVars.Miscellaneous.AntiAim.TurnOff, path.c_str( ) );
 
 	WritePrivateProfileInteger( /*Fakelag*/XorStr<0x0D,8,0xB5531447>("\x4B\x6F\x64\x75\x7D\x73\x74"+0xB5531447).s, /*Active*/XorStr<0x05,7,0x27ACD844>("\x44\x65\x73\x61\x7F\x6F"+0x27ACD844).s, g_CVars.Miscellaneous.Fakelag.Active, path.c_str( ) );
