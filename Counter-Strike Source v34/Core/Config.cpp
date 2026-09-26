@@ -118,9 +118,9 @@ void CConfig::Load( void )
 	g_CVars.Accuracy.PerfectAccuracy = GetPrivateProfileInteger( /*Accuracy*/XorStr<0xAF,9,0x175251A2>("\xEE\xD3\xD2\xC7\xC1\xD5\xD6\xCF"+0x175251A2).s, /*PerfectAccuracy*/XorStr<0x62,16,0xCAB6BBCD>("\x32\x06\x16\x03\x03\x04\x1C\x28\x09\x08\x19\x1F\x0F\x0C\x09"+0xCAB6BBCD).s, 0, path.c_str( ) );
 	g_CVars.Accuracy.NoSpreadMode = GetPrivateProfileInteger( /*Accuracy*/XorStr<0xAF,9,0x175251A2>("\xEE\xD3\xD2\xC7\xC1\xD5\xD6\xCF"+0x175251A2).s, /*NoSpreadMode*/XorStr<0x89,13,0xABE30353>("\xC7\xE5\xD8\xFC\xFF\xEB\xEE\xF4\xDC\xFD\xF7\xF1"+0xABE30353).s, 1, path.c_str( ) );
 
-	g_CVars.Visuals.ESP.Box = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Box", 0, path.c_str( ) );
-	g_CVars.Visuals.ESP.Name = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Name", 0, path.c_str( ) );
-	g_CVars.Visuals.ESP.Health = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Health", 0, path.c_str( ) );
+	g_CVars.Visuals.ESP.Box = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Box", 1, path.c_str( ) ); // default ON: the ImGui menu for toggling was never reachable on the test rig
+	g_CVars.Visuals.ESP.Name = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Name", 1, path.c_str( ) ); // default ON (same reason)
+	g_CVars.Visuals.ESP.Health = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Health", 1, path.c_str( ) ); // default ON (same reason)
 	g_CVars.Visuals.ESP.Weapon = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Weapon", 0, path.c_str( ) );
 	g_CVars.Visuals.ESP.Bone = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "Bone", 0, path.c_str( ) );
 	g_CVars.Visuals.ESP.AimSpot = GetPrivateProfileInteger( /*ESP*/XorStr<0x4F,4,0x16AF489D>("\x0A\x03\x01"+0x16AF489D).s, "AimSpot", 0, path.c_str( ) );

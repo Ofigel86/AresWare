@@ -440,14 +440,15 @@ namespace
 			calls++;
 
 			const ULONGLONG now = GetTickCount64( );
-			if( lastLog && now - lastLog > 15000 )
+			if( !lastLog ) lastLog = now;
+			if( now - lastLog > 15000 )
 			{
 				Logger::Write( "[perf] Aimbot::Main avg %.3f ms / worst %.3f ms over %d calls in 15 s",
 					( float )ema, ( float )worst, calls );
 				worst = 0.0;
 				calls = 0;
+				lastLog = now; // fixed: previously never updated -> [perf] line was written every call
 			}
-			if( !lastLog ) lastLog = now;
 		}
 	};
 }
