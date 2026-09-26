@@ -54,7 +54,7 @@
       <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <Optimization>Full</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;OLDCSSHOOK_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>%(ProjectDir);%(ProjectDir)\SDK;%(ProjectDir)\ImGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Core;$(ProjectDir)Hooks;$(ProjectDir)Features;$(ProjectDir)GUI;$(ProjectDir)Vendor;$(ProjectDir)SDK;$(ProjectDir)ImGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MinimalRebuild>false</MinimalRebuild>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
@@ -80,7 +80,7 @@
       <SupportUnloadOfDelayLoadedDLL>true</SupportUnloadOfDelayLoadedDLL>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
 
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)Vendor;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>d3d9.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -95,7 +95,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;OLDCSSHOOK_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>false</SDLCheck>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>%(ProjectDir);%(ProjectDir)\SDK;%(ProjectDir)\ImGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)Core;$(ProjectDir)Hooks;$(ProjectDir)Features;$(ProjectDir)GUI;$(ProjectDir)Vendor;$(ProjectDir)SDK;$(ProjectDir)ImGui;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
@@ -112,7 +112,7 @@
       <OptimizeReferences>true</OptimizeReferences>
 
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)Vendor;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>d3d9.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ProjectReference>
@@ -120,15 +120,15 @@
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="ade32.h" />
-    <ClInclude Include="Aimbot.h" />
-    <ClInclude Include="Config.h" />
-    <ClInclude Include="D3D9Hook.h" />
-    <ClInclude Include="detours2.h" />
-    <ClInclude Include="Drawing.h" />
-    <ClInclude Include="GameEventManager.h" />
-    <ClInclude Include="GUI.h" />
-    <ClInclude Include="Hook.h" />
+    <ClInclude Include="Vendor\ade32.h" />
+    <ClInclude Include="Features\Aimbot.h" />
+    <ClInclude Include="Core\Config.h" />
+    <ClInclude Include="Hooks\D3D9Hook.h" />
+    <ClInclude Include="Vendor\detours2.h" />
+    <ClInclude Include="GUI\Drawing.h" />
+    <ClInclude Include="Hooks\GameEventManager.h" />
+    <ClInclude Include="GUI\GUI.h" />
+    <ClInclude Include="Core\Hook.h" />
     <ClInclude Include="ImGui\imconfig.h" />
     <ClInclude Include="ImGui\imgui.h" />
     <ClInclude Include="ImGui\imgui_impl_dx9.h" />
@@ -137,58 +137,60 @@
     <ClInclude Include="ImGui\imstb_rectpack.h" />
     <ClInclude Include="ImGui\imstb_textedit.h" />
     <ClInclude Include="ImGui\imstb_truetype.h" />
-    <ClInclude Include="Macro.h" />
-    <ClInclude Include="Main.h" />
-    <ClInclude Include="md5.h" />
-    <ClInclude Include="NoSpread.h" />
-    <ClInclude Include="NOTES.h" />
-    <ClInclude Include="Prediction.h" />
-    <ClInclude Include="Recorder.h" />
-    <ClInclude Include="SdkIncludes.h" />
+    <ClInclude Include="Features\Macro.h" />
+    <ClInclude Include="Core\Main.h" />
+    <ClInclude Include="Vendor\md5.h" />
+    <ClInclude Include="Features\NoSpread.h" />
+    <ClInclude Include="Core\NOTES.h" />
+    <ClInclude Include="Hooks\Prediction.h" />
+    <ClInclude Include="Features\Recorder.h" />
+    <ClInclude Include="Features\Resolver.h" />
+    <ClInclude Include="Core\SdkIncludes.h" />
     <ClInclude Include="SDK\NetvarManager.h" />
-    <ClInclude Include="Stuff.h" />
-    <ClInclude Include="VMTHook.h" />
-    <ClInclude Include="Whitelist.h" />
-    <ClInclude Include="XOR.h" />
+    <ClInclude Include="Features\Stuff.h" />
+    <ClInclude Include="Core\VMTHook.h" />
+    <ClInclude Include="Features\Whitelist.h" />
+    <ClInclude Include="Vendor\XOR.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ade32.cpp" />
-    <ClCompile Include="Aimbot.cpp" />
-    <ClCompile Include="CL_Move.cpp" />
-    <ClCompile Include="Config.cpp" />
-    <ClCompile Include="CreateMove.cpp" />
-    <ClCompile Include="D3D9Hook.cpp" />
-    <ClCompile Include="detours2.cpp" />
-    <ClCompile Include="Drawing.cpp" />
-    <ClCompile Include="DrawModelEx.cpp" />
-    <ClCompile Include="FindMaterial.cpp" />
-    <ClCompile Include="FireBullets.cpp" />
-    <ClCompile Include="FrameStageNotify.cpp" />
-    <ClCompile Include="GameEventManager.cpp" />
-    <ClCompile Include="GetUserCmd.cpp" />
-    <ClCompile Include="GUI.cpp" />
-    <ClCompile Include="Hook.cpp" />
+    <ClCompile Include="Vendor\ade32.cpp" />
+    <ClCompile Include="Features\Aimbot.cpp" />
+    <ClCompile Include="Hooks\CL_Move.cpp" />
+    <ClCompile Include="Core\Config.cpp" />
+    <ClCompile Include="Hooks\CreateMove.cpp" />
+    <ClCompile Include="Hooks\D3D9Hook.cpp" />
+    <ClCompile Include="Vendor\detours2.cpp" />
+    <ClCompile Include="GUI\Drawing.cpp" />
+    <ClCompile Include="Hooks\DrawModelEx.cpp" />
+    <ClCompile Include="Hooks\FindMaterial.cpp" />
+    <ClCompile Include="Hooks\FireBullets.cpp" />
+    <ClCompile Include="Hooks\FrameStageNotify.cpp" />
+    <ClCompile Include="Hooks\GameEventManager.cpp" />
+    <ClCompile Include="Hooks\GetUserCmd.cpp" />
+    <ClCompile Include="GUI\GUI.cpp" />
+    <ClCompile Include="Core\Hook.cpp" />
     <ClCompile Include="ImGui\imgui.cpp" />
     <ClCompile Include="ImGui\imgui_draw.cpp" />
     <ClCompile Include="ImGui\imgui_impl_dx9.cpp" />
     <ClCompile Include="ImGui\imgui_impl_win32.cpp" />
     <ClCompile Include="ImGui\imgui_tables.cpp" />
     <ClCompile Include="ImGui\imgui_widgets.cpp" />
-    <ClCompile Include="InPrediction.cpp" />
-    <ClCompile Include="Interpolation.cpp" />
-    <ClCompile Include="KeyEvent.cpp" />
-    <ClCompile Include="Macro.cpp" />
-    <ClCompile Include="Main.cpp" />
-    <ClCompile Include="NoSpread.cpp" />
-    <ClCompile Include="PaintTraverse.cpp" />
-    <ClCompile Include="Prediction.cpp" />
-    <ClCompile Include="Recorder.cpp" />
-    <ClCompile Include="OverrideView.cpp" />
-    <ClCompile Include="RunCommand.cpp" />
+    <ClCompile Include="Hooks\InPrediction.cpp" />
+    <ClCompile Include="Hooks\Interpolation.cpp" />
+    <ClCompile Include="Hooks\KeyEvent.cpp" />
+    <ClCompile Include="Features\Macro.cpp" />
+    <ClCompile Include="Core\Main.cpp" />
+    <ClCompile Include="Features\NoSpread.cpp" />
+    <ClCompile Include="Hooks\PaintTraverse.cpp" />
+    <ClCompile Include="Hooks\Prediction.cpp" />
+    <ClCompile Include="Features\Recorder.cpp" />
+    <ClCompile Include="Features\Resolver.cpp" />
+    <ClCompile Include="Hooks\OverrideView.cpp" />
+    <ClCompile Include="Hooks\RunCommand.cpp" />
     <ClCompile Include="SDK\NetvarManager.cpp" />
-    <ClCompile Include="Stuff.cpp" />
-    <ClCompile Include="VMTHook.cpp" />
-    <ClCompile Include="Whitelist.cpp" />
+    <ClCompile Include="Features\Stuff.cpp" />
+    <ClCompile Include="Core\VMTHook.cpp" />
+    <ClCompile Include="Features\Whitelist.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

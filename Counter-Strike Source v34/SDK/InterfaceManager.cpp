@@ -6,7 +6,7 @@
 *																		*
 ************************************************************************/
 #include "InterfaceManager.h"
-#include "../SdkIncludes.h"
+#include "../Core/SdkIncludes.h"
 
 using namespace HackInterfaces;
 
