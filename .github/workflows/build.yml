@@ -1,0 +1,42 @@
+name: Build oldcsshook.dll
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    name: MSVC Release | Win32
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build solution (Release | Win32)
+        run: |
+          msbuild "Counter-Strike Source v34.sln" `
+            /m `
+            /p:Configuration=Release `
+            /p:Platform=Win32 `
+            /p:PlatformToolset=v143 `
+            /v:minimal
+
+      - name: Verify artifact
+        shell: pwsh
+        run: |
+          $dll = "Counter-Strike Source v34/SDK/oldcsshook.dll"
+          if (-not (Test-Path $dll)) { Write-Error "oldcsshook.dll was not produced"; exit 1 }
+          Get-Item $dll | Format-List Name, Length, LastWriteTime
+
+      - name: Upload oldcsshook.dll
+        uses: actions/upload-artifact@v4
+        with:
+          name: oldcsshook-release-win32
+          path: Counter-Strike Source v34/SDK/oldcsshook.dll
+          if-no-files-found: error
