@@ -662,7 +662,45 @@ void GUI::RenderConfigsTab( void )
 void GUI::DrawImGuiESP( void )
 {
 	if( !g_pGlobals || !g_pEngineClient || !g_pClientEntityList ) return;
-	if( !g_pEngineClient->IsInGame( ) ) return;
+
+	// self-heal screen size every frame (covers wrong GetScreenSize vfunc
+	// index and windowed<->fullscreen changes; DisplaySize is ground truth)
+	{
+		const ImVec2 disp = ImGui::GetIO( ).DisplaySize;
+		if( disp.x > 8.f && disp.y > 8.f )
+		{
+			screen_x = ( int )disp.x;
+			screen_y = ( int )disp.y;
+		}
+	}
+
+	const bool bInGame = g_pEngineClient->IsInGame( ) != 0;
+	static int s_dbgDrawn = 0, s_dbgW2sFail = 0, s_dbgFiltered = 0;
+
+	// on-screen + log diagnostics (temporary): renders even when everything
+	// else fails, so one look at the corner pinpoints the breakage stage
+	ImDrawList* pDbgDraw = ImGui::GetBackgroundDrawList( );
+	if( pDbgDraw )
+	{
+		char dbg[ 256 ];
+		sprintf_s( dbg, "ESP dbg | inGame=%d scr=%dx%d box=%d name=%d hp=%d maxcl=%d ok=%d w2sFail=%d filt=%d",
+			bInGame ? 1 : 0, screen_x, screen_y,
+			g_CVars.Visuals.ESP.Box ? 1 : 0, g_CVars.Visuals.ESP.Name ? 1 : 0, g_CVars.Visuals.ESP.Health ? 1 : 0,
+			g_pGlobals ? g_pGlobals->maxClients : -1, s_dbgDrawn, s_dbgW2sFail, s_dbgFiltered );
+		pDbgDraw->AddText( ImVec2( 9.f, 9.f ), IM_COL32( 0, 0, 0, 180 ), dbg );
+		pDbgDraw->AddText( ImVec2( 10.f, 10.f ), IM_COL32( 255, 220, 0, 240 ), dbg );
+
+		static ULONGLONG lastLog = 0;
+		const ULONGLONG now = GetTickCount64( );
+		if( now - lastLog > 10000 )
+		{
+			lastLog = now;
+			Logger::Write( "[esp] %s", dbg );
+			s_dbgDrawn = s_dbgW2sFail = s_dbgFiltered = 0;
+		}
+	}
+
+	if( !bInGame ) return;
 
 	if( !g_CVars.Visuals.ESP.Box && !g_CVars.Visuals.ESP.Name && !g_CVars.Visuals.ESP.Health ) return;
 
@@ -676,9 +714,9 @@ void GUI::DrawImGuiESP( void )
 	{
 		BasePlayer* Ent = ( BasePlayer* )g_pClientEntityList->GetClientEntity( Index );
 		if( !Ent || Ent == LocalPlayer ) continue;
-		if( Ent->IsDormant( ) ) continue;
-		if( Ent->m_lifeState( ) != 0 ) continue;
-		if( g_CVars.Visuals.ESP.EnemyOnly && Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
+		if( Ent->IsDormant( ) ) { s_dbgFiltered++; continue; }
+		if( Ent->m_lifeState( ) != 0 ) { s_dbgFiltered++; continue; }
+		if( g_CVars.Visuals.ESP.EnemyOnly && Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) { s_dbgFiltered++; continue; }
 
 		Color colour = Color::White( );
 		if( !g_CVars.PlayerList.Friend[ Index ] )
@@ -692,8 +730,9 @@ void GUI::DrawImGuiESP( void )
 		Vector vHead = vFoot + Vector( 0.f, 0.f, bDucking ? 53.5f : 72.f );
 
 		Vector sFoot, sHead;
-		if( !g_Stuff.WorldToScreen( vFoot, sFoot ) ) continue;
-		if( !g_Stuff.WorldToScreen( vHead, sHead ) ) continue;
+		if( !g_Stuff.WorldToScreen( vFoot, sFoot ) ) { s_dbgW2sFail++; continue; }
+		if( !g_Stuff.WorldToScreen( vHead, sHead ) ) { s_dbgW2sFail++; continue; }
+		s_dbgDrawn++;
 
 		float Height = sFoot.y - sHead.y;
 		float HalfW = Height * .225f;
