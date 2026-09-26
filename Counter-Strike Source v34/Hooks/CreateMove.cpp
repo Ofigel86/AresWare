@@ -3,6 +3,15 @@
 
 DWORD dwReturnAddress = NULL;
 DWORD dwCreateMove = NULL; // runtime: ( DWORD ) BASE_CLIENT + 0x87270 (module base is not known at static init)
+
+extern float g_flAAHitReactUntil; // set by the player_hurt handler (see GameEventManager.cpp)
+extern int   g_iAAHitReactCount;
+
+// engine RNG with a safe fallback until vstdlib pointers are resolved
+static float AARand( float mn, float mx )
+{
+	return RandomFloat ? RandomFloat( mn, mx ) : ( ( mn + mx ) * .5f );
+}
 static bool bSendPacket;
 int sequence_number = 0;
 
@@ -85,14 +94,15 @@ void AntiAimYaw( CUserCmd* pCmd, BasePlayer* LocalPlayer, bool fake, bool half )
 			}
 			case 3:
 			{
-				twitchfake = !twitch;
-				twitchfake = !twitchfake;
+				twitchfake = !twitchfake; // fixed: old pair left twitchfake == twitch (fake jitter mirrored real)
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					case 0: pCmd->viewangles.y += ( twitchfake ) ? 180.f : 0.f; break;
-					case 1: pCmd->viewangles.y += 180.f + ( ( twitchfake ) ? -179.990005f : 0.f ); break;
-					case 2: pCmd->viewangles.y = ( twitchfake ) ? 90.f : -90.f; break;
-					case 3: pCmd->viewangles.y = 180.f + ( ( twitchfake ) ? 90.f : -89.990005f ); break;
+					// randomized fake-side jitter: table-driven resolvers (0 / +-90 / 180)
+					// lose the stable pattern they used to read
+					case 0: pCmd->viewangles.y += ( twitchfake ) ? 180.f + AARand( -45.f, 45.f ) : AARand( -20.f, 20.f ); break;
+					case 1: pCmd->viewangles.y += 180.f + ( ( twitchfake ) ? AARand( -179.99f, -135.f ) : AARand( -20.f, 20.f ) ); break;
+					case 2: pCmd->viewangles.y = ( twitchfake ) ? AARand( 60.f, 120.f ) : AARand( -120.f, -60.f ); break;
+					case 3: pCmd->viewangles.y = 180.f + ( ( twitchfake ) ? AARand( 70.f, 110.f ) : AARand( -110.f, -70.f ) ); break;
 				}
 				break;
 			}
@@ -122,8 +132,7 @@ void AntiAimYaw( CUserCmd* pCmd, BasePlayer* LocalPlayer, bool fake, bool half )
 			{
 				switch( g_CVars.Miscellaneous.AntiAim.Variation )
 				{
-					twitchfake = !twitch;
-					twitchfake = !twitchfake;
+					twitchfake = !twitchfake; // fixed: old pair left twitchfake == twitch (fake jitter mirrored real)
 					case 0: pCmd->viewangles.y += 697075.087936f; break;
 					case 1: pCmd->viewangles.y += 697018.087936f; break;
 					case 2: pCmd->viewangles.y += ( twitchfake ) ? 696960.f : 697140.f; break;
@@ -349,6 +358,15 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 				else
 				{
 					AntiAimYaw( pCmd, LocalPlayer, true, true );
+
+					// hit-reaction: an enemy resolver just memorized the fake side it
+					// hurt us through - invert + noise it for ~1.5 s so that memory
+					// immediately goes stale
+					if( g_pGlobals && g_flAAHitReactUntil > 0.f && g_pGlobals->curtime < g_flAAHitReactUntil )
+					{
+						pCmd->viewangles.y += 180.f + AARand( -35.f, 35.f );
+					}
+
 					if( g_CVars.Miscellaneous.AntiAim.DuckInAir && LocalPlayer->GetVelocity( ).z > 0 ) pCmd->buttons |= IN_DUCK;
 				}
 			}
