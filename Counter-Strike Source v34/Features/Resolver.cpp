@@ -20,6 +20,8 @@ struct ResolverPlayerState
 	float	offsetAtLastShot;		// offset in use when we last fired at them
 	float	stationarySince;		// curtime they went idle, -1 while moving
 	int	yawMode;			// Smart aim-relative classification (AutoHeight)
+	int	bodyHits;			// sequential non-head hits - current offset stalls
+	int	headHits;			// head hits count (diag)
 };
 
 static ResolverPlayerState g_ResolverState[ 64 ];
@@ -44,6 +46,8 @@ static void Resolver_InitPlayer( ResolverPlayerState& st )
 	st.offsetAtLastShot = 0.f;
 	st.stationarySince = -1.f;
 	st.yawMode = 0;
+	st.bodyHits = 0;
+	st.headHits = 0;
 }
 
 void Resolver_ResetPlayer( int idx )
@@ -135,17 +139,44 @@ void Resolver_OnShot( int idx )
 		st.bfIndex = ( st.bfIndex + 1 ) % kResolverOffsetCount;
 }
 
-void Resolver_OnHit( int idx )
+void Resolver_OnHit( int idx, int hitgroup, int damage )
 {
 	if( idx < 1 || idx > 63 ) return;
 	ResolverPlayerState& st = g_ResolverState[ idx ];
 	if( !st.initialized ) return;
 
-	// Segregation Event_Processor: remember the offset that produced the hit
-	// and keep using it until the behavior clearly changes
-	st.memorizedOffset = st.offsetAtLastShot;
-	st.memoryActive = true;
-	st.memoryExpire = g_pGlobals->curtime + 6.f;
+	// hitgroup 1 == HITGROUP_HEAD (CSS hitgroup order: 0 generic, 1 head,
+	// 2 chest, 3 stomach, 4/5 arms, 6/7 legs)
+	if( hitgroup == 1 )
+	{
+		// Segregation Event_Processor: remember the offset that produced the
+		// HEAD hit and keep using it until the behavior clearly changes
+		st.memorizedOffset = st.offsetAtLastShot;
+		st.memoryActive = true;
+		st.memoryExpire = g_pGlobals->curtime + 6.f;
+		st.headHits++;
+		st.bodyHits = 0;
+		Logger::Write( "[resolver] idx=%d HEAD %ddmg - offset %.1f memorized%s (head %d)",
+			idx, damage, st.memorizedOffset, st.headHits - 1 ? "" : " (relearned)", st.headHits );
+	}
+	else
+	{
+		// A non-head hit proves the offset used for this bullet yields body
+		// contact only (classic vs down-pitch AA: head lies inside the chest
+		// volume). The old behavior memorized ANY hit's offset - a bodyshot
+		// froze the body-producing offset in memory for 6 seconds and every
+		// next bullet landed in the body again ("always body" loop). Now a
+		// body hit releases stale memory and walks the bruteforce table on.
+		st.bodyHits++;
+		if( st.memoryActive )
+		{
+			st.memoryActive = false;
+			Logger::Write( "[resolver] idx=%d body hg=%d %ddmg - stale memory released", idx, hitgroup, damage );
+		}
+		st.bfIndex = ( st.bfIndex + 1 ) % kResolverOffsetCount;
+		Logger::Write( "[resolver] idx=%d body hg=%d %ddmg (streak %d) - bf advance to %d",
+			idx, hitgroup, damage, st.bodyHits, st.bfIndex );
+	}
 }
 
 int Resolver_PickRecord( int idx )

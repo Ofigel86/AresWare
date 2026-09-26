@@ -28,8 +28,8 @@
 void Resolver_ResetPlayer( int idx );
 void Resolver_ResetAll( );
 
-void Resolver_OnShot( int idx );	// local player fired a bullet at idx
-void Resolver_OnHit( int idx );		// local player damaged idx (player_hurt)
+void Resolver_OnShot( int idx );							// local player fired a bullet at idx
+void Resolver_OnHit( int idx, int hitgroup, int damage );	// local player damaged idx (player_hurt)
 
 // Runs at FRAME_NET_UPDATE_POSTDATAUPDATE_START, overwrites the local copy of
 // the target's networked eye yaw with the resolved body facing (doResolve=false

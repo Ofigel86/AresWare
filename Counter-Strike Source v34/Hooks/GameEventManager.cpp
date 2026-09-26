@@ -33,12 +33,13 @@ void cGameEvent::FireGameEvent( IGameEvent* event )
 		int iKiller = g_pEngineClient->GetPlayerForUserID( event->GetInt( /*attacker*/XorStr<0xD5,9,0x71615992>("\xB4\xA2\xA3\xB9\xBA\xB1\xBE\xAE"+0x71615992).s, false ) );
 		int iVictim = g_pEngineClient->GetPlayerForUserID( event->GetInt( /*userid*/XorStr<0x20,7,0x8EFF66DE>("\x55\x52\x47\x51\x4D\x41"+0x8EFF66DE).s, false ) );
 		int iDamage = event->GetInt( /*dmg_health*/XorStr<0x72,11,0x9F8B268B>("\x16\x1E\x13\x2A\x1E\x12\x19\x15\x0E\x13"+0x9F8B268B).s, false );
+		int iHitgroup = event->GetInt( /*hitgroup*/XorStr<0x5C,9,0x2C71AA4E>("\x34\x34\x2A\x38\x12\x0E\x17\x13"+0x2C71AA4E).s, false );
 
 		if( iKiller == g_pEngineClient->GetLocalPlayer( ) && iVictim != g_pEngineClient->GetLocalPlayer( ) )
 		{
-			// the offset used for the victim's bones when this bullet was fired
-			// worked — memorize it (Segregation Memorized_Y)
-			Resolver_OnHit( iVictim );
+			// hit-group aware: memorize the firing offset only on HEAD hits;
+			// body hits release stale memory and advance the bruteforce table
+			Resolver_OnHit( iVictim, iHitgroup, iDamage );
 
 			BasePlayer* Ent = ( BasePlayer* ) g_pClientEntityList->GetClientEntity( iVictim );
 
