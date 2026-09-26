@@ -133,6 +133,19 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 	}
 	else queue = 0;
 
+	// Segregation wiring: when AA is on, every 3rd command is ALWAYS choked
+	// - that choked command is the one carrying the fake yaw/pitch. Without
+	// this slice, fake angles only appear while the fakelag feature happens
+	// to be choking. The queue-cap above batches them back out in time.
+	if( g_CVars.Miscellaneous.AntiAim.Active && bSendPacket )
+	{
+		if( ( pCmd->command_number % 3 ) == 1 && queue < 13 )
+		{
+			bSendPacket = false;
+			++queue;
+		}
+	}
+
 	if( g_CVars.Miscellaneous.AntiAim.Active )
 	{
 		// ================================================================
