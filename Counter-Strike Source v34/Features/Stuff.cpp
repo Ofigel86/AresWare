@@ -311,7 +311,6 @@ void Stuff::AntiAim::AtTargets( BasePlayer* LocalPlayer, CUserCmd* pCmd, bool bS
 		BasePlayer* Ent = ( BasePlayer* )g_pClientEntityList->GetClientEntity( i );
 		if( !Ent ) continue;
 		if( !( *( int* )( ( DWORD ) Ent + 0x87 ) == 0 ) ) continue;
-		if( !Ent->IsAlive( ) ) continue;
 		if( Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
 
 		Vector dst = Ent->EyePosition( );
