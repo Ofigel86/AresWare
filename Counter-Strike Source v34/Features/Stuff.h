@@ -119,16 +119,21 @@ public:
 			bool Active, Static, WallDetection, DuckInAir, TurnOff, AtTargets;
 			int Pitch, Yaw, Variation, DuckPitch, DuckYaw, DuckVariation, WallDetectionMode;
 			float RealValue, FakeValue;
-			// own anti-aim engine cvars
-			int   AAPitchMode = 3;          // 0 Off 1 Down 2 Up 3 FakeDown 4 FakeUp 5 JitFast 6 JitSlow 7 Rand 8 Custom
-			float AAPitchCustom = 89.f;
-			int   AARealYawMode = 2;        // 0 Off 1 AtTarget 2 Backwards 3 Sideways 4 Random 5 Jit 6 RandJit 7 Spin 8 Custom
-			int   AAFakeYawMode = 6;        // same list, applied on choked commands
-			float AARealCustom = 180.f;
-			float AAFakeCustom = 180.f;
-			float AAJitterAmount = 45.f;    // how far the yaw jitters swing off the back
-			int   AAJitterInterval = 2;     // commands per jitter phase (1 = every command)
-			float AASpinSpeed = 20.f;		// degrees per command for the Spin mode
+			// own anti-aim engine: one full profile per movement condition
+			struct AAProfileCfg
+			{
+				int   PitchMode      = 3;	// 0 Off 1 Down 2 Up 3 FakeDown 4 FakeUp 5 JitFast 6 JitSlow 7 Rand 8 Custom
+				float PitchCustom    = 89.f;
+				int   RealYawMode    = 2;	// 0 Off 1 AtTarget 2 Backwards 3 Sideways 4 Random 5 Jit 6 RandJit 7 Spin 8 Custom
+				int   FakeYawMode    = 6;
+				float RealCustom     = 180.f;
+				float FakeCustom     = 180.f;
+				float JitterAmount   = 45.f;
+				int   JitterInterval = 2;
+			};
+			bool CondEnabled = false;
+			AAProfileCfg Conditions[ 5 ];	// 0 Stand, 1 Air, 2 Crouch, 3 SlowWalk, 4 Move
+			float AASpinSpeed = 20.f;		// degrees per command for Spin (global)
 		};
 
 		class Fakelag

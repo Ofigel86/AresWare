@@ -142,6 +142,18 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 		// ================================================================
 		pCmd->buttons &= ~IN_ATTACK;
 
+		// ---- condition profile: Air > SlowWalk > Crouch > Move > Stand ----
+		int aaCond = 0;
+		if( g_CVars.Miscellaneous.AntiAim.CondEnabled )
+		{
+			unsigned int fl = ( unsigned int )LocalPlayer->m_fFlags( );
+			if( !( fl & 1u ) )                                            aaCond = 1;	// in air
+			else if( pCmd->buttons & 65536 )                              aaCond = 3;	// slow walk
+			else if( fl & 2u )                                            aaCond = 2;	// crouching
+			else if( fabsf( pCmd->forwardmove ) > 5.f || fabsf( pCmd->sidemove ) > 5.f ) aaCond = 4;	// moving
+		}
+		auto& PRO = g_CVars.Miscellaneous.AntiAim.Conditions[ aaCond ];
+
 		// direction to the nearest enemy = the semantic base of AtTarget /
 		// Backwards / Sideways; without an enemy the camera yaw is the base
 		BasePlayer* pTarget = NULL;
@@ -178,8 +190,8 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 		if( bSendPacket )
 			flRandYaw = ( ( AAHash( pCmd->command_number * 1103515245u + 12345u ) >> 16 ) & 0xFF ) * ( 360.f / 255.f ) - 180.f;
 
-		float flJitter = g_CVars.Miscellaneous.AntiAim.AAJitterAmount;
-		int   iJitterInterval = g_CVars.Miscellaneous.AntiAim.AAJitterInterval;
+		float flJitter = PRO.JitterAmount;
+		int   iJitterInterval = PRO.JitterInterval;
 		if( iJitterInterval < 1 ) iJitterInterval = 1;
 		float flSpinSpeed = g_CVars.Miscellaneous.AntiAim.AASpinSpeed;
 
@@ -215,13 +227,11 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 		};
 
 		if( bSendPacket )
-			pCmd->viewangles.y = ResolveYaw( g_CVars.Miscellaneous.AntiAim.AARealYawMode,
-				g_CVars.Miscellaneous.AntiAim.AARealCustom, 0 );
+			pCmd->viewangles.y = ResolveYaw( PRO.RealYawMode, PRO.RealCustom, 0 );
 		else
-			pCmd->viewangles.y = ResolveYaw( g_CVars.Miscellaneous.AntiAim.AAFakeYawMode,
-				g_CVars.Miscellaneous.AntiAim.AAFakeCustom, 1 );
+			pCmd->viewangles.y = ResolveYaw( PRO.FakeYawMode, PRO.FakeCustom, 1 );
 
-		switch( g_CVars.Miscellaneous.AntiAim.AAPitchMode )
+		switch( PRO.PitchMode )
 		{
 			case 0: break;								// camera pitch
 			case 1: pCmd->viewangles.x = 89.f; break;				// down
@@ -235,7 +245,7 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 				unsigned int n = AAHash( pCmd->command_number * 0x27D4EB2Fu );
 				pCmd->viewangles.x = ( ( ( n >> 16 ) & 0xFF ) * ( 1.f / 255.f ) > 0.5f ) ? 89.f : -89.f;
 			} break;
-			case 8: pCmd->viewangles.x = g_CVars.Miscellaneous.AntiAim.AAPitchCustom; break;
+			case 8: pCmd->viewangles.x = PRO.PitchCustom; break;
 		}
 
 		// network-grid quantization (Segregation Compress_Angle)
