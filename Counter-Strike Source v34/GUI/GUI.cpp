@@ -322,7 +322,7 @@ static void RageAntiAim( void )
 	ImGui::EndChild( );
 
 	// ---------------- REAL (left) / FAKE (right) ----------------
-	const char* aaYawModes[] = { "Static", "Jitter", "Spin" };
+	const char* aaYawModes[] = { "Static", "Jitter", "Spin", "Random" };
 	const char* aaJitStyles[] = { "Offset", "Center", "Reverse" };
 
 	auto DrawSide = [&]( auto& side, const char* tableId, const char* header, float halfWidth, int sideIdx )
@@ -335,7 +335,7 @@ static void RageAntiAim( void )
 
 			ImGui::Combo( AA_LBL( "Yaw Mode" ), &side.YawMode, aaYawModes, IM_ARRAYSIZE( aaYawModes ) );
 
-			if( side.YawMode != 2 )	// spin does not read the angle slider
+			if( side.YawMode < 2 )	// spin & random do not read the angle slider
 				ImGui::SliderFloat( AA_LBL( "Yaw Angle" ), &side.YawAngle, -180.f, 180.f, "%.0f deg" );
 
 			if( side.YawMode == 1 )

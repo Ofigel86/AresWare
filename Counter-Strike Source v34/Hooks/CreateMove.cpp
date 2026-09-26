@@ -217,6 +217,12 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 					}
 				} break;
 				case 2: return yawBase + fmodf( ( float )pCmd->command_number * side.SpinSpeed, 360.f );	// spin
+				case 3: // random: fresh -180..180 offset every command
+				{
+					unsigned int n = AAHash( pCmd->command_number + ( ( unsigned int )( bSendPacket ? 0 : 1 ) * 0x9E3779B1u ) );
+					float r = ( ( n >> 16 ) & 0xFF ) * ( 1.f / 255.f );
+					return yawBase + r * 360.f - 180.f;
+				}
 			}
 			return yawBase + 180.f;
 		};
