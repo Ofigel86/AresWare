@@ -303,40 +303,76 @@ static void RageAccuracy( void )
 
 static void RageAntiAim( void )
 {
-	ImGui::BeginChild( "Rage_AntiAim", ImVec2( 440, 0 ), true );
+	static int s_AACond = 0;
+
+	// ---------------- header ----------------
+	ImGui::BeginChild( "Rage_AA_Header", ImVec2( 0, 100 ), true );
 	{
 		SectionHeader( "ANTI-AIM" );
 		ImGui::Checkbox( "Anti-Aim Active", &g_CVars.Miscellaneous.AntiAim.Active );
+		ImGui::SameLine( );
 		ImGui::Checkbox( "Enable Conditions", &g_CVars.Miscellaneous.AntiAim.CondEnabled );
 
-		static int s_AACond = 0;
 		const char* aaConds[] = { "Stand", "In Air", "Crouch", "Slow Walk", "Move" };
-		if( g_CVars.Miscellaneous.AntiAim.CondEnabled )
-			ImGui::Combo( "Condition", &s_AACond, aaConds, IM_ARRAYSIZE( aaConds ) );
+		if( !g_CVars.Miscellaneous.AntiAim.CondEnabled ) s_AACond = 0;
+		ImGui::Combo( g_CVars.Miscellaneous.AntiAim.CondEnabled ? "Condition" : "Condition (editing Stand)", &s_AACond, aaConds, IM_ARRAYSIZE( aaConds ) );
 
-		auto& aaPro = g_CVars.Miscellaneous.AntiAim.Conditions[ s_AACond ];
-		char aaLabel[ 64 ];
-		#define AA_LBL( text ) ( sprintf_s( aaLabel, sizeof( aaLabel ), "%s##%d", text, s_AACond ), aaLabel )
-
-		const char* aaPitchModes[] = { "Off", "Down", "Up", "Fake Down", "Fake Up", "Jitter Fast", "Jitter Slow", "Random", "Custom" };
-		ImGui::Combo( AA_LBL( "Pitch" ), &aaPro.PitchMode, aaPitchModes, IM_ARRAYSIZE( aaPitchModes ) );
-		if( aaPro.PitchMode == 8 )
-			ImGui::SliderFloat( AA_LBL( "Custom Pitch" ), &aaPro.PitchCustom, -89.f, 89.f, "%.1f" );
-
-		const char* aaYawModes[] = { "Off", "At Target", "Backwards", "Sideways", "Random", "Jitter", "Jitter Random", "Spin", "Custom" };
-		ImGui::Combo( AA_LBL( "Real Yaw" ), &aaPro.RealYawMode, aaYawModes, IM_ARRAYSIZE( aaYawModes ) );
-		if( aaPro.RealYawMode == 8 )
-			ImGui::SliderFloat( AA_LBL( "Real Yaw Offset" ), &aaPro.RealCustom, -180.f, 180.f, "%.1f" );
-
-		ImGui::Combo( AA_LBL( "Fake Yaw" ), &aaPro.FakeYawMode, aaYawModes, IM_ARRAYSIZE( aaYawModes ) );
-		if( aaPro.FakeYawMode == 8 )
-			ImGui::SliderFloat( AA_LBL( "Fake Yaw Offset" ), &aaPro.FakeCustom, -180.f, 180.f, "%.1f" );
-
-		ImGui::SliderFloat( AA_LBL( "Jitter Amount" ), &aaPro.JitterAmount, 1.f, 180.f, "%.0f" );
-		ImGui::SliderInt( AA_LBL( "Jitter Interval" ), &aaPro.JitterInterval, 1, 8 );
-		ImGui::SliderFloat( "Spin Speed", &g_CVars.Miscellaneous.AntiAim.AASpinSpeed, 3.f, 60.f, "%.0f" );
-		#undef AA_LBL
+		const char* chokeRates[] = { "Fake every 2nd cmd", "Fake every 3rd cmd", "Fake every 4th cmd" };
+		static int s_ChokeIdx = g_CVars.Miscellaneous.AntiAim.ChokeEvery - 2;
+		if( s_ChokeIdx < 0 ) s_ChokeIdx = 0;
+		if( s_ChokeIdx > 2 ) s_ChokeIdx = 2;
+		if( ImGui::Combo( "Choke Rate", &s_ChokeIdx, chokeRates, IM_ARRAYSIZE( chokeRates ) ) )
+			g_CVars.Miscellaneous.AntiAim.ChokeEvery = s_ChokeIdx + 2;
 	}
+	ImGui::EndChild( );
+	ImGui::SameLine( );
+
+	// ---------------- two side tables ----------------
+	auto& aaPro = g_CVars.Miscellaneous.AntiAim.Conditions[ s_AACond ];
+
+	const char* aaPitchModes[] = { "Off", "Down", "Up", "Fake Down", "Fake Up", "Jitter", "Random", "Custom" };
+	const char* aaYawModes[]   = { "Off", "At Target", "Backwards", "Sideways", "Spin", "Custom" };
+	const char* aaJitModes[]   = { "Off", "Flip", "Random" };
+
+	auto DrawSide = [&]( auto& side, const char* tableId, int sideIdx )
+	{
+		float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemInnerSpacing.x ) * 0.5f;
+		ImGui::BeginChild( tableId, ImVec2( halfWidth, 0 ), true );
+		{
+			char lbl[ 96 ];
+			#define AA_LBL( txt ) ( sprintf_s( lbl, sizeof( lbl ), "%s##c%ds%d", txt, s_AACond, sideIdx ), lbl )
+
+			ImGui::Combo( AA_LBL( "Pitch" ), &side.PitchMode, aaPitchModes, IM_ARRAYSIZE( aaPitchModes ) );
+			if( side.PitchMode == 7 )
+				ImGui::SliderFloat( AA_LBL( "Custom Pitch" ), &side.PitchCustom, -89.f, 89.f, "%.1f" );
+
+			ImGui::Combo( AA_LBL( "Yaw" ), &side.YawMode, aaYawModes, IM_ARRAYSIZE( aaYawModes ) );
+			if( side.YawMode == 5 )
+				ImGui::SliderFloat( AA_LBL( "Yaw Offset" ), &side.YawCustom, -180.f, 180.f, "%.1f" );
+			if( side.YawMode == 4 )
+				ImGui::SliderFloat( AA_LBL( "Spin Speed" ), &side.SpinSpeed, 3.f, 90.f, "%.0f" );
+
+			ImGui::Combo( AA_LBL( "Jitter" ), &side.JitterMode, aaJitModes, IM_ARRAYSIZE( aaJitModes ) );
+			if( side.JitterMode != 0 )
+			{
+				ImGui::SliderFloat( AA_LBL( "Jitter Degrees" ), &side.JitterAmount, 1.f, 180.f, "%.0f" );
+				ImGui::SliderInt( AA_LBL( "Jitter Interval" ), &side.JitterInterval, 1, 8 );
+			}
+			#undef AA_LBL
+		}
+		ImGui::EndChild( );
+	};
+
+	ImGui::BeginGroup( );
+	{
+		DrawSide( aaPro.Real, "Rage_AA_Real", 0 );
+		ImGui::SameLine( );
+		DrawSide( aaPro.Fake, "Rage_AA_Fake", 1 );
+	}
+	ImGui::EndGroup( );
+
+	// ---------------- fakelag, 3rd table at the bottom ----------------
+	ImGui::BeginChild( "Rage_AA_Fakelag", ImVec2( 0, 190 ), true );
 	ImGui::EndChild( );
 }
 

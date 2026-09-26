@@ -139,7 +139,9 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 	// to be choking. The queue-cap above batches them back out in time.
 	if( g_CVars.Miscellaneous.AntiAim.Active && bSendPacket )
 	{
-		if( ( pCmd->command_number % 3 ) == 1 && queue < 13 )
+		int iChokeEvery = g_CVars.Miscellaneous.AntiAim.ChokeEvery;
+		if( iChokeEvery < 2 ) iChokeEvery = 2;
+		if( ( pCmd->command_number % iChokeEvery ) == 1 && queue < 13 )
 		{
 			bSendPacket = false;
 			++queue;
@@ -191,83 +193,83 @@ void AntiAim( BasePlayer* LocalPlayer, CUserCmd* pCmd, int LagValue )
 			yawBase = RAD2DEG( atan2f( vTo.y, vTo.x ) );
 		}
 
-		// deterministic noise -> stable offsets without CRT state
 		auto AAHash = []( unsigned int n ) -> unsigned int
 		{
 			n ^= ( n >> 11 ); n *= 2654435761u; n ^= ( n >> 15 );
 			return n;
 		};
 
-		// stable-per-window offset for the plain Random mode (re-rolled per real packet)
-		static float flRandYaw = 0.f;
-		if( bSendPacket )
-			flRandYaw = ( ( AAHash( pCmd->command_number * 1103515245u + 12345u ) >> 16 ) & 0xFF ) * ( 360.f / 255.f ) - 180.f;
-
-		float flJitter = PRO.JitterAmount;
-		int   iJitterInterval = PRO.JitterInterval;
-		if( iJitterInterval < 1 ) iJitterInterval = 1;
-		float flSpinSpeed = g_CVars.Miscellaneous.AntiAim.AASpinSpeed;
-
-		auto ResolveYaw = [&]( int mode, float flCustom, int role ) -> float
-		{
-			switch( mode )
-			{
-				case 0: return pCmd->viewangles.y;			// camera
-				case 1: return yawBase;						// at target
-				case 2: return yawBase + 180.f;				// backwards
-				case 3: return yawBase + ( ( pCmd->command_number & 1 ) ? 90.f : -90.f );	// sideways flip
-				case 4: return yawBase + 180.f + flRandYaw;	// random, stable within one choke window
-				case 5: // jitter: alternates +-amount around the back every interval
-				{
-					int phase = ( pCmd->command_number / iJitterInterval ) & 1;
-					return yawBase + 180.f + ( phase ? flJitter : -flJitter );
-				}
-				case 6: // random jitter: fresh offset inside +-amount every interval
-				{
-					unsigned int n = AAHash( pCmd->command_number / iJitterInterval
-						+ ( ( unsigned int )role * 0x9E3779B1u ) );
-					float r = ( ( n >> 16 ) & 0xFF ) * ( 1.f / 255.f );
-					return yawBase + 180.f + ( r * 2.f - 1.f ) * flJitter;
-				}
-				case 7: // spin: sweeps the full circle, sudden per-tick steps
-				{
-					float f = fmodf( ( float )pCmd->command_number * flSpinSpeed, 360.f );
-					return yawBase + f - 180.f;
-				}
-				case 8: return yawBase + flCustom;			// custom offset
-			}
-			return yawBase + 180.f;
-		};
-
-		if( bSendPacket )
-			pCmd->viewangles.y = ResolveYaw( PRO.RealYawMode, PRO.RealCustom, 0 );
-		else
-			pCmd->viewangles.y = ResolveYaw( PRO.FakeYawMode, PRO.FakeCustom, 1 );
-
-		switch( PRO.PitchMode )
-		{
-			case 0: break;								// camera pitch
-			case 1: pCmd->viewangles.x = 89.f; break;				// down
-			case 2: pCmd->viewangles.x = -89.f; break;				// up
-			case 3: pCmd->viewangles.x = bSendPacket ? 89.f : -179.990005f; break;	// fake down
-			case 4: pCmd->viewangles.x = bSendPacket ? 89.f : 179.990005f; break;	// fake up
-			case 5: pCmd->viewangles.x = ( pCmd->command_number & 1 ) ? 89.f : -89.f; break;	// jitter fast
-			case 6: pCmd->viewangles.x = ( ( pCmd->command_number / iJitterInterval ) & 1 ) ? 89.f : -89.f; break;	// jitter slow
-			case 7: // random down/up
-			{
-				unsigned int n = AAHash( pCmd->command_number * 0x27D4EB2Fu );
-				pCmd->viewangles.x = ( ( ( n >> 16 ) & 0xFF ) * ( 1.f / 255.f ) > 0.5f ) ? 89.f : -89.f;
-			} break;
-			case 8: pCmd->viewangles.x = PRO.PitchCustom; break;
-		}
-
-		// network-grid quantization (Segregation Compress_Angle)
+		// network-grid quantization (Segregation Compress_Angle) - ONLY for yaw/z:
+		// the masked variant maps every negative pitch to its positive twin,
+		// which destroyed -179.99 (fake down became fake up)! Pitch gets a
+		// plain symmetric truncation instead, so the sign survives.
 		auto CompressAngle = []( float x, int shift ) -> float
 		{
 			return (float)( ( (int)( x / 360.f * (float)shift ) ) & ( shift - 1 ) ) * ( 360.f / (float)shift );
 		};
 
-		pCmd->viewangles.x = CompressAngle( pCmd->viewangles.x, 65536 );
+		// which side of the packet stream are we building
+		auto& SIDE = bSendPacket ? PRO.Real : PRO.Fake;
+
+		int iJitInterval = SIDE.JitterInterval;
+		if( iJitInterval < 1 ) iJitInterval = 1;
+
+		// ---- YAW base mode ----
+		float yawOut = pCmd->viewangles.y;
+		switch( SIDE.YawMode )
+		{
+			case 0: yawOut = pCmd->viewangles.y; break;						// camera
+			case 1: yawOut = yawBase; break;								// at target
+			case 2: yawOut = yawBase + 180.f; break;						// backwards
+			case 3: yawOut = yawBase + ( ( pCmd->command_number & 1 ) ? 90.f : -90.f ); break;	// sideways flip
+			case 4: // spin: sweeps the full circle, per-side speed
+			{
+				float f = fmodf( ( float )pCmd->command_number * SIDE.SpinSpeed, 360.f );
+				yawOut = yawBase + f - 180.f;
+			} break;
+			case 5: yawOut = yawBase + SIDE.YawCustom; break;				// custom offset
+		}
+
+		// ---- jitter wraps the yaw with per-side degrees ----
+		switch( SIDE.JitterMode )
+		{
+			case 1: // flip +/- amount every interval
+			{
+				int phase = ( pCmd->command_number / iJitInterval ) & 1;
+				yawOut += phase ? SIDE.JitterAmount : -SIDE.JitterAmount;
+			} break;
+			case 2: // random offset inside +/- amount every interval
+			{
+				unsigned int n = AAHash( pCmd->command_number / iJitInterval
+					+ ( ( unsigned int )( bSendPacket ? 0 : 1 ) * 0x9E3779B1u ) );
+				float r = ( ( n >> 16 ) & 0xFF ) * ( 1.f / 255.f );
+				yawOut += ( r * 2.f - 1.f ) * SIDE.JitterAmount;
+			} break;
+		}
+		pCmd->viewangles.y = yawOut;
+
+		// ---- PITCH ----
+		switch( SIDE.PitchMode )
+		{
+			case 0: break;															// camera
+			case 1: pCmd->viewangles.x = 89.f; break;								// down
+			case 2: pCmd->viewangles.x = -89.f; break;								// up
+			case 3: pCmd->viewangles.x = -179.990005f; break;						// fake down
+			case 4: pCmd->viewangles.x = 179.990005f; break;						// fake up
+			case 5: // jitter down/up, per-side interval
+			{
+				bool up = ( ( pCmd->command_number / iJitInterval ) & 1 ) != 0;
+				pCmd->viewangles.x = up ? -89.f : 89.f;
+			} break;
+			case 6: // random down/up
+			{
+				unsigned int n = AAHash( pCmd->command_number * 0x27D4EB2Fu );
+				pCmd->viewangles.x = ( ( ( n >> 16 ) & 0xFF ) > 127 ) ? 89.f : -89.f;
+			} break;
+			case 7: pCmd->viewangles.x = SIDE.PitchCustom; break;					// custom
+		}
+
+		pCmd->viewangles.x = (float)(int)( pCmd->viewangles.x / 360.f * 65536.f ) * ( 360.f / 65536.f );
 		pCmd->viewangles.y = CompressAngle( pCmd->viewangles.y, 65536 );
 		pCmd->viewangles.z = CompressAngle( pCmd->viewangles.z, 256 );
 	}
