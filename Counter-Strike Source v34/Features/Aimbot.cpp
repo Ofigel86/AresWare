@@ -160,40 +160,36 @@ void Aimbot::GetHitbox( int iHitbox, BasePlayer* Entity )
 				}
 			}
 		}
-		else
-		{
-			if( g_CVars.Aimbot.HitboxMode == 1 ) // Origin: aim at the exact bone origin
-			{
-				points[ 0 ] = Vector( 0.f, 0.f, 0.f );
-			}
-			else if( g_CVars.Aimbot.HitboxMode == 2 || g_CVars.Aimbot.HitboxMode == 3 )
-			{			
-				if( ( flPitch > 50.f ) && ( flPitch < 91.f ) )
-				{
-					points[ 0 ].x = studiobbox->bbmin.x * .75f;
-					points[ 0 ].y = studiobbox->bbmax.y * .75f; 
-					points[ 0 ].z = ( studiobbox->bbmin.z + studiobbox->bbmax.z ) * .5f;
-
-					if( g_CVars.Aimbot.HitboxMode == 2 ) points[ 0 ] += Vector( 0, .9f, .5f );
-				}
-				else if( ( flPitch >= -91.f ) && ( flPitch <= -50.f ) ) points[ 0 ].z -= 1.f;
-			}
-			else if( g_CVars.Aimbot.HitboxMode == 4 ) // Highest: Segregation aim-height fraction
-			{
-				// Segregation Interface_Aim_Height (default 0.9): Z = bbmin.z + (bbmax.z - bbmin.z) * h
-				float h = g_CVars.Aimbot.AimHeight;
-				if( h > 1.f ) h *= 0.01f; // tolerate % value in the ini
-				if( h < 0.f ) h = 0.f;
-				if( h > 1.f ) h = 1.f;
-				points[ 0 ] = Vector( vCenter.x, vCenter.y,
-					studiobbox->bbmin.z + ( studiobbox->bbmax.z - studiobbox->bbmin.z ) * h );
-			}
-		}
 	}
-	// other hitboxes keep the true local center: the old "points[0] += points[0]*.5"
-	// pushed the aim point 50% away from the bone origin, potentially outside the box
-
 	for( int index = 0; index <= 8; ++index ) VectorTransform( points[ index ], matrix[ studiobbox->bone ], vecCorners[ index ] );
+
+	// Segregation aim-height logic (their Interface_Aim_Height, default 0.9):
+	// pass every full-box corner through the bone matrix, find the REAL world-space
+	// Z extremes among the 8 vertices (their Hitbox_Z_Vertices / minmax_element),
+	// then aim at the vertical fraction between them:
+	//   Target[2] = Zmin + (Zmax - Zmin) * h   (Bones[14][2][3] is already in world Z).
+	if( g_CVars.Aimbot.HitboxMode != 0 )
+	{
+		float hFrac = g_CVars.Aimbot.AimHeight;
+		if( hFrac > 1.f ) hFrac *= 0.01f; // tolerate percent in the ini
+		if( hFrac < 0.f ) hFrac = 0.f;
+		if( hFrac > 1.f ) hFrac = 1.f;
+
+		Vector vCenterWorld;
+		VectorTransform( vCenter, matrix[ studiobbox->bone ], vCenterWorld );
+
+		float vZMin = 999999.f, vZMax = -999999.f;
+		for( int i = 0; i < 8; i++ )
+		{
+			Vector vCornerWorld;
+			VectorTransform( vCorners[ i ], matrix[ studiobbox->bone ], vCornerWorld );
+			if( vCornerWorld.z < vZMin ) vZMin = vCornerWorld.z;
+			if( vCornerWorld.z > vZMax ) vZMax = vCornerWorld.z;
+		}
+
+		vecCorners[ 0 ] = Vector( vCenterWorld.x, vCenterWorld.y,
+			vZMin + ( vZMax - vZMin ) * hFrac );
+	}
 
 	if( bAppliedRecord ) g_Stuff.ApplyTickRecord( Entity, &pBackupData[ Entity->entindex( ) ] );
 }
