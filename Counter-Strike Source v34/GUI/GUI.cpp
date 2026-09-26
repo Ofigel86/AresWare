@@ -305,8 +305,8 @@ static void RageAntiAim( void )
 {
 	static int s_AACond = 0;
 
-	// ---------------- header ----------------
-	ImGui::BeginChild( "Rage_AA_Header", ImVec2( 0, 100 ), true );
+	// ---------------- header (full width, fixed height) ----------------
+	ImGui::BeginChild( "Rage_AA_Header", ImVec2( 0, 110 ), true );
 	{
 		SectionHeader( "ANTI-AIM" );
 		ImGui::Checkbox( "Anti-Aim Active", &g_CVars.Miscellaneous.AntiAim.Active );
@@ -325,20 +325,21 @@ static void RageAntiAim( void )
 			g_CVars.Miscellaneous.AntiAim.ChokeEvery = s_ChokeIdx + 2;
 	}
 	ImGui::EndChild( );
-	ImGui::SameLine( );
 
-	// ---------------- two side tables ----------------
+	// ---------------- REAL (left) / FAKE (right), same fixed height ----------------
 	auto& aaPro = g_CVars.Miscellaneous.AntiAim.Conditions[ s_AACond ];
 
 	const char* aaPitchModes[] = { "Off", "Down", "Up", "Fake Down", "Fake Up", "Jitter", "Random", "Custom" };
 	const char* aaYawModes[]   = { "Off", "At Target", "Backwards", "Sideways", "Spin", "Custom" };
 	const char* aaJitModes[]   = { "Off", "Flip", "Random" };
 
-	auto DrawSide = [&]( auto& side, const char* tableId, int sideIdx )
+	const float sideHeight = 300.f;
+
+	auto DrawSide = [&]( auto& side, const char* tableId, const char* header, float halfWidth, int sideIdx )
 	{
-		float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemInnerSpacing.x ) * 0.5f;
-		ImGui::BeginChild( tableId, ImVec2( halfWidth, 0 ), true );
+		ImGui::BeginChild( tableId, ImVec2( halfWidth, sideHeight ), true );
 		{
+			SectionHeader( header );
 			char lbl[ 96 ];
 			#define AA_LBL( txt ) ( sprintf_s( lbl, sizeof( lbl ), "%s##c%ds%d", txt, s_AACond, sideIdx ), lbl )
 
@@ -363,16 +364,25 @@ static void RageAntiAim( void )
 		ImGui::EndChild( );
 	};
 
-	ImGui::BeginGroup( );
-	{
-		DrawSide( aaPro.Real, "Rage_AA_Real", 0 );
-		ImGui::SameLine( );
-		DrawSide( aaPro.Fake, "Rage_AA_Fake", 1 );
-	}
-	ImGui::EndGroup( );
+	float halfWidth = ( ImGui::GetContentRegionAvail( ).x - ImGui::GetStyle( ).ItemInnerSpacing.x ) * 0.5f;
+	DrawSide( aaPro.Real, "Rage_AA_Real", "REAL (SENT)", halfWidth, 0 );
+	ImGui::SameLine( );
+	DrawSide( aaPro.Fake, "Rage_AA_Fake", "FAKE (CHOKED)", halfWidth, 1 );
 
-	// ---------------- fakelag, 3rd table at the bottom ----------------
-	ImGui::BeginChild( "Rage_AA_Fakelag", ImVec2( 0, 190 ), true );
+	// ---------------- FAKELAG, 3rd table at the bottom ----------------
+	ImGui::BeginChild( "Rage_AA_Fakelag", ImVec2( 0, 195 ), true );
+	{
+		SectionHeader( "FAKE LAG" );
+		ImGui::Checkbox( "Fake Lag Active", &g_CVars.Miscellaneous.Fakelag.Active );
+		ImGui::Checkbox( "Fake Lag In Attack", &g_CVars.Miscellaneous.Fakelag.InAttack );
+		ImGui::Checkbox( "Fake Lag Air Only", &g_CVars.Miscellaneous.Fakelag.AirOnly );
+		ImGui::SliderInt( "Choke Ticks", &g_CVars.Miscellaneous.Fakelag.Value, 0, 14 );
+
+		const char* fakelagModes[] = { "Factor", "Switch", "Adaptive", "Segregation" };
+		ImGui::Combo( "Fake Lag Mode", &g_CVars.Miscellaneous.Fakelag.Mode, fakelagModes, IM_ARRAYSIZE( fakelagModes ) );
+		ImGui::SliderInt( "Min Choked", &g_CVars.Miscellaneous.Fakelag.Min, 0, 14 );
+		ImGui::SliderInt( "Max Choked", &g_CVars.Miscellaneous.Fakelag.Max, 1, 15 );
+	}
 	ImGui::EndChild( );
 }
 
