@@ -652,3 +652,93 @@ void GUI::RenderConfigsTab( void )
 	}
 	ImGui::EndChild( );
 }
+// ---------------------------------------------------------------------------
+// vgui-independent ESP fallback: the classic vgui path (PaintTraverse top
+// panel) stays, but on this build it produced nothing at all, so the same
+// player visuals are also drawn through the ImGui pipeline that the menu
+// already proves to work. Box/Name/Health are covered here; bone lines and
+// aim-spot remain on the vgui path.
+// ---------------------------------------------------------------------------
+void GUI::DrawImGuiESP( void )
+{
+	if( !g_pGlobals || !g_pEngineClient || !g_pClientEntityList ) return;
+	if( !g_pEngineClient->IsInGame( ) ) return;
+
+	if( !g_CVars.Visuals.ESP.Box && !g_CVars.Visuals.ESP.Name && !g_CVars.Visuals.ESP.Health ) return;
+
+	ImDrawList* pDraw = ImGui::GetBackgroundDrawList( );
+	if( !pDraw ) return;
+
+	BasePlayer* LocalPlayer = ( BasePlayer* )g_pClientEntityList->GetClientEntity( g_pEngineClient->GetLocalPlayer( ) );
+	if( !LocalPlayer ) return;
+
+	for( int Index = 1; Index <= g_pGlobals->maxClients; Index++ )
+	{
+		BasePlayer* Ent = ( BasePlayer* )g_pClientEntityList->GetClientEntity( Index );
+		if( !Ent || Ent == LocalPlayer ) continue;
+		if( Ent->IsDormant( ) ) continue;
+		if( Ent->m_lifeState( ) != 0 ) continue;
+		if( g_CVars.Visuals.ESP.EnemyOnly && Ent->m_iTeamNum( ) == LocalPlayer->m_iTeamNum( ) ) continue;
+
+		Color colour = Color::White( );
+		if( !g_CVars.PlayerList.Friend[ Index ] )
+		{
+			if( Ent->m_iTeamNum( ) == 2 ) colour = g_CVars.ColorSelector.ESP.TT;
+			else if( Ent->m_iTeamNum( ) == 3 ) colour = g_CVars.ColorSelector.ESP.CT;
+		}
+
+		Vector vFoot = Ent->GetAbsOrigin( );
+		bool bDucking = ( Ent->m_fFlags( ) & FL_DUCKING ) != 0;
+		Vector vHead = vFoot + Vector( 0.f, 0.f, bDucking ? 53.5f : 72.f );
+
+		Vector sFoot, sHead;
+		if( !g_Stuff.WorldToScreen( vFoot, sFoot ) ) continue;
+		if( !g_Stuff.WorldToScreen( vHead, sHead ) ) continue;
+
+		float Height = sFoot.y - sHead.y;
+		float HalfW = Height * .225f;
+		if( bDucking ) HalfW *= 1.345794392523364f;
+		if( Height < 2.f ) continue;
+
+		float x = sHead.x - HalfW;
+		float y = sHead.y;
+		float w = HalfW * 2.f;
+
+		const ImU32 colMain = IM_COL32( ( int )colour.r( ), ( int )colour.g( ), ( int )colour.b( ), 210 );
+		const ImU32 colDark = IM_COL32( 0, 0, 0, 160 );
+
+		if( g_CVars.Visuals.ESP.Box )
+		{
+			pDraw->AddRect( ImVec2( x - 1.f, y - 1.f ), ImVec2( x + w + 1.f, y + Height + 1.f ), colDark );
+			pDraw->AddRect( ImVec2( x + 1.f, y + 1.f ), ImVec2( x + w - 1.f, y + Height - 1.f ), colDark );
+			pDraw->AddRect( ImVec2( x, y ), ImVec2( x + w, y + Height ), colMain );
+		}
+
+		if( g_CVars.Visuals.ESP.Name )
+		{
+			player_info_t PlayerInfo;
+			if( g_pEngineClient->GetPlayerInfo( Index, &PlayerInfo ) )
+			{
+				const ImVec2 ts = ImGui::CalcTextSize( PlayerInfo.name );
+				pDraw->AddText( ImVec2( sHead.x - ts.x * .5f + 1.f, y - 13.f + 1.f ), colDark, PlayerInfo.name );
+				pDraw->AddText( ImVec2( sHead.x - ts.x * .5f, y - 13.f ), IM_COL32( 255, 255, 255, 225 ), PlayerInfo.name );
+			}
+		}
+
+		if( g_CVars.Visuals.ESP.Health )
+		{
+			int Health = Ent->m_iHealth( );
+			if( Health > 0 )
+			{
+				if( Health > 100 ) Health = 100;
+				const float frac = Health / 100.f;
+				const int   Scale = ( int )( Health * 2.55f );
+				const float by = y + Height + 3.f;
+
+				pDraw->AddRectFilled( ImVec2( x - 1.f, by - 1.f ), ImVec2( x + w + 1.f, by + 3.f ), IM_COL32( 0, 0, 0, 140 ) );
+				pDraw->AddRectFilled( ImVec2( x, by ), ImVec2( x + w * frac, by + 2.f ),
+					IM_COL32( 255 - Scale, Scale, 0, 190 ) );
+			}
+		}
+	}
+}

@@ -124,6 +124,7 @@ HRESULT __stdcall Hooked_EndScene( IDirect3DDevice9* pDevice )
 		ImGui_ImplWin32_NewFrame( );
 		ImGui::NewFrame( );
 
+		g_GUI.DrawImGuiESP( );
 		g_GUI.DrawImGui( );
 
 		ImGui::EndFrame( );

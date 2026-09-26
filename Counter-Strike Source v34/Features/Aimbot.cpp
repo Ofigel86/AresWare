@@ -413,8 +413,49 @@ int Rate( BasePlayer* LocalPlayer, BasePlayer* Ent )
 	return rate;
 }
 
+// lightweight profiler for the aimbot cost suspicion: accumulates an EMA and
+// the worst tick, then emits one [perf] line every 15 s into AresWare.log
+namespace
+{
+	struct AimbotPerfScope
+	{
+		LARGE_INTEGER t0;
+
+		AimbotPerfScope( ) { QueryPerformanceCounter( &t0 ); }
+
+		~AimbotPerfScope( )
+		{
+			LARGE_INTEGER t1, freq;
+			QueryPerformanceCounter( &t1 );
+			QueryPerformanceFrequency( &freq );
+
+			const double ms = ( double )( t1.QuadPart - t0.QuadPart ) * 1000.0 / ( double )freq.QuadPart;
+
+			static double ema = 0.0, worst = 0.0;
+			static int calls = 0;
+			static ULONGLONG lastLog = 0;
+
+			ema = ( ema == 0.0 ) ? ms : ( ema * 0.95 + ms * 0.05 );
+			if( ms > worst ) worst = ms;
+			calls++;
+
+			const ULONGLONG now = GetTickCount64( );
+			if( lastLog && now - lastLog > 15000 )
+			{
+				Logger::Write( "[perf] Aimbot::Main avg %.3f ms / worst %.3f ms over %d calls in 15 s",
+					( float )ema, ( float )worst, calls );
+				worst = 0.0;
+				calls = 0;
+			}
+			if( !lastLog ) lastLog = now;
+		}
+	};
+}
+
 void Aimbot::Main( CUserCmd* pCmd, BasePlayer* LocalPlayer )
 {
+	AimbotPerfScope _perfScope;
+
 	CSWeapon* Weapon = ( CSWeapon* ) LocalPlayer->GetActiveBaseCombatWeapon( );
 	if( !Weapon || !Weapon->IsWeapon( ) ) return;
 
